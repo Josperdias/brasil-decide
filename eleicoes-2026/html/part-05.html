@@ -1,6 +1,75 @@
-nst changed=oldSig!==signature(st.presBR);$('statusText').textContent=offline?'Sem conexão • último resultado salvo':failures.length?'Online • dados parciais':changed?'Ao vivo • dados novos':'Ao vivo • TSE sem mudança';$('statusSub').textContent=failures.length?`${failures.length} arquivos serão tentados de novo`:'dados oficiais • sem projeção';if(offline)setNotice('Não foi possível falar com o TSE agora. Exibindo o último resultado válido salvo neste aparelho; nova tentativa automática.');else if(failures.length)setNotice(`Alguns arquivos não responderam nesta rodada (${failures.length}). Os últimos dados válidos foram mantidos.`)}
+${cd.est} (estadual)`}
+async function setTurn(t){t=t===2?2:1;if(t===st.turn)return;saveBucket();st.turn=t;try{localStorage.setItem('eleTurn',String(t))}catch(e){}Object.assign(st,st.buckets[t]||emptyBucket(t));if(!st.presBR)loadCache();updateTurnUI();renderAll();st.nextAt=Date.now();refresh()}
+
+/* ---------- consulta ao TSE (por turno) ---------- */
+function fillAbsent(R,key,uf){R[key][uf]=true}
+async function refresh(){if(st.busy)return;st.busy=true;await loadElectionConfig();updateTurnUI();
+ const turn=st.turn,cd=codesFor(turn),began=performance.now();st.waiting=false;$('refreshBtn').disabled=true;$('statusText').textContent='Consultando o TSE…';setNotice('');
+ const oldPres=clone(st.presBR),oldStates=clone(st.states),oldSig=signature(st.presBR),failures=[];let waiting=false;const R={presBR:null,states:{},gov:{},govAbsent:{},dfx:null},dfUf=st.dfUf;
+ try{
+  const br=await getResult(resultURL(cd.fed,'br',1),{cargo:1,e:cd.fed,abr:'br',photoAbr:'br'},60000);
+  if(br.d)R.presBR=br.d;else if(br.absent)waiting=true;else failures.push('Brasil');
+  if(!waiting){
+   const codes=Object.keys(UFS),sr=await mapLimit(codes,8,uf=>getResult(resultURL(cd.fed,uf.toLowerCase(),1),{cargo:1,e:cd.fed,abr:uf.toLowerCase(),photoAbr:'br'}));
+   sr.forEach((r,i)=>{const v=r.value;if(r.status!=='fulfilled'||v.error)failures.push(codes[i]);else if(v.d)R.states[codes[i]]=v.d});
+   if(st.mapMode==='gov'){const gr=await mapLimit(codes,8,uf=>getResult(resultURL(cd.est,uf.toLowerCase(),3),{cargo:3,e:cd.est,abr:uf.toLowerCase(),photoAbr:uf.toLowerCase()}));gr.forEach((r,i)=>{const v=r.value,uf=codes[i];if(r.status!=='fulfilled'||v.error)failures.push('Gov '+uf);else if(v.d)R.gov[uf]=v.d;else if(v.absent)R.govAbsent[uf]=true})}
+   R.dfx=await fetchDF(dfUf,turn,cd);failures.push(...R.dfx.fail);
+  }
+ }catch(e){failures.push('rede');st.lastError=String(e&&e.message||e)}
+ if(turn!==st.turn){st.busy=false;st.nextAt=Date.now();$('refreshBtn').disabled=false;return}
+ if(R.presBR){mark('presBR',R.presBR);st.presBR=R.presBR}
+ for(const[uf,d]of Object.entries(R.states)){mark('uf-'+uf,d);st.states[uf]=d;recordHist('pres',uf,d)}
+ for(const[uf,d]of Object.entries(R.gov)){mark('gov-'+uf,d);st.gov[uf]=d;recordHist('gov',uf,d)}
+ Object.assign(st.govAbsent,R.govAbsent);for(const uf of Object.keys(R.gov))delete st.govAbsent[uf];
+ if(R.dfx)putDF(dfUf,R.dfx);
+ st.lastPoll=new Date();st.lastPollMs=Math.round(performance.now()-began);if(!st.lastDataChange&&st.presBR)st.lastDataChange=new Date();
+ let delay=st.interval;
+ if(waiting){delay=Math.max(st.interval,60000);$('statusText').textContent=`${turn}º turno • aguardando arquivos do TSE`;$('statusSub').textContent='cargo sem arquivo publicado ainda';setNotice(`O TSE ainda não publicou o resultado presidencial do ${turn}º turno (códigos ${cd.fed}/${cd.est}). Para evitar erros 404 repetidos, o painel consulta novamente em ${Math.round(delay/1000)} s.`)}
+ else{const offline=!R.presBR&&!Object.keys(R.states).length&&failures.length;const changed=oldSig!==signature(st.presBR);$('statusText').textContent=offline?'Sem conexão • último resultado salvo':failures.length?'Online • dados parciais':changed?'Ao vivo • dados novos':'Ao vivo • TSE sem mudança';$('statusSub').textContent=failures.length?`${failures.length} arquivos serão tentados de novo`:'dados oficiais • sem projeção';if(offline)setNotice('Não foi possível falar com o TSE agora. Exibindo o último resultado válido salvo neste aparelho; nova tentativa automática.');else if(failures.length)setNotice(`Alguns arquivos não responderam nesta rodada (${failures.length}). Os últimos dados válidos foram mantidos.`)}
  st.waiting=waiting;st.nextAt=Date.now()+delay;updateLeaders();buildPulse(oldPres,oldStates);maybeHistory(oldSig);renderAll();saveCache();saveUfHist();st.busy=false;$('refreshBtn').disabled=false}
-function renderAll(){renderNational();renderEvents();renderPulseStats();renderHistory();renderStatePulse();renderMosaic();renderRegions();renderStates();renderDF();renderSummary();renderCompare();renderMap();renderDiag();refreshSheet()}
+/* ---------- 2º turno: faixa da data + card "Quem disputa o 2º turno" ---------- */
+const ROUND2='2026-10-25',R2_EVERY=5*60*1000,R2RE=/2\s*[ºo°]\s*turno/i,ELEITO_RE=/eleit/i,NELEITO_RE=/n[ãa]o\s+eleit/i;
+function todaySP(){try{const p={};for(const x of new Intl.DateTimeFormat('en-CA',{timeZone:'America/Sao_Paulo',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()))p[x.type]=x.value;if(p.year&&p.month&&p.day)return`${p.year}-${p.month}-${p.day}`}catch(e){}const d=new Date();return`${d.getFullYear()}-${pad(d.getMonth()+1,2)}-${pad(d.getDate(),2)}`}
+const dayNum=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v);return m?Date.UTC(+m[1],+m[2]-1,+m[3])/864e5:NaN};
+function renderRoundBar(){const el=$('round2Bar');if(!el)return;const[y,m,d]=ROUND2.split('-'),br=`${d}/${m}/${y}`,left=Math.round(dayNum(ROUND2)-dayNum(todaySP()));let wd='';try{wd=new Date(Date.UTC(+y,+m-1,+d)).toLocaleDateString('pt-BR',{weekday:'long',timeZone:'UTC'})}catch(e){}
+ const head=`🗳️ <b>2º turno:</b> ${wd?esc(wd)+', ':''}${br}`;let h,cls='round2-bar';
+ if(!(left>=0)&&!(left<0))h=head;else if(left<0){h=`🗳️ <b>2º turno realizado</b> em ${br}`;cls+=' done'}else if(left===0){h=`${head} <span class="r2b-cnt">• é hoje!</span>`;cls+=' today'}else h=`${head} <span class="r2b-cnt">• ${left===1?'falta 1 dia':'faltam '+left+' dias'}</span>`;
+ if(el.className!==cls)el.className=cls;if(el.innerHTML!==h)el.innerHTML=h}
+/* classificação de um resultado de 1º turno: r2 = vai a 2º turno | win = eleito no 1º | wait = em apuração/sem dados */
+function roundClass(d){const cs=d&&d.cands;if(!cs||!cs.length)return'wait';if(cs.some(c=>R2RE.test(c.sit||'')))return'r2';if(cs.some(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||'')))return'win';const t=cs[0];if(!(t.votos>0))return'wait';const p=d.progress||0;if(t.pct>50)return p>=99||d.final?'win':'wait';return p>=99?'r2':'wait'}
+function r2Pick(d){const cs=d.cands||[];return cs.filter(c=>R2RE.test(c.sit||'')).concat(cs.filter(c=>!R2RE.test(c.sit||''))).slice(0,2)}
+const r2c=c=>`<div class="r2c"><i style="background:${candColor(c.nome)}"></i><span class="r2n">${esc(c.nome)}<small>${esc(c.partido)}</small></span><b>${fmtPct(c.pct)}</b></div>`;
+const roundPresData=()=>st.turn===1?st.presBR:(st.roundPres||(st.buckets[1]&&st.buckets[1].presBR)||null);
+const roundGovData=uf=>st.roundGov[uf]||(st.turn===1?st.gov[uf]:(st.buckets[1]&&st.buckets[1].gov&&st.buckets[1].gov[uf]))||null;
+function r2PresHTML(){const d=roundPresData(),k=roundClass(d);let b;
+ if(k==='r2')b=`<div class="r2cs">${r2Pick(d).map(r2c).join('')}</div><div class="r2s">Resultado do 1º turno • ${fmtPct(d.progress)} apurado</div>`;
+ else if(k==='win'){const w=d.cands.find(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||''))||d.cands[0];b=`<div class="r2ok">Definido no 1º turno</div><div class="r2cs">${r2c(w)}</div>`}
+ else b=`<div class="r2ok wait">Aguardando apuração${d?' • '+fmtPct(d.progress)+' apurado':''}</div>`;
+ return`<h4>🇧🇷 Presidente</h4>${b}`}
+function r2GovHTML(){const g={r2:[],win:[],wait:[]},R=st.round;let have=0;
+ for(const uf of Object.keys(UFS).sort()){const d=roundGovData(uf);if(d)have++;g[roundClass(d)].push({uf,d})}
+ if(!have&&R.busy)return'<h4>🏢 Governadores</h4><div class="loading">Carregando governadores…</div>';
+ if(!have)return`<h4>🏢 Governadores</h4><div class="empty">Sem dados de governador ainda${st.roundGovAbs&&Object.keys(st.roundGovAbs).length?' (arquivos não publicados)':''}. Tentaremos de novo.</div>`;
+ const n=g.r2.length,sub=`${g.win.length} eleito${g.win.length===1?'':'s'} no 1º turno • ${g.wait.length} em apuração`;
+ const uh=({uf,d})=>`<button type="button" class="r2uf" data-uf="${uf}" aria-label="${esc(UFS[uf][0])}: detalhes"><div class="r2uh"><b>${uf}</b><span>${esc(UFS[uf][0])}</span><em>${fmtPct(d.progress)}</em></div><div class="r2cs">${r2Pick(d).map(r2c).join('')}</div></button>`;
+ const row=({uf,d},tag)=>{const c=d&&d.cands&&(tag==='win'?(d.cands.find(x=>ELEITO_RE.test(x.sit||'')&&!NELEITO_RE.test(x.sit||''))||d.cands[0]):d.cands[0]);return`<button type="button" class="r2row" data-uf="${uf}"><b>${uf}</b><span class="r2n">${c&&c.votos>0||tag==='win'&&c?esc(c.nome)+'<small>'+esc(c.partido)+' • '+fmtPct(c.pct)+'</small>':'Aguardando dados'}</span><em>${tag==='win'?'<span class="tag good">Eleito</span>':d?fmtPct(d.progress)+' apurado':'—'}</em></button>`};
+ const more=g.win.length||g.wait.length?`<details class="r2more"${st.r2Open?' open':''}><summary>Eleitos no 1º turno e em apuração (${g.win.length+g.wait.length})</summary>${g.win.length?`<h4>Eleito no 1º turno (${g.win.length})</h4>${g.win.map(x=>row(x,'win')).join('')}`:''}${g.wait.length?`<h4>Apuração em andamento (${g.wait.length})</h4>${g.wait.map(x=>row(x,'wait')).join('')}`:''}</details>`:'';
+ return`<h4>🏢 Governadores</h4><div class="r2cnt"><b>${n}</b> ${n===1?'estado vai':'estados vão'} a 2º turno</div><div class="r2s">${sub}${R.fail?` • ${R.fail} UF${R.fail>1?'s':''} sem resposta`:''}</div>${n?`<div class="r2list">${g.r2.map(uh).join('')}</div>`:'<div class="empty" style="margin-top:8px">Nenhum estado confirmado para 2º turno até agora.</div>'}${more}`}
+let r2Last='';
+function renderRound2(){const el=$('round2Card');if(!el)return;const h=`<div class="card-head" style="padding:0"><div class="head-left"><div class="icon">🗳️</div><div><h3>Quem disputa o 2º turno</h3><div class="sub">Com base no resultado do 1º turno • TSE</div></div></div></div>${r2PresHTML()}${r2GovHTML()}<div class="r2note">Senado e Câmara/Assembleias não têm 2º turno (turno único). Fonte: TSE.</div>`;if(h===r2Last)return;r2Last=h;el.innerHTML=h}
+async function loadRoundPres(){const R=st.round;if(R.presBusy)return;R.presBusy=true;R.presAt=Date.now();try{await loadElectionConfig();const cd=codesFor(1),r=await getResult(resultURL(cd.fed,'br',1),{cargo:1,e:cd.fed,abr:'br',photoAbr:'br'},60000);if(r.d)st.roundPres=r.d}catch(e){}finally{R.presBusy=false;renderRound2()}}
+async function loadRound(){const R=st.round;if(R.busy)return;R.busy=true;R.due=Date.now()+R2_EVERY;renderRound2();
+ try{await loadElectionConfig();const cd=codesFor(1),codes=Object.keys(UFS),gr=await mapLimit(codes,8,uf=>getResult(resultURL(cd.est,uf.toLowerCase(),3),{cargo:3,e:cd.est,abr:uf.toLowerCase(),photoAbr:uf.toLowerCase()}));let fail=0;
+  gr.forEach((r,i)=>{const v=r.value,uf=codes[i];if(r.status!=='fulfilled'||v.error)fail++;else if(v.d){st.roundGov[uf]=v.d;delete st.roundGovAbs[uf]}else if(v.absent)st.roundGovAbs[uf]=true});
+  R.fail=fail;R.at=Date.now();if(fail===codes.length)R.due=Date.now()+60000;
+  if(st.turn===2)await loadRoundPres()}
+ catch(e){st.lastError=String(e&&e.message||e);R.due=Date.now()+60000}
+ finally{R.busy=false;renderRound2()}}
+/* carrega quando o card está visível (aba Mapa), 1x e a cada ~5 min; sem timers extras de rede */
+function roundTick(){const el=$('round2Card');if(!el||document.hidden||!el.getClientRects().length)return;const R=st.round;if(R.busy)return;if(Date.now()>=R.due)loadRound();else if(st.turn===2&&!roundPresData()&&!R.presBusy&&Date.now()-R.presAt>60000)loadRoundPres()}
+function openRoundUF(uf){if(!UFS[uf])return;if(st.mapMode!=='gov')setMapMode('gov');selectUF(uf,true);if(!window.matchMedia('(max-width:900px)').matches)$('mapMode').scrollIntoView({behavior:'smooth',block:'start'})}
+function setupRound(){const c=$('round2Card');c.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(b)openRoundUF(b.dataset.uf)});c.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('r2more'))st.r2Open=e.target.open},true);renderRoundBar();renderRound2();setInterval(renderRoundBar,60000);setInterval(roundTick,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){renderRoundBar();roundTick()}})}
+function renderAll(){renderNational();renderEvents();renderPulseStats();renderHistory();renderStatePulse();renderMosaic();renderRegions();renderStates();renderDF();renderSummary();renderCompare();renderMap();renderRound2();renderDiag();refreshSheet()}
 function tick(){const s=Math.max(0,Math.ceil((st.nextAt-Date.now())/1000));$('nextPoll').textContent=`próxima consulta em ${s}s`;if(s<=0&&!document.hidden)refresh()}
 function setupCompare(){const opts=Object.keys(UFS).map(uf=>`<option value="${uf}">${uf} · ${esc(UFS[uf][0])}</option>`).join('');$('compareA').innerHTML=opts;$('compareB').innerHTML=opts;$('compareA').value=localStorage.getItem('cmpA')||'DF';$('compareB').value=localStorage.getItem('cmpB')||'SP';$('compareA').onchange=()=>{localStorage.setItem('cmpA',$('compareA').value);renderCompare()};$('compareB').onchange=()=>{localStorage.setItem('cmpB',$('compareB').value);renderCompare()}}
 function renderCompare(){const a=$('compareA').value||'DF',b=$('compareB').value||'SP',da=st.states[a],db=st.states[b];const side=(uf,d)=>`<div class="compare-side"><h4>${uf} · ${esc(UFS[uf][0])}</h4><div class="sub">${d?fmtPct(d.progress):'—'} apurado</div>${d?d.cands.slice(0,3).map((c,i)=>`<div class="compare-c"><span>${i+1}. ${esc(c.nome)}</span><b>${fmtPct(c.pct)}</b></div>`).join(''):'<div class="empty">Carregando…</div>'}</div>`;$('compareView').innerHTML=side(a,da)+side(b,db)}
@@ -29,52 +98,4 @@ const NEWS_SRC=[
  {id:'dwen',label:'DW (EN)',kind:'rss',url:'https://rss.dw.com/xml/rss-en-world',lang:'en',cc:'DE',kw:KW_BRAZIL,feeds:['world']},
  {id:'ajz',label:'Al Jazeera',kind:'rss',url:'https://www.aljazeera.com/xml/rss/all.xml',lang:'en',cc:'QA',kw:KW_BRAZIL,feeds:['world']},
  {id:'gn-mk-pt',label:'Google News (PT) • mercado',kind:'gn',url:GN.pt('eleição dólar Ibovespa juros mercado when:2d'),lang:'pt',cc:'BR',feeds:['markets']},
- {id:'gn-mk-en',label:'Google News (EN) • markets',kind:'gn',url:GN.en('Brazil election real markets stocks when:2d'),lang:'en',cc:'US',feeds:['markets']},
- {id:'infomoney',label:'InfoMoney',kind:'rss',url:'https://www.infomoney.com.br/feed/',lang:'pt',cc:'BR',kw:KW_ELEC,feeds:['markets']},
- {id:'moneytimes',label:'Money Times',kind:'rss',url:'https://www.moneytimes.com.br/feed/',lang:'pt',cc:'BR',kw:KW_ELEC,feeds:['markets']},
- {id:'gn-op-pt',label:'Google News (PT) • análises',kind:'gn',url:GN.pt('(opinião OR análise OR editorial OR coluna) eleições 2026 when:3d'),lang:'pt',cc:'BR',feeds:['opinions']},
- {id:'gn-op-en',label:'Google News (EN) • analysis',kind:'gn',url:GN.en('(opinion OR analysis OR editorial) Brazil election when:3d'),lang:'en',cc:'US',feeds:['opinions']},
- {id:'folha-op',label:'Folha — Opinião',kind:'rss',url:'https://feeds.folha.uol.com.br/opiniao/rss091.xml',lang:'pt',cc:'BR',kw:KW_ELEC,feeds:['opinions'],hint:'Opinião'},
- {id:'guard-op',label:'The Guardian — Opinion',kind:'rss',url:'https://www.theguardian.com/commentisfree/rss',lang:'en',cc:'GB',kw:KW_BRAZIL,feeds:['opinions'],hint:'Opinião'},
- {id:'nyt-op',label:'New York Times — Opinion',kind:'rss',url:'https://rss.nytimes.com/services/xml/rss/nyt/Opinion.xml',lang:'en',cc:'US',kw:KW_BRAZIL,feeds:['opinions'],hint:'Opinião'}
-];
-const GDELT_Q={world:'"Brazil election"',brasil:'("Brazil election" OR "eleições 2026") sourcecountry:BR',markets:'"Brazil election" (market OR economy OR fiscal OR currency OR stocks)',opinions:'"Brazil election" (opinion OR analysis OR editorial OR commentary OR column)'};
-const CORS_PROXIES=[u=>'https://api.allorigins.win/raw?url='+encodeURIComponent(u),u=>'https://corsproxy.io/?url='+encodeURIComponent(u)];
-const LANG_NAME={pt:'PT',en:'EN',es:'ES'};
-async function feedText(url){try{return await httpText(url,{timeout:15000,accept:'application/rss+xml, application/xml, text/xml, */*'})}catch(e){if(NATIVE)throw e;let last=e;for(const px of CORS_PROXIES){try{return await httpText(px(url),{timeout:15000})}catch(e2){last=e2}}throw last}}
-const stripHtml=h=>{try{const d=new DOMParser().parseFromString(String(h||''),'text/html');return(d.body.textContent||'').replace(/\u00a0/g,' ').replace(/\s+\n/g,'\n').replace(/[ \t]+/g,' ').trim()}catch(e){return String(h||'').replace(/<[^>]+>/g,' ').trim()}};
-const normT=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
-function parseFeed(txt){const doc=new DOMParser().parseFromString(txt,'text/xml');if(doc.getElementsByTagName('parsererror').length)throw new Error('xml inválido');
- return[...doc.getElementsByTagName('item'),...doc.getElementsByTagName('entry')].map(it=>{const g=n=>{const e=it.getElementsByTagName(n)[0];return e?(e.textContent||'').trim():''},lk=it.getElementsByTagName('link')[0];let link=lk?(lk.getAttribute('href')||lk.textContent||'').trim():'';const th=it.getElementsByTagName('media:thumbnail')[0]||it.getElementsByTagName('media:content')[0],enc=it.getElementsByTagName('enclosure')[0];let img=th&&th.getAttribute('url')||(enc&&/image/.test(enc.getAttribute('type')||'')?enc.getAttribute('url'):'')||'';
-  return{title:stripHtml(g('title')),link,date:g('pubDate')||g('published')||g('updated')||g('dc:date'),desc:g('description')||g('summary'),full:g('content:encoded')||g('content'),source:g('source'),cats:[...it.getElementsByTagName('category')].map(c=>(c.textContent||'').trim()).filter(Boolean).slice(0,4),img}})}
-const OP_RE=/opini[aã]o|opinion|editorial|colun[ai]|commentary|\bop-?ed\b|ponto de vista|\bcolumn\b|artigo de|commentisfree|\/opiniao\/|\/opinion\//i,AN_RE=/an[aá]lise|analysis|explainer|entenda|explica|\banalysis\b/i;
-function classify(a,hint){const t=`${a.title} ${a.url} ${(a.cats||[]).join(' ')}`;if(OP_RE.test(t))return'Opinião';if(AN_RE.test(t))return'Análise';return hint||'Notícia'}
-function toArticle(raw,src){let title=raw.title,source=raw.source;if(!source&&src.kind==='gn'){const i=title.lastIndexOf(' - ');if(i>10){source=title.slice(i+3);title=title.slice(0,i)}}else if(src.kind==='gn'&&source&&title.endsWith(' - '+source))title=title.slice(0,-(source.length+3));
- const ts=Date.parse(raw.date)||0;let desc=stripHtml(raw.desc),body=stripHtml(raw.full);const nt=normT(title);if(!desc||normT(desc).startsWith(nt)&&normT(desc).length<nt.length+source.length+8)desc='';if(body&&normT(body)===normT(desc))body='';
- if(desc.length>600)desc=desc.slice(0,600).replace(/\s+\S*$/,'')+'…';if(body.length>3500)body=body.slice(0,3500).replace(/\s+\S*$/,'')+'…';
- const a={title,url:raw.link,source:source||src.label,srcId:src.id,cc:src.cc,lang:src.lang,ts,desc,body,img:raw.img||'',cats:raw.cats};a.kind=classify(a,src.hint);return a}
-async function loadSource(src){const txt=await feedText(src.url),items=parseFeed(txt).filter(x=>x.title&&x.link).map(x=>toArticle(x,src));const now=Date.now();return items.filter(a=>(!a.ts||now-a.ts<4*86400e3)&&(!src.kw||src.kw.test(`${a.title} ${a.desc}`)))}
-function gdeltTs(s){const m=String(s||'').match(/(\d{4})(\d{2})(\d{2})T?(\d{2})(\d{2})(\d{2})/);return m?Date.parse(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`):0}
-async function loadGdelt(feed){const url=`https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(GDELT_Q[feed])}&mode=ArtList&maxrecords=60&format=json&timespan=24h&sort=datedesc`;const j=JSON.parse((await httpText(url,{timeout:15000,accept:'application/json'})).replace(/^﻿/,''));return(j.articles||[]).map(x=>{const a={title:String(x.title||'').trim(),url:x.url,source:x.domain||'GDELT',srcId:'gdelt',cc:x.sourcecountry||'',lang:(x.language||'').slice(0,2).toLowerCase(),ts:gdeltTs(x.seendate),desc:'',body:'',img:x.socialimage||'',cats:[]};a.kind=classify(a,'');return a}).filter(a=>a.title&&a.url)}
-function dedupe(arts){const seenU=new Set(),seenT=new Set(),out=[];for(const a of arts.sort((x,y)=>(y.ts||0)-(x.ts||0))){const u=String(a.url||'').replace(/[?#].*$/,'').toLowerCase(),t=normT(a.title).slice(0,90);if(!a.title||seenU.has(u)||seenT.has(t))continue;seenU.add(u);seenT.add(t);out.push(a)}return out}
-function diversify(arts,per=3,cap=60){const cnt={},out=[];for(const a of arts){const k=a.source;if((cnt[k]||0)>=per)continue;cnt[k]=(cnt[k]||0)+1;out.push(a);if(out.length>=cap)break}return out}
-async function refreshNews(force=false){if(st.newsBusy)return;const feed=st.newsFeed,cached=st.news.feeds[feed];if(!force&&cached&&Date.now()-cached.at<5*60*1000&&cached.articles.length){renderNews();return}
- st.newsBusy=true;$('newsStatus').textContent='Buscando em várias fontes…';if(cached)renderNews();
- try{const srcs=NEWS_SRC.filter(s=>s.feeds.includes(feed)),health=[];let all=[];
-  const rs=await mapLimit(srcs,4,async s=>{const a=await loadSource(s);return a});
-  rs.forEach((r,i)=>{const s=srcs[i];if(r.status==='fulfilled'){all.push(...r.value);health.push({id:s.id,label:s.label,ok:true,n:r.value.length})}else health.push({id:s.id,label:s.label,ok:false,err:String(r.reason&&r.reason.message||r.reason)})});
-  let gd=null;if(feed==='world'||all.length<8){try{const g=await loadGdelt(feed);all.push(...g);health.push({id:'gdelt',label:'GDELT',ok:true,n:g.length})}catch(e){health.push({id:'gdelt',label:'GDELT',ok:false,err:String(e&&e.message||e)})}}
-  let arts=dedupe(all);if(feed==='opinions')arts=arts.filter(a=>a.kind!=='Notícia'||/^(folha-op|guard-op|nyt-op|gn-op-)/.test(a.srcId));arts=diversify(arts);
-  if(arts.length||!cached){st.news.feeds[feed]={at:Date.now(),articles:arts,health};saveJSON('eleNewsV2',st.news)}else if(cached){cached.health=health}
-  st.newsHealth=health}catch(e){st.lastError='notícias: '+(e&&e.message||e)}finally{st.newsBusy=false;renderNews()}}
-function fmtNewsDate(ts){return ts?new Date(ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):''}
-function renderNews(){const f=st.news.feeds[st.newsFeed]||{at:0,articles:[],health:[]},arts=f.articles||[],health=f.health||[];
- $('newsCount').textContent=arts.length;$('newsSources').textContent=new Set(arts.map(a=>a.source)).size;$('newsCountries').textContent=new Set(arts.map(a=>a.cc).filter(Boolean)).size;$('newsLanguages').textContent=new Set(arts.map(a=>a.lang).filter(Boolean)).size;
- const tc={};for(const a of arts)for(const t of topicTags(a.title))tc[t]=(tc[t]||0)+1;$('topicCloud').innerHTML=Object.entries(tc).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([t,n])=>`<span class="topic">${esc(t)} · ${n}</span>`).join('')||'<span class="topic">Cobertura geral</span>';
- const cc={};for(const a of arts){const c=a.cc||'—';cc[c]=(cc[c]||0)+1}const max=Math.max(1,...Object.values(cc));$('countryBars').innerHTML=Object.entries(cc).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([c,n])=>`<div class="country-row"><span>${esc(c)}</span><i style="width:${n/max*100}%"></i><b>${n}</b></div>`).join('');
- const ok=health.filter(h=>h.ok).length,bad=health.filter(h=>!h.ok);
- $('newsStatus').innerHTML=f.at?`Atualizado ${new Date(f.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})} • ${ok}/${health.length} fontes responderam${bad.length?`<div class="news-health">Indisponíveis agora: ${bad.map(h=>esc(h.label)).join(', ')}. As demais continuam funcionando.</div>`:''}`:(st.newsBusy?'Buscando em várias fontes…':'—');
- $('newsList').innerHTML=arts.length?arts.map((a,i)=>{const tags=topicTags(a.title),img=a.img?`<img class="news-img" src="${esc(a.img)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.outerHTML='<div class=&quot;news-img fallback&quot;>📰</div>'">`:'<div class="news-img fallback">📰</div>',kc=a.kind==='Opinião'?'op':a.kind==='Análise'?'an':'';
-  return`<article class="news-card" data-i="${i}" tabindex="0">${img}<div><div class="news-meta"><span class="kind ${kc}">${esc(a.kind)}</span><span>${esc(a.source)}</span>${a.cc?`<span>${esc(a.cc)}</span>`:''}${a.lang?`<span>${esc(LANG_NAME[a.lang]||a.lang.toUpperCase())}</span>`:''}<span>${esc(fmtNewsDate(a.ts))}</span></div><h3>${esc(a.title)}</h3>${a.desc?`<div class="news-desc">${esc(a.desc)}</div>`:''}<div class="news-tags">${tags.map(t=>`<span>${esc(t)}</span>`).join('')}</div></div></article>`}).join(''):`<div class="card empty">${st.newsBusy?'Buscando…':'Nenhuma matéria encontrada neste filtro agora. Tentaremos novamente.'}</div>`}
-function openArticle(i){const a=((st.news.feeds[st.newsFeed]||{}).articles||[])[i];if(!a)return;const txt=a.body||a.desc;let safe='';try{const u=new URL(a.url);if(u.protocol==='https:'||u.protocol==='http:')safe=u.href}catch(e){}
- openSheet('news',`<div class="reader"><div class="news-meta"><span class="kind ${a.kind==='Opinião'?'op':a.kind==='Análise'?'an':''}">${esc(a.kind)}</span><span>${esc(a.source)}</span>${a.cc?`<span>${esc(a.cc)}</span>`:''}${a.lang?`<span>${esc(LANG_NAME[a.lang]||a.lang.toUpperCase())}</span>`:''}<span>${esc(fmtNewsDate(a.ts))}</span></div><h2>${
+ {id:'gn-mk-en',label:'Google News (EN) • markets',kind:'gn',url:GN.en(
