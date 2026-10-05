@@ -1,4 +1,8 @@
-join(' ');return`<svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#64f5cb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+`,`${l.nome} passou à frente • ${mode==='gov'?'Governador':'Presidente'} • ${st.turn}º turno`)}prev[uf]=l.nome}}}
+function recordHist(mode,uf,d){const k=hk(mode),m=st.ufHist[k]||(st.ufHist[k]={}),arr=m[uf]||(m[uf]=[]),sig=signature(d),last=arr[arr.length-1];if(last&&last.g===sig)return;const a=d.cands[0],b=d.cands[1];arr.push({t:Date.now(),p:d.progress,s:d.sections,l:a?a.nome:'',lp:a?a.pct:0,gap:a&&b?a.votos-b.votos:0,g:sig});if(arr.length>24)arr.splice(0,arr.length-24)}
+let ufHistTimer=0;function saveUfHist(){clearTimeout(ufHistTimer);ufHistTimer=setTimeout(()=>saveJSON('eleUfHistV1',st.ufHist),400)}
+function selectUF(uf,user){st.mapSel=uf;renderMap();if(user&&window.matchMedia('(max-width:900px)').matches)openSheet('map',mapSheetHTML(uf))}
+function spark(arr){if(arr.length<2)return'';const vals=arr.map(x=>x.gap),mn=Math.min(...vals),mx=Math.max(...vals),rg=Math.max(1,mx-mn),pts=vals.map((v,i)=>`${(i*(300/(vals.length-1))).toFixed(1)},${(42-(v-mn)/rg*38).toFixed(1)}`).join(' ');return`<svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#64f5cb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
 function ufDetailHTML(uf){const mode=st.mapMode,d=mapData()[uf],name=UFS[uf][0],cargo=mode==='gov'?'Governador':'Presidente',head=`<div class="mdet-head"><div><h3>${esc(name)} (${uf})</h3><div class="sub">${cargo} • ${st.turn}º turno</div></div></div>`;
  if(!d){const ab=mode==='gov'&&st.govAbsent[uf];return head+`<div class="empty">${ab?`Sem disputa neste cargo/UF${st.turn===2?' no 2º turno':''}.`:'Dados ainda não carregados.'}</div>`}
  const a=d.cands[0],b=d.cands[1],gap=a&&b?a.votos-b.votos:null,pp=a&&b?a.pct-b.pct:null,p=Math.max(0,Math.min(100,d.progress||0)),hist=((st.ufHist[hk(mode)]||{})[uf]||[]).slice(-6);
@@ -27,7 +31,8 @@ function refreshSheet(){if(st.sheetKind==='map'&&$('sheet').classList.contains('
 window.photoErr=img=>{const alt=img.dataset.alt;if(alt&&!img.dataset.tried&&img.getAttribute('src')!==alt){img.dataset.tried='1';img.src=alt;return}img.outerHTML=`<div class="avatar-fallback">${esc(img.dataset.i||'?')}</div>`};
 function renderDiag(){const el=$('diagBox');if(!el)return;const cd=codesFor(st.turn),h=(st.news.feeds[st.newsFeed]||{}).health||[];el.innerHTML=`<dl class="diag-grid"><dt>Versão</dt><dd>${esc(APP_VERSION)}</dd><dt>Rede</dt><dd>${NATIVE?'ponte nativa (Android)':'navegador (fetch)'} • ${navigator.onLine===false?'sem conexão':'online'}</dd><dt>Endpoint TSE</dt><dd>${esc(BASE)}/${CICLO}/…</dd><dt>Turno / códigos</dt><dd>${st.turn}º • ${esc(cd.fed)} / ${esc(cd.est)}${st.cfg?' (ele-c.json)':' (padrão)'}</dd><dt>Última consulta</dt><dd>${st.lastPoll?esc(st.lastPoll.toLocaleString('pt-BR')):'—'}</dd><dt>Último erro</dt><dd>${esc(st.lastError||'nenhum')}</dd><dt>Notícias</dt><dd>${h.length?h.filter(x=>x.ok).length+'/'+h.length+' fontes':'—'}</dd></dl>`}
 if(!st.news.feeds)st.news={feeds:{}};
-if(NATIVE){const e=$('dlApp');if(e)e.remove()}
+if(NATIVE){const e=$('dlApp');if(e)e.remove();const s=$('shareSite');if(s)s.remove()}
+if($('shareSite'))$('shareSite').onclick=async()=>{const url=location.href.split('#')[0],data={title:'Eleições 2026 • Apuração ao vivo',text:'Acompanhe a apuração das eleições 2026 com dados oficiais do TSE:',url};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);toast('Link copiado')}}catch(e){}};
 $('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
 document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
 $('newsList').addEventListener('click',e=>{const c=e.target.closest('.news-card');if(c)openArticle(Number(c.dataset.i))});

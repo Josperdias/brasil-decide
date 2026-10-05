@@ -5,7 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#06111f">
 <meta name="color-scheme" content="dark">
-<title>Central Eleições 2026</title>
+<title>Eleições 2026 • Apuração ao vivo</title>
+<meta name="description" content="Acompanhe a apuração das eleições 2026 em tempo real com dados oficiais do TSE: mapa por estado, resultado do DF, notícias e imagens para status.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Eleições 2026 • Apuração ao vivo">
+<meta property="og:description" content="Mapa por estado, resultado do DF, 1º e 2º turno e notícias, com dados oficiais do TSE. Grátis, também em app para Android.">
+<meta property="og:image" content="https://josperdias.github.io/concursos-df/eleicoes/og.png">
+<meta property="og:url" content="https://josperdias.github.io/concursos-df/eleicoes/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+
 <style>
 :root{
  --bg:#040913;--bg2:#071321;--panel:#0a1728;--panel2:#0e2138;--line:#1d3858;
@@ -206,7 +217,7 @@ button,select,input{font:inherit}.app{max-width:1500px;margin:auto;padding:0 14p
   <div class="lab-grid">
     <article class="card tool-card"><h3>🔬 Comparador de UFs</h3><p>Coloque dois estados lado a lado e compare o top 3 e o andamento das seções.</p><div class="compare-controls"><select id="compareA"></select><select id="compareB"></select></div><div id="compareView" class="compare-view"></div></article>
     <article class="card tool-card"><h3>🎯 Marcos da totalização</h3><p>O app marca automaticamente os percentuais nacionais já alcançados.</p><div id="milestones" class="milestones"></div></article>
-    <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto para notícias internacionais</span></button></div></article>
+    <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="shareSite" class="action-btn"><b>📤 Compartilhar o site</b><span>Envie o link para amigos</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto para notícias internacionais</span></button></div></article>
     <article class="card tool-card"><h3>🛠️ Diagnóstico</h3><p>Versão, rede, endpoint, último erro e saúde das fontes.</p><div id="diagBox"></div></article>
     <article class="card tool-card"><h3>🧠 Como ler o painel</h3><p>“Movimento” significa apenas mudança entre dois arquivos oficiais. Ritmo de votos, diferença e variação de posições são descritivos — não são projeções de resultado.</p><div class="mini-stats" id="labStats"></div></article>
   </div>
@@ -485,7 +496,8 @@ function refreshSheet(){if(st.sheetKind==='map'&&$('sheet').classList.contains('
 window.photoErr=img=>{const alt=img.dataset.alt;if(alt&&!img.dataset.tried&&img.getAttribute('src')!==alt){img.dataset.tried='1';img.src=alt;return}img.outerHTML=`<div class="avatar-fallback">${esc(img.dataset.i||'?')}</div>`};
 function renderDiag(){const el=$('diagBox');if(!el)return;const cd=codesFor(st.turn),h=(st.news.feeds[st.newsFeed]||{}).health||[];el.innerHTML=`<dl class="diag-grid"><dt>Versão</dt><dd>${esc(APP_VERSION)}</dd><dt>Rede</dt><dd>${NATIVE?'ponte nativa (Android)':'navegador (fetch)'} • ${navigator.onLine===false?'sem conexão':'online'}</dd><dt>Endpoint TSE</dt><dd>${esc(BASE)}/${CICLO}/…</dd><dt>Turno / códigos</dt><dd>${st.turn}º • ${esc(cd.fed)} / ${esc(cd.est)}${st.cfg?' (ele-c.json)':' (padrão)'}</dd><dt>Última consulta</dt><dd>${st.lastPoll?esc(st.lastPoll.toLocaleString('pt-BR')):'—'}</dd><dt>Último erro</dt><dd>${esc(st.lastError||'nenhum')}</dd><dt>Notícias</dt><dd>${h.length?h.filter(x=>x.ok).length+'/'+h.length+' fontes':'—'}</dd></dl>`}
 if(!st.news.feeds)st.news={feeds:{}};
-if(NATIVE){const e=$('dlApp');if(e)e.remove()}
+if(NATIVE){const e=$('dlApp');if(e)e.remove();const s=$('shareSite');if(s)s.remove()}
+if($('shareSite'))$('shareSite').onclick=async()=>{const url=location.href.split('#')[0],data={title:'Eleições 2026 • Apuração ao vivo',text:'Acompanhe a apuração das eleições 2026 com dados oficiais do TSE:',url};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);toast('Link copiado')}}catch(e){}};
 $('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
 document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
 $('newsList').addEventListener('click',e=>{const c=e.target.closest('.news-card');if(c)openArticle(Number(c.dataset.i))});
