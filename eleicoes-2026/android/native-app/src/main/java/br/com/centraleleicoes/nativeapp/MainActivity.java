@@ -1769,6 +1769,11 @@ public class MainActivity extends Activity {
         off.addView(actionBtn("Abrir ficha oficial no TSE ›", "divulgacandcontas.tse.jus.br", x -> openUrl(Ficha.tseLink(c, ue))));
         v.addView(off, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
 
+        final LinearLayout fin = Ui.card(this);
+        fin.addView(Ui.text(this, "PATRIMÔNIO E CONTAS DE CAMPANHA (TSE)", 10, Ui.MUTED, true));
+        fin.addView(Ui.text(this, "Buscando resumo…", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        v.addView(fin, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+
         final LinearLayout mand = Ui.card(this);
         mand.addView(Ui.text(this, "MANDATO ATUAL (DADOS ABERTOS)", 10, Ui.MUTED, true));
         mand.addView(Ui.text(this, "Buscando na Câmara e no Senado…", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
@@ -1787,6 +1792,26 @@ public class MainActivity extends Activity {
         v.addView(Ui.text(this, "Manchetes e checagens são resultados automáticos de busca em veículos de terceiros, com fonte e link; podem incluir homônimos. O app não opina, não verifica e não escreve conteúdo sobre candidatos. Dados do registro: TSE; mandato: Câmara dos Deputados e Senado Federal.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 12, 2, 4));
         final Dialog d = showSheet(v);
 
+        newsPool.execute(() -> {
+            final Ficha.Finance f = Ficha.finance(ue, c.sq);
+            ui.post(() -> {
+                if (!d.isShowing()) return;
+                fin.removeAllViews();
+                fin.addView(Ui.text(this, "PATRIMÔNIO E CONTAS DE CAMPANHA (TSE)", 10, Ui.MUTED, true));
+                if (f == null) {
+                    fin.addView(Ui.text(this, "Ainda sem resumo publicado para este candidato. Veja a ficha oficial acima.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+                    return;
+                }
+                kv(fin, "Patrimônio declarado", f.bens == 0 ? "nenhum bem declarado" : "R$ " + String.format(BR, "%,.2f", f.patrimonio) + " (" + f.bens + " bens)");
+                kv(fin, "Receitas de campanha", f.receitas > 0 ? "R$ " + String.format(BR, "%,.2f", f.receitas) : "nenhuma declarada até agora");
+                for (int i = 0; i < Math.min(3, f.origensReceita.size()); i++)
+                    fin.addView(Ui.text(this, "   • " + f.origensReceita.get(i)[0] + ": R$ " + String.format(BR, "%,.2f", Double.parseDouble(f.origensReceita.get(i)[1])), 11, Ui.SOFT, false));
+                kv(fin, "Despesas contratadas", f.despesas > 0 ? "R$ " + String.format(BR, "%,.2f", f.despesas) : "nenhuma declarada até agora");
+                for (int i = 0; i < Math.min(3, f.origensDespesa.size()); i++)
+                    fin.addView(Ui.text(this, "   • " + f.origensDespesa.get(i)[0] + ": R$ " + String.format(BR, "%,.2f", Double.parseDouble(f.origensDespesa.get(i)[1])), 11, Ui.SOFT, false));
+                fin.addView(Ui.text(this, "Valores declarados pelo próprio candidato e partido ao TSE (dados abertos), atualizados diariamente; podem mudar com retificações.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+            });
+        });
         newsPool.execute(() -> {
             final Ficha.Mandate m = Ficha.mandate(c);
             ui.post(() -> {

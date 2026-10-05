@@ -152,6 +152,48 @@ final class Ficha {
         return null;
     }
 
+    /** Resumo de patrimônio e contas de campanha de um candidato (agregado do TSE; ver collector/build_transparency.py). */
+    static final class Finance {
+        double patrimonio, receitas, despesas;
+        int bens;
+        List<String[]> origensReceita = new ArrayList<>(), origensDespesa = new ArrayList<>();
+        String gerado = "";
+    }
+
+    private static final java.util.Map<String, JSONObject> financeCache = new java.util.HashMap<>();
+
+    /** Null se ainda não há resumo publicado para a UF ou para o candidato. */
+    static Finance finance(String ue, String sq) {
+        if (sq == null || sq.isEmpty()) return null;
+        try {
+            String uf = ue.toLowerCase(Locale.ROOT);
+            JSONObject root;
+            synchronized (financeCache) { root = financeCache.get(uf); }
+            if (root == null) {
+                root = new JSONObject(http(Replay.DATA_BASE + "transparencia/" + uf + ".json", null).body);
+                synchronized (financeCache) { financeCache.put(uf, root); }
+            }
+            JSONObject o = root.getJSONObject("c").optJSONObject(sq);
+            if (o == null) return null;
+            Finance f = new Finance();
+            f.patrimonio = o.optDouble("pat", 0);
+            f.bens = o.optInt("nb", 0);
+            f.receitas = o.optDouble("rec", 0);
+            f.despesas = o.optDouble("des", 0);
+            f.gerado = root.optString("gerado");
+            fill(f.origensReceita, o.optJSONObject("rO"));
+            fill(f.origensDespesa, o.optJSONObject("dO"));
+            return f;
+        } catch (Throwable t) { return null; }
+    }
+
+    private static void fill(List<String[]> out, JSONObject m) {
+        if (m == null) return;
+        java.util.Iterator<String> it = m.keys();
+        while (it.hasNext()) { String k = it.next(); out.add(new String[]{k, String.valueOf(m.optDouble(k, 0))}); }
+        Collections.sort(out, (a, b) -> Double.compare(Double.parseDouble(b[1]), Double.parseDouble(a[1])));
+    }
+
     /** Manchetes de terceiros (Google News RSS) sobre o candidato; "checks" restringe a agências de checagem. */
     static List<News.Article> headlines(Model.Cand c, String role, boolean checks) {
         try {
