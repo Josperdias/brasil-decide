@@ -84,8 +84,8 @@ public class MainActivity extends Activity {
             {"pres", "Presidente da República", "🇧🇷", 1, true}, {"gov", "Governador do Distrito Federal", "🏢", 3, false},
             {"sen", "Senador pelo Distrito Federal", "🏛️", 5, false}, {"depf", "Deputado Federal — DF", "🗳️", 6, false},
             {"depd", "Deputado Distrital — DF", "📜", 8, false}};
-    private static final String[][] TABS = {{"brasil", "", "Brasil"}, {"mapa", "", "Mapa"}, {"df", "", "DF"}, {"midia", "", "Mídia"}, {"mais", "", "Mais"}};
-    private static final int[] TAB_ICON = {NavIconView.BRASIL, NavIconView.MAPA, NavIconView.DF, NavIconView.MIDIA, NavIconView.MAIS};
+    private static final String[][] TABS = {{"mapa", "", "Mapa"}, {"brasil", "", "Brasil"}, {"df", "", "DF"}, {"midia", "", "Mídia"}, {"mais", "", "Mais"}};
+    private static final int[] TAB_ICON = {NavIconView.MAPA, NavIconView.BRASIL, NavIconView.DF, NavIconView.MIDIA, NavIconView.MAIS};
     // chave, rótulo, consulta, filtro do YouTube
     private static final String[][] LIVE_FILTERS = {{"live", "🔴 Ao vivo", "eleições 2026 ao vivo", Youtube.LIVE}, {"apuracao", "📊 Apuração", "apuração eleições 2026", Youtube.BY_DATE},
             {"debates", "🎙️ Debates", "debate eleições 2026", Youtube.BY_DATE}, {"analises", "💬 Análises", "análise eleições 2026", Youtube.BY_DATE}};
@@ -115,7 +115,7 @@ public class MainActivity extends Activity {
     private String[][] codes = {Tse.DEFAULT_CODES[0].clone(), Tse.DEFAULT_CODES[1].clone()};
     private boolean codesFromConfig;
     private int turn = 1;
-    private String tab = "brasil", mapaSub = "mapa", midiaSub = "news", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
+    private String tab = "mapa", mapaSub = "mapa", midiaSub = "news", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
     private boolean govMode, busy, resumed, waiting, newsBusy, tv, livesBusy, animateNext = true, genStatusPending;
     private String livesFilter = "live", livesErr = "";
     private final Map<String, List<Youtube.Video>> livesCache = new HashMap<>();
