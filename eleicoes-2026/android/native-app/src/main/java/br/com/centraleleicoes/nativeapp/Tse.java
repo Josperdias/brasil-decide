@@ -62,6 +62,16 @@ final class Tse {
         }
     }
 
+    static String photoBase(String eleicao, String abr) {
+        return BASE + "/" + CICLO + "/" + eleicao + "/fotos/" + abr + "/";
+    }
+
+    static Fetch fetch(String spec, String photoBase) {
+        Fetch f = fetch(spec);
+        if (f.result != null && photoBase != null) f.result.photoBase = photoBase;
+        return f;
+    }
+
     static Fetch fetch(String spec) {
         Fetch f = new Fetch();
         try {

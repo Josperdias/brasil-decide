@@ -90,3 +90,16 @@ jobs:
         with:
           name: smoke-screenshots
           path: dist/*.png
+      - name: Publicar prints na branch smoke-shots
+        if: always()
+        run: |
+          mkdir -p /tmp/shots && cp dist/*.png /tmp/shots/ 2>/dev/null || true
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan smoke-shots
+          git rm -rf --quiet .
+          git clean -fdxq
+          cp /tmp/shots/* . 2>/dev/null || true
+          git add -A
+          git commit -q -m "prints do emulador ${GITHUB_SHA::7}" || exit 0
+          git push -f origin smoke-shots

@@ -1,33 +1,46 @@
 package br.com.centraleleicoes.nativeapp;
 
+import android.animation.ObjectAnimator;
 import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
-import android.graphics.Typeface;
-import android.graphics.drawable.GradientDrawable;
 import android.net.ConnectivityManager;
 import android.net.Network;
 import android.net.NetworkCapabilities;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.WindowManager;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -40,51 +53,68 @@ import java.util.concurrent.Future;
 
 /**
  * Central Eleições 2026 — versão Android NATIVA (sem WebView).
- * Interface nativa, abre offline com o último snapshot, polling pausa em background.
+ * Abre offline com o último snapshot, polling pausa em background, falhas de rede nunca derrubam a Activity.
  */
 public class MainActivity extends Activity {
-    static final String VERSION = "2026.10.05-nativo";
-    private static final int BG = 0xFF040913, PANEL = 0xFF0A1728, LINE = 0xFF1D3858, TEXT = 0xFFF7FBFF, MUTED = 0xFF93A9C2,
-            CYAN = 0xFF50D5FF, MINT = 0xFF64F5CB, AMBER = 0xFFFFC966;
+    static final String VERSION = "2026.10.05-nativo-v2";
+    private static final Locale BR = new Locale("pt", "BR");
+    private static final NumberFormat INT = NumberFormat.getIntegerInstance(BR);
 
     private static final String[][] UFS = {
-            {"AC", "Acre"}, {"AL", "Alagoas"}, {"AP", "Amapá"}, {"AM", "Amazonas"}, {"BA", "Bahia"}, {"CE", "Ceará"},
-            {"DF", "Distrito Federal"}, {"ES", "Espírito Santo"}, {"GO", "Goiás"}, {"MA", "Maranhão"}, {"MT", "Mato Grosso"},
-            {"MS", "Mato Grosso do Sul"}, {"MG", "Minas Gerais"}, {"PA", "Pará"}, {"PB", "Paraíba"}, {"PR", "Paraná"},
-            {"PE", "Pernambuco"}, {"PI", "Piauí"}, {"RJ", "Rio de Janeiro"}, {"RN", "Rio Grande do Norte"},
-            {"RS", "Rio Grande do Sul"}, {"RO", "Rondônia"}, {"RR", "Roraima"}, {"SC", "Santa Catarina"},
-            {"SP", "São Paulo"}, {"SE", "Sergipe"}, {"TO", "Tocantins"}};
-    // chave, título, cargo, usa eleição federal?
+            {"AC", "Acre", "Norte"}, {"AL", "Alagoas", "Nordeste"}, {"AP", "Amapá", "Norte"}, {"AM", "Amazonas", "Norte"},
+            {"BA", "Bahia", "Nordeste"}, {"CE", "Ceará", "Nordeste"}, {"DF", "Distrito Federal", "Centro-Oeste"},
+            {"ES", "Espírito Santo", "Sudeste"}, {"GO", "Goiás", "Centro-Oeste"}, {"MA", "Maranhão", "Nordeste"},
+            {"MT", "Mato Grosso", "Centro-Oeste"}, {"MS", "Mato Grosso do Sul", "Centro-Oeste"}, {"MG", "Minas Gerais", "Sudeste"},
+            {"PA", "Pará", "Norte"}, {"PB", "Paraíba", "Nordeste"}, {"PR", "Paraná", "Sul"}, {"PE", "Pernambuco", "Nordeste"},
+            {"PI", "Piauí", "Nordeste"}, {"RJ", "Rio de Janeiro", "Sudeste"}, {"RN", "Rio Grande do Norte", "Nordeste"},
+            {"RS", "Rio Grande do Sul", "Sul"}, {"RO", "Rondônia", "Norte"}, {"RR", "Roraima", "Norte"}, {"SC", "Santa Catarina", "Sul"},
+            {"SP", "São Paulo", "Sudeste"}, {"SE", "Sergipe", "Nordeste"}, {"TO", "Tocantins", "Norte"}};
+    private static final String[] REGIONS = {"Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"};
+    private static final String[] REGION_ICON = {"🌳", "☀️", "🌾", "🏙️", "🧉"};
+    // chave, título, ícone, cargo, usa eleição federal?
     private static final Object[][] DF_SRC = {
-            {"pres", "Presidente da República", 1, true}, {"gov", "Governador do Distrito Federal", 3, false},
-            {"sen", "Senador pelo Distrito Federal", 5, false}, {"depf", "Deputado Federal — DF", 6, false},
-            {"depd", "Deputado Distrital — DF", 8, false}};
+            {"pres", "Presidente da República", "🇧🇷", 1, true}, {"gov", "Governador do Distrito Federal", "🏢", 3, false},
+            {"sen", "Senador pelo Distrito Federal", "🏛️", 5, false}, {"depf", "Deputado Federal — DF", "🗳️", 6, false},
+            {"depd", "Deputado Distrital — DF", "📜", 8, false}};
+    private static final String[][] TABS = {{"mapa", "🗺️", "Mapa"}, {"brasil", "🇧🇷", "Brasil"}, {"ufs", "📍", "UFs"},
+            {"df", "🏛️", "DF"}, {"news", "🌍", "Notícias"}, {"mais", "🧪", "Mais"}};
+    private static final String[][] NEWS_FILTERS = {{"brasil", "🇧🇷 Brasil"}, {"mundo", "🌍 Mundo"}, {"mercados", "📈 Mercados"}, {"analises", "💬 Análises"}};
+    private static final int[] INTERVALS = {5, 10, 15, 30, 60};
 
     static final class Snap {
         Model.Result pres;
         final Map<String, Model.Result> states = new HashMap<>(), gov = new HashMap<>(), df = new HashMap<>();
         final Map<String, Boolean> govAbsent = new HashMap<>(), dfAbsent = new HashMap<>();
+        final List<LinkedHashMap<String, Float>> hist = new ArrayList<>();
         long lastChange, at;
         String presSig = "";
     }
 
+    static final class Event { String icon, title, detail; long at; }
+
     private final Snap[] snaps = {new Snap(), new Snap()};
     private final Map<String, Long> absentAt = new HashMap<>();
+    private final List<Event> events = new ArrayList<>();
     private final Handler ui = new Handler(Looper.getMainLooper());
-    private final ExecutorService bg = Executors.newSingleThreadExecutor(), net = Executors.newFixedThreadPool(6);
+    private final ExecutorService bg = Executors.newSingleThreadExecutor(), net = Executors.newFixedThreadPool(6),
+            newsPool = Executors.newFixedThreadPool(4);
+    private final Map<String, News.Batch> newsCache = new HashMap<>();
     private SharedPreferences prefs;
     private String[][] codes = {Tse.DEFAULT_CODES[0].clone(), Tse.DEFAULT_CODES[1].clone()};
     private boolean codesFromConfig;
     private int turn = 1;
-    private String tab = "mapa", sel = "DF";
-    private boolean govMode, busy, resumed, waiting;
-    private long delayMs = 10000, lastPoll;
+    private String tab = "mapa", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
+    private boolean govMode, busy, resumed, waiting, newsBusy, tv;
+    private long delayMs = 10000, intervalMs = 10000, lastPoll;
+    private int titleTaps;
+    private long firstTap;
     private String lastError = "nenhum", statusText = "Abrindo…", statusSub = "";
+    private int insetL, insetT, insetR, insetB;
 
     private FrameLayout root;
-    private TextView tvStatus, tvSub, tvCaption;
-    private LinearLayout tabsRow, content, turnRow;
+    private LinearLayout page, nav;
     private ScrollView scroll;
+    private LinearLayout content;
     private BrazilMapView mapView;
 
     private final Runnable poller = new Runnable() {
@@ -95,15 +125,28 @@ public class MainActivity extends Activity {
         }
     };
 
-    // ---------------------------------------------------------------- ciclo de vida
+    // ============================================================ ciclo de vida
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        Ui.init(this);
         prefs = getSharedPreferences("central", MODE_PRIVATE);
         turn = prefs.getInt("turn", 1) == 2 ? 2 : 1;
+        intervalMs = delayMs = prefs.getInt("interval", 10) * 1000L;
+        cmpA = prefs.getString("cmpA", "DF");
+        cmpB = prefs.getString("cmpB", "SP");
         loadCache();
+        Intent in = getIntent();
+        if (in != null) { // atalhos de teste/automação: --es tab news --es sel SP --ez tv true
+            if (in.getStringExtra("tab") != null) tab = in.getStringExtra("tab");
+            if (in.getStringExtra("sel") != null) sel = in.getStringExtra("sel");
+            if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
+            if (in.getIntExtra("turn", 0) == 2) turn = 2;
+            tv = in.getBooleanExtra("tv", false);
+        }
         buildUi();
         setupEdgeToEdge();
+        if (tv) setTv(true);
         render();
     }
 
@@ -123,103 +166,40 @@ public class MainActivity extends Activity {
     @Override protected void onDestroy() {
         bg.shutdownNow();
         net.shutdownNow();
+        newsPool.shutdownNow();
         super.onDestroy();
     }
 
-    // ---------------------------------------------------------------- UI base
-    private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
-
-    private GradientDrawable rounded(int color, int radiusDp, int strokeColor) {
-        GradientDrawable g = new GradientDrawable();
-        g.setColor(color);
-        g.setCornerRadius(dp(radiusDp));
-        if (strokeColor != 0) g.setStroke(dp(1), strokeColor);
-        return g;
+    @Override
+    @SuppressWarnings("deprecation")
+    public void onBackPressed() {
+        if (tv) { setTv(false); render(); return; }
+        super.onBackPressed();
     }
 
-    private TextView tv(String s, float sp, int color, boolean bold) {
-        TextView t = new TextView(this);
-        t.setText(s);
-        t.setTextSize(sp);
-        t.setTextColor(color);
-        if (bold) t.setTypeface(Typeface.DEFAULT_BOLD);
-        return t;
-    }
-
-    private LinearLayout col() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.VERTICAL); return l; }
-    private LinearLayout row() { LinearLayout l = new LinearLayout(this); l.setOrientation(LinearLayout.HORIZONTAL); l.setGravity(Gravity.CENTER_VERTICAL); return l; }
-
-    private LinearLayout card() {
-        LinearLayout c = col();
-        c.setBackground(rounded(PANEL, 16, LINE));
-        c.setPadding(dp(14), dp(12), dp(14), dp(12));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, 0, 0, dp(10));
-        c.setLayoutParams(lp);
-        return c;
-    }
-
-    private TextView pill(String label, boolean active, View.OnClickListener l) {
-        TextView t = tv(label, 13, active ? 0xFF04111D : MUTED, true);
-        t.setGravity(Gravity.CENTER);
-        t.setPadding(dp(14), dp(10), dp(14), dp(10));
-        t.setBackground(rounded(active ? MINT : 0xFF09182A, 14, active ? 0 : LINE));
-        t.setOnClickListener(l);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(44));
-        lp.setMargins(0, 0, dp(6), 0);
-        t.setLayoutParams(lp);
-        return t;
-    }
-
-    private View bar(double pct, int color, int heightDp) {
-        LinearLayout l = row();
-        l.setBackground(rounded(0xFF020914, 8, 0));
-        float p = (float) Math.max(0, Math.min(100, pct));
-        View fill = new View(this);
-        fill.setBackground(rounded(color, 8, 0));
-        l.addView(fill, new LinearLayout.LayoutParams(0, dp(heightDp), Math.max(0.0001f, p)));
-        View rest = new View(this);
-        l.addView(rest, new LinearLayout.LayoutParams(0, dp(heightDp), Math.max(0.0001f, 100f - p)));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
-        lp.setMargins(0, dp(6), 0, dp(4));
-        l.setLayoutParams(lp);
-        return l;
-    }
-
+    // ============================================================ UI base
     private void buildUi() {
         root = new FrameLayout(this);
-        root.setBackgroundColor(BG);
-        LinearLayout page = col();
-        page.setPadding(dp(14), dp(8), dp(14), 0);
-
-        page.addView(tv("ELEIÇÕES 2026 • CENTRAL NATIVA", 11, MINT, true));
-        page.addView(tv("Brasil decide", 26, TEXT, true));
-        tvStatus = tv("", 14, TEXT, true);
-        tvSub = tv("", 11, MUTED, false);
-        page.addView(tvStatus);
-        page.addView(tvSub);
-
-        turnRow = row();
-        turnRow.setPadding(0, dp(8), 0, dp(4));
-        page.addView(turnRow);
-        tvCaption = tv("", 11, MUTED, false);
-        page.addView(tvCaption);
-
-        HorizontalScrollView hs = new HorizontalScrollView(this);
-        hs.setHorizontalScrollBarEnabled(false);
-        tabsRow = row();
-        tabsRow.setPadding(0, dp(8), 0, dp(8));
-        hs.addView(tabsRow);
-        page.addView(hs);
-
+        root.setBackground(Ui.pageBg());
+        page = Ui.col(this);
         scroll = new ScrollView(this);
-        content = col();
+        scroll.setVerticalScrollBarEnabled(false);
+        scroll.setOverScrollMode(View.OVER_SCROLL_NEVER);
+        content = Ui.col(this);
         scroll.addView(content);
-        page.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        page.addView(scroll, Ui.lp(-1, 0, 1f));
+        nav = Ui.row(this);
+        nav.setBackgroundColor(0xF2030911);
+        page.addView(nav, Ui.lp(-1, -2));
         root.addView(page, new FrameLayout.LayoutParams(-1, -1));
         setContentView(root);
         mapView = new BrazilMapView(this);
-        mapView.setOnUf(uf -> { sel = uf; render(); });
+        mapView.setOnUf(uf -> {
+            sel = uf;
+            if (tv) return;
+            render();
+            showSheet(detailView(uf));
+        });
     }
 
     private void setupEdgeToEdge() {
@@ -227,217 +207,820 @@ public class MainActivity extends Activity {
             getWindow().setDecorFitsSystemWindows(false);
             root.setOnApplyWindowInsetsListener((v, insets) -> {
                 android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
-                v.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                insetL = bars.left; insetT = bars.top; insetR = bars.right; insetB = bars.bottom;
+                applyInsets();
                 return WindowInsets.CONSUMED;
             });
             WindowInsetsController c = getWindow().getInsetsController();
-            if (c != null) c.setSystemBarsAppearance(0,
-                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+            if (c != null) c.setSystemBarsAppearance(0, WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
         } else {
-            getWindow().setStatusBarColor(BG);
-            getWindow().setNavigationBarColor(BG);
+            getWindow().setStatusBarColor(Ui.BG);
+            getWindow().setNavigationBarColor(Ui.BG);
         }
     }
 
-    // ---------------------------------------------------------------- render
+    private void applyInsets() {
+        page.setPadding(insetL, 0, insetR, 0);
+        content.setPadding(Ui.dp(14), insetT + Ui.dp(10), Ui.dp(14), Ui.dp(16));
+        nav.setPadding(Ui.dp(6), Ui.dp(6), Ui.dp(6), insetB + Ui.dp(6));
+    }
+
+    private void setTv(boolean on) {
+        tv = on;
+        if (on) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (Build.VERSION.SDK_INT >= 30) {
+            WindowInsetsController c = getWindow().getInsetsController();
+            if (c != null) {
+                if (on) { c.hide(WindowInsets.Type.systemBars()); c.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE); }
+                else c.show(WindowInsets.Type.systemBars());
+            }
+        }
+    }
+
     private Snap snap() { return snaps[turn - 1]; }
-    private static final NumberFormat INT = NumberFormat.getIntegerInstance(new Locale("pt", "BR"));
+
     private static String n(long v) { return INT.format(v); }
-    private static String pc(double v) { return String.format(new Locale("pt", "BR"), "%.2f%%", v); }
+
+    private static String pc(double v) { return String.format(BR, "%.2f%%", v); }
+
+    private static String hhmmss(long t) { return new SimpleDateFormat("HH:mm:ss", BR).format(new Date(t)); }
+
+    private static String hhmm(long t) { return new SimpleDateFormat("HH:mm", BR).format(new Date(t)); }
+
     private static String ufName(String uf) { for (String[] u : UFS) if (u[0].equals(uf)) return u[1]; return uf; }
 
+    private String cargoSub(String what) { return what + " • " + turn + "º turno"; }
+
+    // ============================================================ render
     private void render() {
         try {
             int keep = scroll.getScrollY();
-            tvStatus.setText(statusText);
-            tvSub.setText(statusSub);
-            tvCaption.setText(turn + "º turno • TSE " + codes[turn - 1][0] + " (federal) / " + codes[turn - 1][1] + " (estadual)");
-            turnRow.removeAllViews();
-            turnRow.addView(pill("1º turno", turn == 1, v -> setTurn(1)));
-            turnRow.addView(pill("2º turno", turn == 2, v -> setTurn(2)));
-            turnRow.addView(pill("↻", false, v -> { delayMs = 10000; refresh(); }));
-            tabsRow.removeAllViews();
-            String[][] tabs = {{"mapa", "🗺️ Mapa"}, {"brasil", "🇧🇷 Brasil"}, {"ufs", "27 UFs"}, {"df", "🏛️ DF"}, {"diag", "🛠️ Diagnóstico"}};
-            for (String[] t : tabs) tabsRow.addView(pill(t[1], tab.equals(t[0]), v -> { tab = t[0]; render(); }));
-            if (mapView.getParent() != null) ((ViewGroup) mapView.getParent()).removeView(mapView);
             content.removeAllViews();
+            if (mapView.getParent() != null) ((ViewGroup) mapView.getParent()).removeView(mapView);
+            applyInsets();
+            if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
+            nav.setVisibility(View.VISIBLE);
+            renderHeader();
+            if (tab.equals("mapa") || tab.equals("brasil") || tab.equals("ufs")) renderHero();
             switch (tab) {
                 case "mapa": renderMap(); break;
                 case "brasil": renderBrasil(); break;
                 case "ufs": renderUfs(); break;
                 case "df": renderDf(); break;
-                default: renderDiag();
+                case "news": renderNews(); break;
+                default: renderMais();
             }
-            final int k = keep;
-            scroll.post(() -> scroll.scrollTo(0, k));
+            renderNav();
+            scroll.post(() -> scroll.scrollTo(0, keep));
         } catch (Throwable t) {
             lastError = "render: " + t;
         }
     }
 
-    private void addCand(LinearLayout parent, Model.Cand c, int idx) {
-        int col = Model.color(c.nome);
-        LinearLayout r = row();
-        View dot = new View(this);
-        dot.setBackground(rounded(col, 6, 0));
-        r.addView(dot, new LinearLayout.LayoutParams(dp(12), dp(12)));
-        LinearLayout mid = col();
-        mid.setPadding(dp(8), 0, dp(8), 0);
-        mid.addView(tv((idx + 1) + "º  " + c.nome, 14, TEXT, true));
-        mid.addView(tv(c.partido + (c.numero.isEmpty() ? "" : " · nº " + c.numero) + (c.sit.isEmpty() ? "" : " · " + c.sit), 11, MUTED, false));
-        r.addView(mid, new LinearLayout.LayoutParams(0, -2, 1f));
-        LinearLayout right = col();
-        right.setGravity(Gravity.END);
-        TextView p = tv(pc(c.pct), 15, TEXT, true);
-        p.setGravity(Gravity.END);
-        TextView v = tv(n(c.votos) + " votos", 11, MUTED, false);
-        v.setGravity(Gravity.END);
-        right.addView(p);
-        right.addView(v);
-        r.addView(right);
-        r.setPadding(0, dp(6), 0, 0);
-        parent.addView(r);
-        parent.addView(bar(c.pct, col, 6));
+    private void renderNav() {
+        nav.removeAllViews();
+        for (String[] t : TABS) {
+            boolean on = tab.equals(t[0]);
+            LinearLayout b = Ui.col(this);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding(0, Ui.dp(6), 0, Ui.dp(6));
+            if (on) b.setBackground(Ui.accent(14));
+            b.addView(Ui.text(this, t[1], 17, Ui.TEXT, false));
+            TextView l = Ui.text(this, t[2], 10, on ? Ui.INK : Ui.MUTED, true);
+            l.setPadding(0, Ui.dp(2), 0, 0);
+            b.addView(l);
+            b.setOnClickListener(v -> { tab = t[0]; if (tab.equals("news") && needNews()) loadNews(false); render(); scroll.scrollTo(0, 0); });
+            LinearLayout.LayoutParams lp = Ui.lp(0, -2, 1f);
+            lp.setMargins(Ui.dp(2), 0, Ui.dp(2), 0);
+            nav.addView(b, lp);
+        }
     }
 
-    private LinearLayout resultCard(String title, String sub, Model.Result r, int top) {
-        LinearLayout c = card();
-        c.addView(tv(title, 16, TEXT, true));
-        c.addView(tv(sub, 11, MUTED, false));
-        if (r == null) { c.addView(tv("Carregando dados oficiais…", 12, MUTED, false)); return c; }
-        TextView pr = tv("Apuração " + pc(r.progress) + "  •  " + n(r.sections) + "/" + n(r.sectionsTotal) + " seções" + (r.fin ? " • final" : ""), 12, TEXT, true);
-        pr.setPadding(0, dp(8), 0, 0);
-        c.addView(pr);
-        c.addView(bar(r.progress, CYAN, 10));
-        for (int i = 0; i < Math.min(top, r.cands.size()); i++) addCand(c, r.cands.get(i), i);
-        if (r.cands.size() >= 2) {
-            long gap = r.cands.get(0).votos - r.cands.get(1).votos;
-            double pp = r.cands.get(0).pct - r.cands.get(1).pct;
-            c.addView(tv("Diferença 1º × 2º: " + n(gap) + " votos (" + String.format(new Locale("pt", "BR"), "%.2f", pp) + " p.p.)", 12, MINT, true));
+    private void renderHeader() {
+        TextView kicker = Ui.text(this, "ELEIÇÕES 2026 • CENTRAL AO VIVO", 10, Ui.MINT, true);
+        kicker.setLetterSpacing(0.15f);
+        content.addView(kicker);
+        TextView title = Ui.big(this, "Brasil decide", 30);
+        title.setPadding(0, Ui.dp(4), 0, Ui.dp(2));
+        title.setOnClickListener(v -> easterEgg());
+        content.addView(title);
+        TextView mini = Ui.text(this, "TSE oficial • " + (lastPoll == 0 ? "aguardando primeira atualização" : "última consulta " + hhmm(lastPoll)), 12, Ui.MUTED, false);
+        mini.setPadding(0, 0, 0, Ui.dp(10));
+        content.addView(mini);
+
+        // barra ao vivo
+        LinearLayout live = Ui.row(this);
+        live.setBackground(Ui.fill(0xE00A1728, 14, Ui.LINE));
+        live.setPadding(Ui.dp(13), Ui.dp(8), Ui.dp(8), Ui.dp(8));
+        View dot = new View(this);
+        boolean bad = statusText.contains("Sem conexão") || statusText.contains("parciais") || statusText.contains("aguardando");
+        dot.setBackground(Ui.fill(bad ? Ui.AMBER : Ui.GREEN, 99, 0));
+        live.addView(dot, Ui.margins(Ui.lp(Ui.dp(9), Ui.dp(9)), 0, 0, 10, 0));
+        ObjectAnimator a = ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.25f);
+        a.setDuration(900);
+        a.setRepeatMode(ObjectAnimator.REVERSE);
+        a.setRepeatCount(ObjectAnimator.INFINITE);
+        a.start();
+        LinearLayout txt = Ui.col(this);
+        txt.addView(Ui.text(this, statusText, 13, Ui.TEXT, true));
+        if (!TextUtils.isEmpty(statusSub)) txt.addView(Ui.text(this, statusSub, 10, Ui.MUTED, false));
+        live.addView(txt, Ui.lp(0, -2, 1f));
+        TextView nextIn = Ui.text(this, (delayMs / 1000) + " s", 12, Ui.SOFT, true);
+        nextIn.setPadding(Ui.dp(10), 0, Ui.dp(6), 0);
+        live.addView(nextIn);
+        TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
+        rb.setGravity(Gravity.CENTER);
+        rb.setBackground(Ui.fill(0xFF0E2138, 12, Ui.LINE));
+        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
+        live.addView(rb, Ui.lp(Ui.dp(44), Ui.dp(40)));
+        content.addView(live, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+
+        // seletor de turno
+        LinearLayout seg = Ui.row(this);
+        seg.setBackground(Ui.fill(0xE00A1728, 14, Ui.LINE));
+        seg.setPadding(Ui.dp(4), Ui.dp(4), Ui.dp(4), Ui.dp(4));
+        seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(42), 1f));
+        seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(42), 1f));
+        content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 4));
+        content.addView(Ui.text(this, turn + "º turno • TSE " + codes[turn - 1][0] + " (federal) / " + codes[turn - 1][1] + " (estadual)" + (codesFromConfig ? "" : " • padrão"), 10, Ui.MUTED, false),
+                Ui.margins(Ui.lp(-2, -2), 2, 0, 0, 12));
+    }
+
+    private TextView turnBtn(int t) {
+        boolean on = turn == t;
+        TextView b = Ui.text(this, t + "º turno", 14, on ? Ui.INK : Ui.MUTED, true);
+        b.setGravity(Gravity.CENTER);
+        if (on) b.setBackground(Ui.accent(11));
+        b.setOnClickListener(v -> setTurn(t));
+        return b;
+    }
+
+    private void renderHero() {
+        Model.Result r = snap().pres;
+        LinearLayout row = Ui.row(this);
+        row.setBaselineAligned(false);
+        LinearLayout a = Ui.card(this);
+        a.setLayoutParams(Ui.margins(Ui.lp(0, -2, 1.55f), 0, 0, 5, 0));
+        a.addView(Ui.label(this, "Apuração presidencial • " + turn + "º"));
+        TextView big = Ui.big(this, r == null ? "—" : pc(r.progress), 30);
+        big.setPadding(0, Ui.dp(5), 0, 0);
+        a.addView(big);
+        a.addView(new GradientBar(this, 9).value(r == null ? 0 : r.progress));
+        a.addView(Ui.text(this, r == null ? "carregando seções" : n(r.sections) + "/" + n(r.sectionsTotal) + " seções totalizadas", 10, Ui.MUTED, false));
+        LinearLayout b = Ui.card(this);
+        b.setLayoutParams(Ui.margins(Ui.lp(0, -2, 1f), 5, 0, 0, 0));
+        b.addView(Ui.label(this, "Último dado novo"));
+        TextView t = Ui.big(this, snap().lastChange == 0 ? "—" : hhmmss(snap().lastChange), 22);
+        t.setPadding(0, Ui.dp(8), 0, 0);
+        b.addView(t);
+        b.addView(Ui.text(this, "consulta " + (lastPoll == 0 ? "—" : hhmm(lastPoll)), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        b.addView(Ui.text(this, snap().states.size() + "/27 UFs", 10, Ui.MINT, true), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+        row.addView(a);
+        row.addView(b);
+        content.addView(row, Ui.lp(-1, -2));
+    }
+
+    // ============================================================ blocos de resultado
+    private LinearLayout candRow(Model.Result r, Model.Cand c, int idx, boolean photo) {
+        int col = Model.color(c.nome);
+        LinearLayout w = Ui.col(this);
+        w.setPadding(Ui.dp(2), Ui.dp(9), Ui.dp(2), Ui.dp(9));
+        if (idx == 0) w.setBackground(Ui.gradient(0x14_64F5CB, 0x00000000, 10, 0, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        LinearLayout row = Ui.row(this);
+        if (photo) {
+            AvatarView av = new AvatarView(this, 42).set(c.nome, col);
+            if (r != null && !r.photoBase.isEmpty() && !c.sq.isEmpty()) Photos.load(r.photoBase + c.sq + ".jpeg", av);
+            row.addView(av, Ui.margins(Ui.lp(Ui.dp(42), Ui.dp(42)), 0, 0, 10, 0));
+        } else {
+            View dot = new View(this);
+            dot.setBackground(Ui.fill(col, 99, 0));
+            row.addView(dot, Ui.margins(Ui.lp(Ui.dp(11), Ui.dp(11)), 4, 0, 9, 0));
         }
-        c.addView(tv("Arquivo TSE: " + (r.date + " " + r.time).trim() + " • válidos " + n(r.valid), 10, MUTED, false));
+        LinearLayout mid = Ui.col(this);
+        LinearLayout nm = Ui.row(this);
+        TextView rank = Ui.text(this, (idx + 1) + "º", 10, Ui.SOFT, true);
+        rank.setGravity(Gravity.CENTER);
+        rank.setBackground(Ui.fill(0xFF143251, 6, 0));
+        nm.addView(rank, Ui.margins(Ui.lp(Ui.dp(24), Ui.dp(18)), 0, 0, 6, 0));
+        TextView name = Ui.text(this, c.nome, 14, Ui.TEXT, true);
+        name.setSingleLine();
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        nm.addView(name, Ui.lp(0, -2, 1f));
+        mid.addView(nm);
+        LinearLayout meta = Ui.row(this);
+        meta.setPadding(0, Ui.dp(5), 0, 0);
+        TextView party = Ui.chip(this, c.partido + (c.numero.isEmpty() ? "" : " · nº " + c.numero), Ui.MUTED);
+        meta.addView(party);
+        if (!c.sit.isEmpty()) {
+            boolean good = c.sit.toLowerCase(Locale.ROOT).matches(".*(eleit|2º|segundo).*");
+            meta.addView(Ui.chip(this, c.sit, good ? Ui.GREEN : Ui.AMBER), Ui.margins(Ui.lp(-2, -2), 5, 0, 0, 0));
+        }
+        mid.addView(meta);
+        row.addView(mid, Ui.lp(0, -2, 1f));
+        LinearLayout right = Ui.col(this);
+        right.setGravity(Gravity.END);
+        TextView p = Ui.big(this, pc(c.pct), 16);
+        p.setGravity(Gravity.END);
+        TextView v = Ui.text(this, n(c.votos) + " votos", 10, Ui.MUTED, false);
+        v.setGravity(Gravity.END);
+        right.addView(p);
+        right.addView(v, Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+        row.addView(right, Ui.margins(Ui.lp(-2, -2), 8, 0, 0, 0));
+        w.addView(row);
+        w.addView(new GradientBar(this, 5).colors(col, Model.lighten(col)).value(c.pct));
+        return w;
+    }
+
+    private LinearLayout statBox(String value, String label) {
+        LinearLayout b = Ui.col(this);
+        b.setBackground(Ui.fill(0xFF09192B, 9, 0));
+        b.setPadding(Ui.dp(8), Ui.dp(7), Ui.dp(8), Ui.dp(7));
+        b.addView(Ui.text(this, value, 12, Ui.TEXT, true));
+        b.addView(Ui.text(this, label, 9, Ui.MUTED, false));
+        return b;
+    }
+
+    private LinearLayout resultCard(String title, String sub, String icon, Model.Result r, int top) {
+        LinearLayout c = Ui.card(this);
+        LinearLayout head = Ui.row(this);
+        TextView ic = Ui.text(this, icon, 18, Ui.TEXT, false);
+        ic.setGravity(Gravity.CENTER);
+        ic.setBackground(Ui.fill(0xFF113052, 13, 0));
+        head.addView(ic, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 0, 0, 10, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, title, 15, Ui.TEXT, true));
+        t.addView(Ui.text(this, sub + (r != null && r.fin ? " • totalização final" : ""), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        head.addView(t, Ui.lp(0, -2, 1f));
+        if (r != null) {
+            LinearLayout pr = Ui.col(this);
+            pr.setGravity(Gravity.END);
+            TextView pp = Ui.text(this, pc(r.progress), 13, Ui.TEXT, true);
+            pp.setGravity(Gravity.END);
+            pr.addView(pp);
+            TextView ss = Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 10, Ui.MUTED, false);
+            ss.setGravity(Gravity.END);
+            pr.addView(ss, Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+            pr.addView(new GradientBar(this, 6).value(r.progress), Ui.margins(Ui.lp(Ui.dp(96), Ui.dp(6)), 0, 6, 0, 0));
+            head.addView(pr, Ui.margins(Ui.lp(-2, -2), 8, 0, 0, 0));
+        }
+        c.addView(head);
+        if (r == null) { c.addView(Ui.text(this, "Carregando dados oficiais…", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 12, 0, 4)); return c; }
+        View sep = new View(this);
+        sep.setBackgroundColor(0xCC1D3858);
+        c.addView(sep, Ui.margins(Ui.lp(-1, 1), 0, 11, 0, 3));
+        for (int i = 0; i < Math.min(top, r.cands.size()); i++) c.addView(candRow(r, r.cands.get(i), i, true));
+        if (r.cands.isEmpty()) c.addView(Ui.text(this, "Sem votos disponíveis ainda.", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 6));
+        LinearLayout foot = Ui.row(this);
+        foot.addView(statBox(n(r.valid), "válidos"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
+        foot.addView(statBox(n(r.sections) + "/" + n(r.sectionsTotal), "seções"), Ui.margins(Ui.lp(0, -2, 1f), 3, 0, 3, 0));
+        foot.addView(statBox(n(r.blank), "brancos"), Ui.margins(Ui.lp(0, -2, 1f), 3, 0, 3, 0));
+        foot.addView(statBox(pc(r.abstPct), "abstenção"), Ui.margins(Ui.lp(0, -2, 1f), 3, 0, 0, 0));
+        c.addView(foot, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+        c.addView(Ui.text(this, "Arquivo TSE: " + ((r.date + " • " + r.time).replaceAll("^ • | • $", "").trim()), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
         return c;
     }
 
+    private LinearLayout scoreline(Model.Result r) {
+        LinearLayout c = Ui.card(this);
+        LinearLayout row = Ui.row(this);
+        Model.Cand a = r == null || r.cands.size() < 1 ? null : r.cands.get(0), b = r == null || r.cands.size() < 2 ? null : r.cands.get(1);
+        row.addView(side(a == null ? "Aguardando dados" : "1º • " + a.nome, a == null ? "—" : pc(a.pct), a == null ? Ui.MUTED : Model.color(a.nome), Gravity.START), Ui.lp(0, -2, 1f));
+        LinearLayout mid = Ui.col(this);
+        mid.setGravity(Gravity.CENTER);
+        mid.addView(Ui.text(this, a != null && b != null ? n(a.votos - b.votos) : "—", 15, Ui.TEXT, true));
+        mid.addView(Ui.text(this, a != null && b != null ? String.format(BR, "%.2f p.p. de diferença", a.pct - b.pct) : "diferença", 9, Ui.MUTED, false));
+        row.addView(mid, Ui.margins(Ui.lp(-2, -2), 8, 0, 8, 0));
+        row.addView(side(b == null ? "" : "2º • " + b.nome, b == null ? "" : pc(b.pct), b == null ? Ui.MUTED : Model.color(b.nome), Gravity.END), Ui.lp(0, -2, 1f));
+        c.addView(row);
+        return c;
+    }
+
+    private LinearLayout side(String who, String pct, int color, int gravity) {
+        LinearLayout s = Ui.col(this);
+        s.setGravity(gravity);
+        TextView w = Ui.text(this, who, 11, Ui.MUTED, false);
+        w.setSingleLine();
+        w.setEllipsize(TextUtils.TruncateAt.END);
+        s.addView(w);
+        TextView p = Ui.big(this, pct, 19);
+        p.setTextColor(color);
+        p.setPadding(0, Ui.dp(3), 0, 0);
+        s.addView(p);
+        return s;
+    }
+
+    private LinearLayout sectionHead(String title, String sub) {
+        LinearLayout h = Ui.col(this);
+        h.setPadding(Ui.dp(2), Ui.dp(6), 0, Ui.dp(10));
+        h.addView(Ui.text(this, title, 18, Ui.TEXT, true));
+        if (sub != null) h.addView(Ui.text(this, sub, 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        return h;
+    }
+
+    // ============================================================ abas
     private void renderMap() {
-        LinearLayout modes = row();
-        modes.addView(pill("Presidente", !govMode, v -> { govMode = false; render(); }));
-        modes.addView(pill("Governador", govMode, v -> { govMode = true; refresh(); render(); }));
-        content.addView(modes);
+        content.addView(sectionHead("Mapa eleitoral", "Cada UF assume a cor de quem lidera ali. Toque em um estado para ver os detalhes."));
+        LinearLayout modes = Ui.row(this);
+        modes.setBackground(Ui.fill(0xFF09182A, 12, Ui.LINE));
+        modes.setPadding(Ui.dp(3), Ui.dp(3), Ui.dp(3), Ui.dp(3));
+        modes.addView(modeBtn("Presidente", !govMode, false), Ui.lp(0, Ui.dp(38), 1f));
+        modes.addView(modeBtn("Governador", govMode, true), Ui.lp(0, Ui.dp(38), 1f));
+        content.addView(modes, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+
         Map<String, Model.Result> data = govMode ? snap().gov : snap().states;
         Map<String, Integer> fills = new HashMap<>();
         LinkedHashMap<String, Integer> counts = new LinkedHashMap<>();
-        int loaded = 0;
+        int loaded = 0, absent = 0;
         for (String[] u : UFS) {
             Model.Result r = data.get(u[0]);
             Model.Cand l = r == null ? null : r.lead();
-            if (l != null) {
-                loaded++;
-                fills.put(u[0], Model.color(l.nome));
-                counts.merge(l.nome, 1, Integer::sum);
-            }
+            if (l != null) { loaded++; fills.put(u[0], Model.color(l.nome)); counts.merge(l.nome, 1, Integer::sum); }
+            else if (govMode && Boolean.TRUE.equals(snap().govAbsent.get(u[0]))) absent++;
         }
         mapView.setFills(fills);
         mapView.setSelected(sel);
-        LinearLayout c = card();
-        c.addView(tv((govMode ? "Governador" : "Presidente") + " — liderança por UF", 15, TEXT, true));
-        c.addView(tv(turn + "º turno • " + loaded + "/27 UFs coloridas", 11, MUTED, false));
-        c.addView(mapView, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout c = Ui.card(this);
+        LinearLayout top = Ui.row(this);
+        LinearLayout tt = Ui.col(this);
+        tt.addView(Ui.text(this, (govMode ? "Governador" : "Presidente") + " — liderança por UF", 15, Ui.TEXT, true));
+        tt.addView(Ui.text(this, loaded == 0 ? "Aguardando dados do TSE • " + turn + "º turno" : turn + "º turno • " + loaded + " UFs coloridas" + (absent > 0 ? " • " + absent + " sem disputa" : ""), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        top.addView(tt, Ui.lp(0, -2, 1f));
+        top.addView(Ui.chip(this, loaded + "/27 UFs", Ui.MUTED));
+        c.addView(top);
+        c.addView(mapView, Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 6));
+        FlowLayout legend = new FlowLayout(this, 6);
         List<Map.Entry<String, Integer>> es = new ArrayList<>(counts.entrySet());
-        es.sort((a, b) -> b.getValue() - a.getValue());
-        for (Map.Entry<String, Integer> e : es) {
-            LinearLayout r = row();
-            View dot = new View(this);
-            dot.setBackground(rounded(Model.color(e.getKey()), 6, 0));
-            r.addView(dot, new LinearLayout.LayoutParams(dp(12), dp(12)));
-            TextView t = tv("  " + e.getKey() + " — " + e.getValue() + " UF" + (e.getValue() > 1 ? "s" : ""), 12, TEXT, false);
-            r.addView(t);
-            r.setPadding(0, dp(3), 0, dp(3));
-            c.addView(r);
-        }
-        if (loaded == 0) c.addView(tv(govMode && snap().govAbsent.size() > 0 ? "Sem disputa neste cargo/UF." : "Aguardando dados do TSE…", 12, MUTED, false));
+        es.sort((x, y) -> y.getValue() - x.getValue());
+        for (Map.Entry<String, Integer> e : es) legend.addView(legendPill(Model.color(e.getKey()), e.getKey(), e.getValue() + " UF" + (e.getValue() > 1 ? "s" : "")));
+        if (loaded > 0 && loaded < 27) legend.addView(legendPill(0xFF17304F, absent > 0 ? "Sem disputa / sem dados" : "Sem dados ainda", (27 - loaded) + " UFs"));
+        if (loaded == 0) legend.addView(legendPill(0xFF17304F, "Aguardando líderes por UF…", ""));
+        c.addView(legend);
+        c.addView(Ui.text(this, "As cores identificam candidatos no mapa; não representam avaliação política nem projeção. Geometria: @svg-maps/brazil (CC BY 4.0).", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 0));
         content.addView(c);
-        Model.Result d = data.get(sel);
-        String sub = (govMode ? "Governador" : "Presidente") + " • " + turn + "º turno";
-        if (d == null && govMode && Boolean.TRUE.equals(snap().govAbsent.get(sel))) {
-            LinearLayout e = card();
-            e.addView(tv(ufName(sel) + " (" + sel + ")", 16, TEXT, true));
-            e.addView(tv("Sem disputa neste cargo/UF" + (turn == 2 ? " no 2º turno." : "."), 12, MUTED, false));
-            content.addView(e);
-        } else content.addView(resultCard(ufName(sel) + " (" + sel + ")", sub, d, 3));
+        if (govMode && data.get(sel) == null && Boolean.TRUE.equals(snap().govAbsent.get(sel)))
+            content.addView(emptyCard(ufName(sel) + " (" + sel + ")", "Sem disputa neste cargo/UF" + (turn == 2 ? " no 2º turno." : ".")));
+        else content.addView(resultCard(ufName(sel) + " (" + sel + ")", cargoSub(govMode ? "Governador" : "Presidente"), "📍", data.get(sel), 3));
+    }
+
+    private TextView modeBtn(String label, boolean on, boolean gov) {
+        TextView b = Ui.text(this, label, 13, on ? Ui.TEXT : Ui.MUTED, true);
+        b.setGravity(Gravity.CENTER);
+        if (on) b.setBackground(Ui.fill(0xFF143251, 9, 0));
+        b.setOnClickListener(v -> { govMode = gov; if (gov && snap().gov.isEmpty()) refresh(); render(); });
+        return b;
+    }
+
+    private View legendPill(int color, String name, String count) {
+        LinearLayout p = Ui.row(this);
+        p.setBackground(Ui.fill(0xFF09182A, 99, Ui.LINE));
+        p.setPadding(Ui.dp(9), Ui.dp(5), Ui.dp(11), Ui.dp(5));
+        View d = new View(this);
+        d.setBackground(Ui.fill(color, 99, 0));
+        p.addView(d, Ui.margins(Ui.lp(Ui.dp(10), Ui.dp(10)), 0, 0, 7, 0));
+        p.addView(Ui.text(this, name, 11, Ui.TEXT, true));
+        if (!count.isEmpty()) p.addView(Ui.text(this, "  " + count, 11, Ui.MUTED, false));
+        return p;
+    }
+
+    private LinearLayout emptyCard(String title, String msg) {
+        LinearLayout e = Ui.card(this);
+        e.addView(Ui.text(this, title, 15, Ui.TEXT, true));
+        e.addView(Ui.text(this, msg, 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+        return e;
     }
 
     private void renderBrasil() {
-        content.addView(resultCard("Presidente da República", "Brasil • " + turn + "º turno", snap().pres, turn == 2 ? 2 : 3));
-        if (snap().pres == null && waiting) {
-            LinearLayout w = card();
-            w.addView(tv("O TSE ainda não publicou o resultado presidencial do " + turn + "º turno. Nova consulta automática em ~60 s.", 12, AMBER, false));
-            content.addView(w);
-        }
-    }
+        content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
+        Model.Result r = snap().pres;
+        content.addView(scoreline(r));
+        content.addView(resultCard("Presidente da República", cargoSub("Brasil"), "🇧🇷", r, turn == 2 ? 2 : 3));
+        if (r == null && waiting) content.addView(emptyCard("Aguardando o TSE", "O resultado presidencial do " + turn + "º turno ainda não foi publicado. Nova consulta automática em ~60 s."));
 
-    private void renderUfs() {
-        for (String[] u : UFS) {
-            Model.Result r = snap().states.get(u[0]);
-            Model.Cand l = r == null ? null : r.lead();
-            LinearLayout c = card();
-            LinearLayout h = row();
-            View dot = new View(this);
-            dot.setBackground(rounded(l == null ? 0xFF17304F : Model.color(l.nome), 6, 0));
-            h.addView(dot, new LinearLayout.LayoutParams(dp(12), dp(12)));
-            TextView t = tv("  " + u[0] + " · " + u[1], 14, TEXT, true);
-            h.addView(t, new LinearLayout.LayoutParams(0, -2, 1f));
-            h.addView(tv(r == null ? "—" : pc(r.progress), 12, MINT, true));
+        // Pulso: gráfico do top 3
+        content.addView(sectionHead("Pulso da apuração", "Percentual dos válidos a cada arquivo novo do TSE (histórico guardado neste aparelho, separado por turno)."));
+        LinearLayout pc = Ui.card(this);
+        LineChartView chart = new LineChartView(this);
+        List<float[]> series = new ArrayList<>();
+        List<Integer> cols = new ArrayList<>();
+        FlowLayout leg = new FlowLayout(this, 8);
+        if (r != null) {
+            for (int i = 0; i < Math.min(3, r.cands.size()); i++) {
+                String nm = r.cands.get(i).nome;
+                List<Float> vals = new ArrayList<>();
+                for (LinkedHashMap<String, Float> h : snap().hist) if (h.containsKey(nm)) vals.add(h.get(nm));
+                float[] arr = new float[vals.size()];
+                for (int k = 0; k < arr.length; k++) arr[k] = vals.get(k);
+                series.add(arr);
+                cols.add(Model.color(nm));
+                leg.addView(legendPill(Model.color(nm), nm, ""));
+            }
+        }
+        chart.set(series, cols);
+        pc.addView(chart);
+        pc.addView(leg, Ui.margins(Ui.lp(-1, -2), 0, 8, 0, 0));
+        content.addView(pc);
+
+        // Marcos
+        content.addView(sectionHead("Marcos da totalização", null));
+        FlowLayout ms = new FlowLayout(this, 6);
+        double prog = r == null ? 0 : r.progress;
+        for (int m : new int[]{25, 50, 75, 90, 95, 99, 100}) {
+            boolean hit = prog >= m;
+            TextView t = Ui.text(this, (hit ? "✓ " : "") + m + "%", 12, hit ? 0xFFA7F0C1 : Ui.MUTED, true);
+            t.setPadding(Ui.dp(11), Ui.dp(7), Ui.dp(11), Ui.dp(7));
+            t.setBackground(Ui.fill(hit ? 0x1C55DF8B : 0x00000000, 99, hit ? 0xFF33764F : Ui.LINE));
+            ms.addView(t);
+        }
+        content.addView(ms, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+
+        // Movimentos
+        content.addView(sectionHead("Últimos movimentos", "Alterações detectadas pelo app — sem previsão."));
+        LinearLayout ev = Ui.card(this);
+        if (events.isEmpty()) ev.addView(Ui.text(this, "Aguardando mudanças nos arquivos do TSE…", 12, Ui.MUTED, false));
+        for (int i = 0; i < Math.min(8, events.size()); i++) {
+            Event e = events.get(i);
+            LinearLayout row = Ui.row(this);
+            row.setPadding(0, Ui.dp(7), 0, Ui.dp(7));
+            TextView ic = Ui.text(this, e.icon, 13, Ui.TEXT, false);
+            ic.setGravity(Gravity.CENTER);
+            ic.setBackground(Ui.fill(0xFF102B49, 9, 0));
+            row.addView(ic, Ui.margins(Ui.lp(Ui.dp(28), Ui.dp(28)), 0, 0, 10, 0));
+            LinearLayout tx = Ui.col(this);
+            tx.addView(Ui.text(this, e.title, 12, Ui.TEXT, true));
+            tx.addView(Ui.text(this, e.detail, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+            row.addView(tx, Ui.lp(0, -2, 1f));
+            row.addView(Ui.text(this, hhmm(e.at), 10, Ui.MUTED, false));
+            ev.addView(row);
+        }
+        content.addView(ev);
+
+        // Regiões
+        content.addView(sectionHead("Regiões", "Soma real dos votos dos estados; apuração ponderada pelas seções."));
+        for (int i = 0; i < REGIONS.length; i++) {
+            Model.Result agg = aggregate(REGIONS[i]);
+            LinearLayout c = Ui.card(this);
+            LinearLayout h = Ui.row(this);
+            h.addView(Ui.text(this, REGION_ICON[i] + "  " + REGIONS[i], 15, Ui.TEXT, true), Ui.lp(0, -2, 1f));
+            h.addView(Ui.text(this, agg == null ? "…" : pc(agg.progress), 12, Ui.MINT, true));
             c.addView(h);
-            c.addView(tv(l == null ? "Carregando…" : l.nome + " • " + pc(l.pct), 12, MUTED, false));
-            c.addView(bar(r == null ? 0 : r.progress, CYAN, 6));
-            c.setOnClickListener(v -> { sel = u[0]; tab = "mapa"; govMode = false; render(); });
+            if (agg == null) c.addView(Ui.text(this, "carregando…", 11, Ui.MUTED, false));
+            else {
+                c.addView(new GradientBar(this, 6).value(agg.progress));
+                for (int k = 0; k < Math.min(3, agg.cands.size()); k++) c.addView(miniRow(agg.cands.get(k), k));
+            }
             content.addView(c);
         }
     }
 
-    private void renderDf() {
-        for (Object[] s : DF_SRC) {
-            String key = (String) s[0];
-            if (turn == 2 && !key.equals("pres") && !key.equals("gov")) {
-                LinearLayout e = card();
-                e.addView(tv((String) s[1], 16, TEXT, true));
-                e.addView(tv("Sem disputa neste cargo no 2º turno.", 12, MUTED, false));
-                content.addView(e);
-                continue;
+    private View miniRow(Model.Cand c, int idx) {
+        LinearLayout r = Ui.row(this);
+        r.setPadding(0, Ui.dp(5), 0, Ui.dp(5));
+        View d = new View(this);
+        d.setBackground(Ui.fill(Model.color(c.nome), 99, 0));
+        r.addView(d, Ui.margins(Ui.lp(Ui.dp(10), Ui.dp(10)), 0, 0, 8, 0));
+        TextView nm = Ui.text(this, (idx + 1) + "º  " + c.nome, 13, Ui.TEXT, idx == 0);
+        nm.setSingleLine();
+        nm.setEllipsize(TextUtils.TruncateAt.END);
+        r.addView(nm, Ui.lp(0, -2, 1f));
+        r.addView(Ui.text(this, pc(c.pct), 13, Ui.TEXT, true));
+        return r;
+    }
+
+    private Model.Result aggregate(String region) {
+        Map<String, Model.Cand> map = new LinkedHashMap<>();
+        long sections = 0, total = 0, valid = 0;
+        int have = 0;
+        for (String[] u : UFS) {
+            if (!u[2].equals(region)) continue;
+            Model.Result d = snap().states.get(u[0]);
+            if (d == null) continue;
+            have++;
+            sections += d.sections; total += d.sectionsTotal; valid += d.valid;
+            for (Model.Cand c : d.cands) {
+                String k = c.numero.isEmpty() ? c.nome : c.numero;
+                Model.Cand z = map.get(k);
+                if (z == null) { z = new Model.Cand(); z.nome = c.nome; z.partido = c.partido; z.numero = c.numero; map.put(k, z); }
+                z.votos += c.votos;
             }
-            if (Boolean.TRUE.equals(snap().dfAbsent.get(key)) && snap().df.get(key) == null) {
-                LinearLayout e = card();
-                e.addView(tv((String) s[1], 16, TEXT, true));
-                e.addView(tv("Sem disputa neste cargo/UF.", 12, MUTED, false));
-                content.addView(e);
-                continue;
+        }
+        if (have == 0) return null;
+        Model.Result r = new Model.Result();
+        r.cands.addAll(map.values());
+        r.cands.sort((a, b) -> Long.compare(b.votos, a.votos));
+        for (Model.Cand c : r.cands) c.pct = valid == 0 ? 0 : c.votos * 100.0 / valid;
+        r.sections = sections; r.sectionsTotal = total; r.valid = valid;
+        r.progress = total == 0 ? 0 : sections * 100.0 / total;
+        return r;
+    }
+
+    private void renderUfs() {
+        content.addView(sectionHead("Todos os estados", "Líder e apuração. Toque numa UF para abrir top 3, diferença e votos."));
+        for (int ri = 0; ri < REGIONS.length; ri++) {
+            LinearLayout h = Ui.row(this);
+            h.setPadding(Ui.dp(2), Ui.dp(8), 0, Ui.dp(8));
+            h.addView(Ui.text(this, REGION_ICON[ri] + "  " + REGIONS[ri], 15, Ui.TEXT, true), Ui.lp(0, -2, 1f));
+            content.addView(h);
+            List<String[]> ufs = new ArrayList<>();
+            for (String[] u : UFS) if (u[2].equals(REGIONS[ri])) ufs.add(u);
+            for (int i = 0; i < ufs.size(); i += 2) {
+                LinearLayout row = Ui.row(this);
+                row.setBaselineAligned(false);
+                for (int k = 0; k < 2; k++) {
+                    if (i + k < ufs.size()) row.addView(ufTile(ufs.get(i + k)[0]), Ui.margins(Ui.lp(0, -2, 1f), k == 0 ? 0 : 5, 0, k == 0 ? 5 : 0, 10));
+                    else row.addView(new View(this), Ui.lp(0, 1, 1f));
+                }
+                content.addView(row, Ui.lp(-1, -2));
             }
-            int top = key.equals("pres") ? (turn == 2 ? 2 : 3) : key.equals("gov") ? (turn == 2 ? 2 : 6) : key.equals("sen") ? 8 : key.equals("depf") ? 10 : 14;
-            content.addView(resultCard((String) s[1], "Distrito Federal • " + turn + "º turno", snap().df.get(key), top));
         }
     }
 
-    private void renderDiag() {
-        LinearLayout c = card();
-        c.addView(tv("Diagnóstico", 16, TEXT, true));
+    private View ufTile(String uf) {
+        Model.Result r = snap().states.get(uf);
+        Model.Cand l = r == null ? null : r.lead();
+        LinearLayout t = Ui.row(this);
+        t.setBackground(Ui.cardBg(14));
+        View stripe = new View(this);
+        stripe.setBackground(Ui.fill(l == null ? 0xFF17304F : Model.color(l.nome), 4, 0));
+        t.addView(stripe, Ui.margins(Ui.lp(Ui.dp(5), -1), 0, 0, 0, 0));
+        LinearLayout c = Ui.col(this);
+        c.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(11), Ui.dp(10));
+        LinearLayout top = Ui.row(this);
+        top.addView(Ui.big(this, uf, 15), Ui.lp(0, -2, 1f));
+        top.addView(Ui.text(this, r == null ? "—" : pc(r.progress), 11, Ui.MINT, true));
+        c.addView(top);
+        TextView nm = Ui.text(this, l == null ? "Carregando…" : l.nome, 12, Ui.TEXT, true);
+        nm.setSingleLine();
+        nm.setEllipsize(TextUtils.TruncateAt.END);
+        nm.setPadding(0, Ui.dp(6), 0, 0);
+        c.addView(nm);
+        c.addView(Ui.text(this, l == null ? ufName(uf) : pc(l.pct), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+        c.addView(new GradientBar(this, 4).value(r == null ? 0 : r.progress));
+        t.addView(c, Ui.lp(0, -2, 1f));
+        t.setOnClickListener(v -> { sel = uf; showSheet(detailView(uf)); });
+        return t;
+    }
+
+    private void renderDf() {
+        content.addView(sectionHead("Distrito Federal", "Presidente no DF, Governo, Senado, Câmara e CLDF."));
+        for (Object[] s : DF_SRC) {
+            String key = (String) s[0];
+            String title = (String) s[1], icon = (String) s[2];
+            if (turn == 2 && !key.equals("pres") && !key.equals("gov")) { content.addView(emptyCard(title, "Sem disputa neste cargo no 2º turno.")); continue; }
+            if (Boolean.TRUE.equals(snap().dfAbsent.get(key)) && snap().df.get(key) == null) { content.addView(emptyCard(title, "Sem disputa neste cargo/UF.")); continue; }
+            int top = key.equals("pres") ? (turn == 2 ? 2 : 3) : key.equals("gov") ? (turn == 2 ? 2 : 6) : key.equals("sen") ? 8 : key.equals("depf") ? 10 : 14;
+            content.addView(resultCard(title, cargoSub("Distrito Federal"), icon, snap().df.get(key), top));
+        }
+    }
+
+    // ---------------------------------------------------------------- notícias
+    private boolean needNews() {
+        News.Batch b = newsCache.get(newsFilter);
+        return b == null || System.currentTimeMillis() - b.at > 5 * 60 * 1000;
+    }
+
+    private void loadNews(boolean force) {
+        if (newsBusy || (!force && !needNews())) return;
+        newsBusy = true;
+        final String f = newsFilter;
+        render();
+        bg.execute(() -> {
+            News.Batch b = null;
+            try { b = News.load(f, newsPool); } catch (Throwable t) { lastError = "notícias: " + t; }
+            final News.Batch fb = b;
+            ui.post(() -> {
+                if (fb != null && (!fb.articles.isEmpty() || !newsCache.containsKey(f))) newsCache.put(f, fb);
+                newsBusy = false;
+                render();
+            });
+        });
+    }
+
+    private void renderNews() {
+        LinearLayout head = Ui.row(this);
+        LinearLayout hh = sectionHead("Radar mundial de notícias", "Várias fontes: Google News (PT/EN/ES), veículos por RSS. Toque numa matéria para ler o trecho no app.");
+        head.addView(hh, Ui.lp(0, -2, 1f));
+        TextView rf = Ui.text(this, newsBusy ? "…" : "↻", 20, Ui.TEXT, true);
+        rf.setGravity(Gravity.CENTER);
+        rf.setBackground(Ui.fill(0xFF0E2138, 12, Ui.LINE));
+        rf.setOnClickListener(v -> loadNews(true));
+        head.addView(rf, Ui.lp(Ui.dp(44), Ui.dp(40)));
+        content.addView(head);
+        HorizontalScrollView hs = new HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout chips = Ui.row(this);
+        for (String[] f : NEWS_FILTERS) {
+            boolean on = newsFilter.equals(f[0]);
+            TextView t = Ui.text(this, f[1], 12, on ? Ui.INK : Ui.MUTED, true);
+            t.setPadding(Ui.dp(13), Ui.dp(9), Ui.dp(13), Ui.dp(9));
+            t.setBackground(on ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+            t.setOnClickListener(v -> { newsFilter = f[0]; if (needNews()) loadNews(false); render(); });
+            chips.addView(t, Ui.margins(Ui.lp(-2, -2), 0, 0, 7, 0));
+        }
+        hs.addView(chips);
+        content.addView(hs, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        News.Batch b = newsCache.get(newsFilter);
+        LinearLayout st = Ui.card(this);
+        if (b == null) st.addView(Ui.text(this, newsBusy ? "Buscando em várias fontes…" : "Toque em ↻ para buscar as notícias.", 12, Ui.MUTED, false));
+        else {
+            int ok = 0;
+            List<String> bad = new ArrayList<>();
+            for (News.Health h : b.health) { if (h.ok) ok++; else bad.add(h.label); }
+            java.util.Set<String> srcs = new java.util.HashSet<>(), ccs = new java.util.HashSet<>();
+            for (News.Article a : b.articles) { srcs.add(a.source); ccs.add(a.cc); }
+            LinearLayout m = Ui.row(this);
+            m.addView(statBox(String.valueOf(b.articles.size()), "matérias"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
+            m.addView(statBox(String.valueOf(srcs.size()), "fontes"), Ui.margins(Ui.lp(0, -2, 1f), 3, 0, 3, 0));
+            m.addView(statBox(String.valueOf(ccs.size()), "países"), Ui.margins(Ui.lp(0, -2, 1f), 3, 0, 0, 0));
+            st.addView(m);
+            st.addView(Ui.text(this, "Atualizado " + hhmm(b.at) + " • " + ok + "/" + b.health.size() + " fontes responderam" + (newsBusy ? " • atualizando…" : ""), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 9, 0, 0));
+            if (!bad.isEmpty()) st.addView(Ui.text(this, "Indisponíveis agora: " + TextUtils.join(", ", bad) + ". As demais continuam funcionando.", 10, Ui.AMBER, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        }
+        content.addView(st);
+        if (b != null) {
+            if (b.articles.isEmpty()) content.addView(emptyCard("Nenhuma matéria agora", "Nenhuma matéria encontrada neste filtro. Tentaremos de novo."));
+            for (News.Article a : b.articles) content.addView(articleCard(a));
+            content.addView(Ui.text(this, "As opiniões aparecem atribuídas às respectivas fontes. O app não transforma manchetes ou colunas em fatos e não faz avaliação política própria. Classificação (notícia/análise/opinião) automática por palavras-chave.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 4, 2, 0));
+        }
+    }
+
+    private View articleCard(final News.Article a) {
+        LinearLayout c = Ui.card(this);
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 9));
+        LinearLayout meta = Ui.row(this);
+        int kc = a.kind.equals("Opinião") ? 0xFFFFD9A0 : a.kind.equals("Análise") ? 0xFFD9C7FF : 0xFFBDE9FF;
+        meta.addView(Ui.chip(this, a.kind, kc));
+        TextView s = Ui.text(this, "  " + a.source + (a.cc.isEmpty() ? "" : " • " + a.cc) + (a.lang.isEmpty() ? "" : " • " + a.lang.toUpperCase(Locale.ROOT)) + (a.ts == 0 ? "" : " • " + new SimpleDateFormat("dd/MM HH:mm", BR).format(new Date(a.ts))), 10, Ui.MUTED, false);
+        s.setSingleLine();
+        s.setEllipsize(TextUtils.TruncateAt.END);
+        meta.addView(s, Ui.lp(0, -2, 1f));
+        c.addView(meta);
+        c.addView(Ui.text(this, a.title, 14, Ui.TEXT, true), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
+        if (!a.desc.isEmpty()) {
+            TextView d = Ui.text(this, a.desc, 12, Ui.SOFT, false);
+            d.setMaxLines(4);
+            d.setEllipsize(TextUtils.TruncateAt.END);
+            d.setLineSpacing(0, 1.15f);
+            c.addView(d, Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+        }
+        c.setOnClickListener(v -> showSheet(articleView(a)));
+        return c;
+    }
+
+    private View articleView(final News.Article a) {
+        LinearLayout c = Ui.col(this);
+        LinearLayout meta = Ui.row(this);
+        int kc = a.kind.equals("Opinião") ? 0xFFFFD9A0 : a.kind.equals("Análise") ? 0xFFD9C7FF : 0xFFBDE9FF;
+        meta.addView(Ui.chip(this, a.kind, kc));
+        meta.addView(Ui.text(this, "  " + a.source + (a.ts == 0 ? "" : " • " + new SimpleDateFormat("dd/MM HH:mm", BR).format(new Date(a.ts))), 11, Ui.MUTED, false));
+        c.addView(meta);
+        c.addView(Ui.text(this, a.title, 19, Ui.TEXT, true), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 10));
+        if (!a.desc.isEmpty()) {
+            TextView d = Ui.text(this, a.desc, 14, Ui.SOFT, false);
+            d.setLineSpacing(0, 1.25f);
+            c.addView(d);
+            c.addView(Ui.text(this, "Trecho fornecido pela própria fonte via feed" + (a.kind.equals("Opinião") ? "; o texto expressa a visão do autor/veículo, não do app." : "."), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
+        } else {
+            TextView n = Ui.text(this, "Esta fonte não envia trecho da matéria no feed. O app não inventa resumo: abra o original para ler o texto completo.", 12, Ui.MUTED, false);
+            n.setPadding(Ui.dp(12), Ui.dp(12), Ui.dp(12), Ui.dp(12));
+            n.setBackground(Ui.fill(0x00000000, 12, 0xFF35577E));
+            c.addView(n);
+        }
+        TextView open = Ui.text(this, "Abrir matéria original ↗", 14, Ui.INK, true);
+        open.setGravity(Gravity.CENTER);
+        open.setBackground(Ui.accent(13));
+        open.setOnClickListener(v -> {
+            try {
+                Uri u = Uri.parse(a.url);
+                if ("https".equals(u.getScheme()) || "http".equals(u.getScheme())) startActivity(new Intent(Intent.ACTION_VIEW, u));
+            } catch (Throwable t) { Toast.makeText(this, "Não foi possível abrir o link", Toast.LENGTH_SHORT).show(); }
+        });
+        c.addView(open, Ui.margins(Ui.lp(-1, Ui.dp(48)), 0, 16, 0, 0));
+        TextView share = Ui.text(this, "Compartilhar manchete", 13, Ui.SOFT, true);
+        share.setGravity(Gravity.CENTER);
+        share.setOnClickListener(v -> share(a.title + "\n" + a.source + "\n" + a.url));
+        c.addView(share, Ui.lp(-1, Ui.dp(44)));
+        return c;
+    }
+
+    // ---------------------------------------------------------------- mais (labs)
+    private void renderMais() {
+        content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
+
+        // comparador
+        LinearLayout cmp = Ui.card(this);
+        cmp.addView(Ui.text(this, "🔬 Comparador de UFs", 15, Ui.TEXT, true));
+        cmp.addView(Ui.text(this, "Coloque dois estados lado a lado: top 3 e andamento das seções.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 8));
+        LinearLayout sp = Ui.row(this);
+        sp.addView(ufSpinner(cmpA, true), Ui.margins(Ui.lp(0, Ui.dp(44), 1f), 0, 0, 4, 0));
+        sp.addView(ufSpinner(cmpB, false), Ui.margins(Ui.lp(0, Ui.dp(44), 1f), 4, 0, 0, 0));
+        cmp.addView(sp);
+        LinearLayout both = Ui.row(this);
+        both.setBaselineAligned(false);
+        both.addView(cmpSide(cmpA), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
+        both.addView(cmpSide(cmpB), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
+        cmp.addView(both);
+        content.addView(cmp);
+
+        // ações
+        LinearLayout act = Ui.card(this);
+        act.addView(Ui.text(this, "🧰 Ações rápidas", 15, Ui.TEXT, true));
+        LinearLayout r1 = Ui.row(this);
+        r1.addView(actionBtn("📋 Compartilhar boletim", "Resumo com os dados atuais", v -> share(snapshotText())), Ui.margins(Ui.lp(0, -2, 1f), 0, 10, 4, 0));
+        r1.addView(actionBtn("📺 Modo TV", "Tela cheia, mapa grande", v -> { setTv(true); render(); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 10, 0, 0));
+        act.addView(r1);
+        LinearLayout r2 = Ui.row(this);
+        r2.addView(actionBtn("🌍 Radar global", "Ir para as notícias", v -> { tab = "news"; if (needNews()) loadNews(false); render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
+        r2.addView(actionBtn("🧹 Zerar histórico", "Recomeça o gráfico deste turno", v -> { snap().hist.clear(); saveCache(turn); Toast.makeText(this, "Histórico zerado", Toast.LENGTH_SHORT).show(); render(); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
+        act.addView(r2);
+        content.addView(act);
+
+        // intervalo
+        LinearLayout iv = Ui.card(this);
+        iv.addView(Ui.text(this, "⏱️ Atualização automática", 15, Ui.TEXT, true));
+        iv.addView(Ui.text(this, "Intervalo entre consultas ao TSE (o limite do TSE é 100 requisições/s por IP; o app usa concorrência baixa). Pausa quando o app vai para segundo plano.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 8));
+        FlowLayout fl = new FlowLayout(this, 7);
+        for (int s : INTERVALS) {
+            boolean on = intervalMs == s * 1000L;
+            TextView t = Ui.text(this, s + " s", 13, on ? Ui.INK : Ui.MUTED, true);
+            t.setPadding(Ui.dp(16), Ui.dp(9), Ui.dp(16), Ui.dp(9));
+            t.setBackground(on ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+            t.setOnClickListener(v -> { intervalMs = delayMs = s * 1000L; prefs.edit().putInt("interval", s).apply(); ui.removeCallbacks(poller); ui.postDelayed(poller, delayMs); render(); });
+            fl.addView(t);
+        }
+        iv.addView(fl);
+        content.addView(iv);
+
+        // diagnóstico
+        content.addView(diagCard());
+        content.addView(Ui.text(this, "Resultados: arquivos JSON oficiais do Tribunal Superior Eleitoral, eleições 2026. Agregados regionais são calculados localmente pela soma dos votos oficiais. O aplicativo não projeta vencedores nem recomenda escolhas políticas.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 4, 2, 0));
+    }
+
+    private Spinner ufSpinner(String current, final boolean a) {
+        Spinner s = new Spinner(this);
+        List<String> items = new ArrayList<>();
+        int pos = 0;
+        for (int i = 0; i < UFS.length; i++) { items.add(UFS[i][0] + " · " + UFS[i][1]); if (UFS[i][0].equals(current)) pos = i; }
+        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, items);
+        s.setAdapter(ad);
+        s.setSelection(pos);
+        s.setBackground(Ui.fill(0xFF08182A, 11, Ui.LINE));
+        s.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            boolean init = true;
+            @Override public void onItemSelected(AdapterView<?> p, View v, int i, long id) {
+                if (init) { init = false; return; }
+                if (a) cmpA = UFS[i][0]; else cmpB = UFS[i][0];
+                prefs.edit().putString("cmpA", cmpA).putString("cmpB", cmpB).apply();
+                render();
+            }
+            @Override public void onNothingSelected(AdapterView<?> p) { }
+        });
+        return s;
+    }
+
+    private View cmpSide(String uf) {
+        Model.Result d = snap().states.get(uf);
+        LinearLayout s = Ui.col(this);
+        s.setBackground(Ui.fill(0xFF08182A, 12, 0x99_1D3858));
+        s.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(10));
+        s.addView(Ui.text(this, uf + " · " + ufName(uf), 13, Ui.TEXT, true));
+        s.addView(Ui.text(this, d == null ? "—" : pc(d.progress) + " apurado", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 4));
+        if (d == null) s.addView(Ui.text(this, "Carregando…", 11, Ui.MUTED, false));
+        else for (int i = 0; i < Math.min(3, d.cands.size()); i++) s.addView(miniRow(d.cands.get(i), i));
+        return s;
+    }
+
+    private View actionBtn(String title, String sub, View.OnClickListener l) {
+        LinearLayout b = Ui.col(this);
+        b.setBackground(Ui.fill(0xFF0B1D32, 13, Ui.LINE));
+        b.setPadding(Ui.dp(12), Ui.dp(11), Ui.dp(12), Ui.dp(11));
+        b.addView(Ui.text(this, title, 13, Ui.TEXT, true));
+        b.addView(Ui.text(this, sub, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        b.setOnClickListener(l);
+        return b;
+    }
+
+    private View diagCard() {
+        LinearLayout c = Ui.card(this);
+        c.addView(Ui.text(this, "🛠️ Diagnóstico", 15, Ui.TEXT, true));
+        SimpleDateFormat f = new SimpleDateFormat("dd/MM HH:mm:ss", BR);
         String[][] rows = {
                 {"Versão", VERSION},
                 {"Rede", networkStatus()},
                 {"Endpoint", Tse.BASE + "/" + Tse.CICLO + "/…"},
                 {"Turno / códigos", turn + "º • " + codes[turn - 1][0] + " / " + codes[turn - 1][1] + (codesFromConfig ? " (ele-c.json)" : " (padrão)")},
-                {"Última consulta", lastPoll == 0 ? "—" : new java.text.SimpleDateFormat("dd/MM HH:mm:ss", new Locale("pt", "BR")).format(new java.util.Date(lastPoll))},
-                {"Último dado novo", snap().lastChange == 0 ? "—" : new java.text.SimpleDateFormat("dd/MM HH:mm:ss", new Locale("pt", "BR")).format(new java.util.Date(snap().lastChange))},
-                {"Intervalo", (delayMs / 1000) + " s (pausa em segundo plano)"},
+                {"Última consulta", lastPoll == 0 ? "—" : f.format(new Date(lastPoll))},
+                {"Último dado novo", snap().lastChange == 0 ? "—" : f.format(new Date(snap().lastChange))},
+                {"Intervalo", (intervalMs / 1000) + " s (pausa em segundo plano)"},
                 {"Último erro", lastError},
-                {"Cache", snap().at == 0 ? "vazio" : "snapshot de " + new java.text.SimpleDateFormat("dd/MM HH:mm", new Locale("pt", "BR")).format(new java.util.Date(snap().at))}};
+                {"Cache", snap().at == 0 ? "vazio" : "snapshot de " + f.format(new Date(snap().at))}};
         for (String[] r : rows) {
-            c.addView(tv(r[0], 11, MUTED, false));
-            TextView v = tv(r[1], 13, TEXT, false);
-            v.setPadding(0, 0, 0, dp(6));
+            c.addView(Ui.text(this, r[0], 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 9, 0, 0));
+            TextView v = Ui.text(this, r[1], 12, Ui.TEXT, false);
+            v.setPadding(0, Ui.dp(2), 0, 0);
             c.addView(v);
         }
-        content.addView(c);
+        return c;
     }
 
     private String networkStatus() {
@@ -451,22 +1034,167 @@ public class MainActivity extends Activity {
         } catch (Throwable t) { return "desconhecido"; }
     }
 
-    // ---------------------------------------------------------------- dados
+    // ---------------------------------------------------------------- modo TV
+    private void renderTv() {
+        content.setPadding(Ui.dp(18), Ui.dp(14), Ui.dp(18), Ui.dp(14));
+        Model.Result r = snap().pres;
+        LinearLayout head = Ui.row(this);
+        LinearLayout t = Ui.col(this);
+        TextView k = Ui.text(this, "ELEIÇÕES 2026 • MODO TV • " + turn + "º TURNO", 10, Ui.MINT, true);
+        k.setLetterSpacing(0.15f);
+        t.addView(k);
+        t.addView(Ui.big(this, "Brasil decide", 26), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        head.addView(t, Ui.lp(0, -2, 1f));
+        LinearLayout pr = Ui.col(this);
+        pr.setGravity(Gravity.END);
+        TextView pp = Ui.big(this, r == null ? "—" : pc(r.progress), 30);
+        pp.setGravity(Gravity.END);
+        pr.addView(pp);
+        TextView ss = Ui.text(this, r == null ? "aguardando" : n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 11, Ui.MUTED, false);
+        ss.setGravity(Gravity.END);
+        pr.addView(ss);
+        head.addView(pr);
+        content.addView(head);
+        content.addView(new GradientBar(this, 10).value(r == null ? 0 : r.progress), Ui.margins(Ui.lp(-1, Ui.dp(10)), 0, 12, 0, 8));
+        Map<String, Integer> fills = new HashMap<>();
+        for (String[] u : UFS) { Model.Result d = snap().states.get(u[0]); Model.Cand l = d == null ? null : d.lead(); if (l != null) fills.put(u[0], Model.color(l.nome)); }
+        mapView.setFills(fills);
+        mapView.setSelected("");
+        content.addView(mapView, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 4));
+        if (r != null) for (int i = 0; i < Math.min(3, r.cands.size()); i++) {
+            Model.Cand c = r.cands.get(i);
+            LinearLayout row = Ui.row(this);
+            View d = new View(this);
+            d.setBackground(Ui.fill(Model.color(c.nome), 99, 0));
+            row.addView(d, Ui.margins(Ui.lp(Ui.dp(14), Ui.dp(14)), 0, 0, 10, 0));
+            row.addView(Ui.text(this, (i + 1) + "º  " + c.nome, 17, Ui.TEXT, true), Ui.lp(0, -2, 1f));
+            row.addView(Ui.big(this, pc(c.pct), 22));
+            row.setPadding(0, Ui.dp(7), 0, Ui.dp(7));
+            content.addView(row);
+        }
+        TextView hint = Ui.text(this, "Toque para sair do modo TV • " + (lastPoll == 0 ? "" : "última consulta " + hhmmss(lastPoll)), 10, Ui.MUTED, false);
+        hint.setPadding(0, Ui.dp(10), 0, 0);
+        content.addView(hint);
+        content.setOnClickListener(v -> { setTv(false); render(); });
+        scroll.setOnClickListener(v -> { setTv(false); render(); });
+    }
+
+    // ---------------------------------------------------------------- painel deslizante e detalhes
+    private void showSheet(View body) {
+        final Dialog d = new Dialog(this);
+        d.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout wrap = Ui.col(this);
+        wrap.setBackground(Ui.gradient(0xFF0A1B30, 0xFF071321, 0, Ui.LINE, android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM));
+        android.graphics.drawable.GradientDrawable g = Ui.gradient(0xFF0A1B30, 0xFF071321, 0, Ui.LINE, android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM);
+        g.setCornerRadii(new float[]{Ui.dp(24), Ui.dp(24), Ui.dp(24), Ui.dp(24), 0, 0, 0, 0});
+        wrap.setBackground(g);
+        wrap.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), insetB + Ui.dp(16));
+        View handle = new View(this);
+        handle.setBackground(Ui.fill(0xFF35506D, 99, 0));
+        wrap.addView(handle, Ui.margins(Ui.lp(Ui.dp(46), Ui.dp(4)), 0, 0, 0, 12));
+        ((LinearLayout.LayoutParams) handle.getLayoutParams()).gravity = Gravity.CENTER_HORIZONTAL;
+        MaxHeightScrollView sv = new MaxHeightScrollView(this, 0.8f);
+        sv.addView(body);
+        wrap.addView(sv, Ui.lp(-1, -2));
+        d.setContentView(wrap);
+        Window w = d.getWindow();
+        if (w != null) {
+            w.setBackgroundDrawable(new android.graphics.drawable.ColorDrawable(Color.TRANSPARENT));
+            w.setLayout(WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.WRAP_CONTENT);
+            w.setGravity(Gravity.BOTTOM);
+            w.setDimAmount(0.55f);
+        }
+        d.setCanceledOnTouchOutside(true);
+        d.show();
+    }
+
+    private View detailView(String uf) {
+        boolean gov = govMode && tab.equals("mapa");
+        Model.Result r = (gov ? snap().gov : snap().states).get(uf);
+        LinearLayout c = Ui.col(this);
+        c.addView(Ui.text(this, ufName(uf) + " (" + uf + ")", 20, Ui.TEXT, true));
+        c.addView(Ui.text(this, cargoSub(gov ? "Governador" : "Presidente"), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
+        if (r == null) {
+            c.addView(Ui.text(this, gov && Boolean.TRUE.equals(snap().govAbsent.get(uf)) ? "Sem disputa neste cargo/UF" + (turn == 2 ? " no 2º turno." : ".") : "Dados ainda não carregados.", 13, Ui.MUTED, false));
+            return c;
+        }
+        LinearLayout pr = Ui.row(this);
+        pr.addView(Ui.text(this, "Apuração", 12, Ui.MUTED, false), Ui.lp(0, -2, 1f));
+        pr.addView(Ui.big(this, pc(r.progress), 18));
+        c.addView(pr);
+        c.addView(new GradientBar(this, 10).value(r.progress), Ui.margins(Ui.lp(-1, Ui.dp(10)), 0, 7, 0, 5));
+        c.addView(Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal) + " seções totalizadas" + (r.fin ? " • totalização final" : ""), 10, Ui.MUTED, false));
+        Model.Cand a = r.cands.size() > 0 ? r.cands.get(0) : null, b = r.cands.size() > 1 ? r.cands.get(1) : null;
+        LinearLayout stats = Ui.row(this);
+        stats.setBaselineAligned(false);
+        LinearLayout s1 = Ui.col(this);
+        s1.setBackground(Ui.fill(0xFF08182A, 12, 0x99_1D3858));
+        s1.setPadding(Ui.dp(10), Ui.dp(9), Ui.dp(10), Ui.dp(9));
+        s1.addView(Ui.label(this, "Liderando"));
+        TextView ln = Ui.text(this, a == null || a.votos == 0 ? "—" : a.nome, 14, a == null ? Ui.TEXT : Model.color(a.nome), true);
+        ln.setPadding(0, Ui.dp(4), 0, 0);
+        s1.addView(ln);
+        LinearLayout s2 = Ui.col(this);
+        s2.setBackground(Ui.fill(0xFF08182A, 12, 0x99_1D3858));
+        s2.setPadding(Ui.dp(10), Ui.dp(9), Ui.dp(10), Ui.dp(9));
+        s2.addView(Ui.label(this, "Diferença 1º × 2º"));
+        TextView df = Ui.text(this, a != null && b != null ? n(a.votos - b.votos) + " votos" : "—", 14, Ui.TEXT, true);
+        df.setPadding(0, Ui.dp(4), 0, 0);
+        s2.addView(df);
+        if (a != null && b != null) s2.addView(Ui.text(this, String.format(BR, "%.2f p.p.", a.pct - b.pct), 10, Ui.MUTED, false));
+        stats.addView(s1, Ui.margins(Ui.lp(0, -1, 1f), 0, 12, 4, 6));
+        stats.addView(s2, Ui.margins(Ui.lp(0, -1, 1f), 4, 12, 0, 6));
+        c.addView(stats);
+        for (int i = 0; i < Math.min(3, r.cands.size()); i++) c.addView(candRow(r, r.cands.get(i), i, true));
+        c.addView(Ui.text(this, "Arquivo TSE: " + ((r.date + " • " + r.time).replaceAll("^ • | • $", "").trim()), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 0));
+        return c;
+    }
+
+    // ============================================================ boletim / compartilhar / jogo
+    private String snapshotText() {
+        Model.Result d = snap().pres;
+        if (d == null) return "Central Eleições 2026 — dados ainda não carregados.";
+        StringBuilder s = new StringBuilder("Central Eleições 2026 — " + new SimpleDateFormat("dd/MM/yyyy HH:mm", BR).format(new Date()) + "\n" + turn + "º turno • Brasil: " + pc(d.progress) + " das seções totalizadas.\n");
+        for (int i = 0; i < Math.min(3, d.cands.size()); i++) { Model.Cand c = d.cands.get(i); s.append(i + 1).append("º ").append(c.nome).append(" (").append(c.partido).append("): ").append(pc(c.pct)).append(" — ").append(n(c.votos)).append(" votos.\n"); }
+        if (d.cands.size() > 1) s.append("Diferença 1º–2º: ").append(n(d.cands.get(0).votos - d.cands.get(1).votos)).append(" votos.\n");
+        s.append("Fonte: TSE. Sem projeção.");
+        return s.toString();
+    }
+
+    private void share(String text) {
+        try {
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("text/plain");
+            i.putExtra(Intent.EXTRA_TEXT, text);
+            startActivity(Intent.createChooser(i, "Compartilhar"));
+        } catch (Throwable t) { Toast.makeText(this, "Não foi possível compartilhar", Toast.LENGTH_SHORT).show(); }
+    }
+
+    /** 7 toques rápidos no título abrem o minijogo escondido. */
+    private void easterEgg() {
+        long now = System.currentTimeMillis();
+        if (now - firstTap > 4000) { titleTaps = 0; firstTap = now; }
+        titleTaps++;
+        if (titleTaps >= 4 && titleTaps < 7) Toast.makeText(this, "🤫 " + (7 - titleTaps) + "…", Toast.LENGTH_SHORT).show();
+        if (titleTaps >= 7) { titleTaps = 0; startActivity(new Intent(this, GameActivity.class)); }
+    }
+
+    // ============================================================ dados
     private void setTurn(int t) {
         if (t == turn) return;
         turn = t;
         prefs.edit().putInt("turn", t).apply();
-        delayMs = 10000;
+        delayMs = intervalMs;
         render();
         refresh();
     }
 
-    private Callable<Object[]> task(final String key, final String url, final long ttl) {
+    private Callable<Object[]> task(final String key, final String url, final long ttl, final String photoBase) {
         return () -> {
             Long at;
             synchronized (absentAt) { at = absentAt.get(url); }
             if (at != null && System.currentTimeMillis() - at < ttl) { Tse.Fetch f = new Tse.Fetch(); f.absent = true; return new Object[]{key, f}; }
-            Tse.Fetch f = Tse.fetch(url);
+            Tse.Fetch f = Tse.fetch(url, photoBase);
             if (f.absent) synchronized (absentAt) { absentAt.put(url, System.currentTimeMillis()); }
             return new Object[]{key, f};
         };
@@ -487,7 +1215,7 @@ public class MainActivity extends Activity {
         busy = true;
         final int t = turn;
         final boolean wantGov = govMode;
-        ui.post(() -> { statusText = "Consultando o TSE…"; render(); });
+        ui.post(() -> { statusText = "Consultando o TSE…"; if (!tv) render(); });
         bg.execute(() -> {
             final Map<String, Model.Result> sOk = new HashMap<>(), gOk = new HashMap<>(), dOk = new HashMap<>();
             final Map<String, Boolean> gAbs = new HashMap<>(), dAbs = new HashMap<>();
@@ -501,19 +1229,20 @@ public class MainActivity extends Activity {
                     if (found != null) { codes = found; cfg = true; }
                 }
                 String fed = codes[t - 1][0], est = codes[t - 1][1];
-                List<Object[]> br = runAll(java.util.Collections.singletonList(task("br", Tse.url(fed, "br", 1), 60000)));
+                List<Object[]> br = runAll(java.util.Collections.singletonList(task("br", Tse.url(fed, "br", 1), 60000, Tse.photoBase(fed, "br"))));
                 Tse.Fetch bf = br.isEmpty() ? null : (Tse.Fetch) br.get(0)[1];
                 if (bf == null || bf.error != null) { failures++; if (bf != null) lastError = Tse.url(fed, "br", 1) + " → " + bf.error; }
                 else if (bf.absent) wait[0] = true;
                 else pres[0] = bf.result;
                 if (!wait[0]) {
                     List<Callable<Object[]>> ts = new ArrayList<>();
-                    for (String[] u : UFS) ts.add(task("s:" + u[0], Tse.url(fed, u[0].toLowerCase(Locale.ROOT), 1), 300000));
-                    if (wantGov) for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000));
+                    for (String[] u : UFS) ts.add(task("s:" + u[0], Tse.url(fed, u[0].toLowerCase(Locale.ROOT), 1), 300000, Tse.photoBase(fed, "br")));
+                    if (wantGov) for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000, Tse.photoBase(est, u[0].toLowerCase(Locale.ROOT))));
                     for (Object[] s : DF_SRC) {
                         String k = (String) s[0];
                         if (t == 2 && !k.equals("pres") && !k.equals("gov")) continue;
-                        ts.add(task("d:" + k, Tse.url((Boolean) s[3] ? fed : est, "df", (Integer) s[2]), 300000));
+                        boolean isFed = (Boolean) s[4];
+                        ts.add(task("d:" + k, Tse.url(isFed ? fed : est, "df", (Integer) s[3]), 300000, Tse.photoBase(isFed ? fed : est, isFed ? "br" : "df")));
                     }
                     for (Object[] o : runAll(ts)) {
                         String k = (String) o[0];
@@ -534,15 +1263,24 @@ public class MainActivity extends Activity {
                     commit(t, pres[0], sOk, gOk, dOk, gAbs, dAbs, wait[0], fails);
                 } catch (Throwable th) { lastError = "commit: " + th; }
                 busy = false;
-                render();
+                if (!tv || resumed) render();
             });
         });
+    }
+
+    private void addEvent(String icon, String title, String detail) {
+        Event e = new Event();
+        e.icon = icon; e.title = title; e.detail = detail; e.at = System.currentTimeMillis();
+        events.add(0, e);
+        while (events.size() > 50) events.remove(events.size() - 1);
     }
 
     private void commit(int t, Model.Result pres, Map<String, Model.Result> s, Map<String, Model.Result> g, Map<String, Model.Result> d,
                         Map<String, Boolean> gAbs, Map<String, Boolean> dAbs, boolean wait, int failures) {
         Snap sn = snaps[t - 1];
         String oldSig = sn.presSig;
+        Model.Result oldPres = sn.pres;
+        Map<String, Model.Result> oldStates = new HashMap<>(sn.states), oldGov = new HashMap<>(sn.gov);
         if (pres != null) { sn.pres = pres; sn.presSig = pres.sig; }
         sn.states.putAll(s);
         sn.gov.putAll(g);
@@ -553,13 +1291,37 @@ public class MainActivity extends Activity {
         boolean changed = pres != null && !pres.sig.equals(oldSig);
         if (changed || sn.lastChange == 0 && pres != null) sn.lastChange = lastPoll;
         waiting = wait;
+        if (changed) {
+            if (oldPres != null) {
+                for (int i = 0; i < Math.min(3, pres.cands.size()); i++) {
+                    Model.Cand c = pres.cands.get(i);
+                    for (Model.Cand o : oldPres.cands) if (o.nome.equals(c.nome) && c.votos > o.votos) { addEvent("🗳️", c.nome + " recebeu +" + n(c.votos - o.votos) + " votos", "Brasil • " + pc(c.pct) + " dos válidos"); break; }
+                }
+                if (!oldPres.cands.isEmpty() && !pres.cands.isEmpty() && oldPres.cands.get(0).votos > 0 && !oldPres.cands.get(0).nome.equals(pres.cands.get(0).nome))
+                    addEvent("↕️", "Mudança de líder nacional", pres.cands.get(0).nome + " assumiu a 1ª posição");
+            }
+            LinkedHashMap<String, Float> h = new LinkedHashMap<>();
+            for (int i = 0; i < Math.min(3, pres.cands.size()); i++) h.put(pres.cands.get(i).nome, (float) pres.cands.get(i).pct);
+            sn.hist.add(h);
+            while (sn.hist.size() > 100) sn.hist.remove(0);
+        }
+        for (Map.Entry<String, Model.Result> e : s.entrySet()) {
+            Model.Result o = oldStates.get(e.getKey());
+            if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
+                addEvent("🗺️", ufName(e.getKey()) + " mudou de líder", e.getValue().lead().nome + " passou à frente • Presidente • " + t + "º turno");
+        }
+        for (Map.Entry<String, Model.Result> e : g.entrySet()) {
+            Model.Result o = oldGov.get(e.getKey());
+            if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
+                addEvent("🗺️", ufName(e.getKey()) + " mudou de líder", e.getValue().lead().nome + " passou à frente • Governador • " + t + "º turno");
+        }
         if (t != turn) return;
         if (wait) {
-            delayMs = 60000;
+            delayMs = Math.max(intervalMs, 60000);
             statusText = turn + "º turno • aguardando arquivos do TSE";
             statusSub = "o cargo ainda não tem arquivo publicado";
         } else {
-            delayMs = 10000;
+            delayMs = intervalMs;
             boolean offline = pres == null && s.isEmpty() && failures > 0;
             statusText = offline ? "Sem conexão • último resultado salvo" : failures > 0 ? "Online • dados parciais" : changed ? "Ao vivo • dados novos" : "Ao vivo • TSE sem mudança";
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
@@ -567,13 +1329,19 @@ public class MainActivity extends Activity {
         if (failures == 0 || pres != null || !s.isEmpty()) saveCache(t);
     }
 
-    // ---------------------------------------------------------------- cache do último snapshot válido
+    // ============================================================ cache do último snapshot válido
     private void saveCache(int t) {
         try {
             Snap sn = snaps[t - 1];
             JSONObject o = new JSONObject();
             if (sn.pres != null) o.put("pres", sn.pres.toJson());
-            o.put("states", mapJson(sn.states)).put("gov", mapJson(sn.gov)).put("df", mapJson(sn.df))
+            JSONArray hist = new JSONArray();
+            for (LinkedHashMap<String, Float> h : sn.hist) {
+                JSONObject ho = new JSONObject();
+                for (Map.Entry<String, Float> e : h.entrySet()) ho.put(e.getKey(), (double) e.getValue());
+                hist.put(ho);
+            }
+            o.put("states", mapJson(sn.states)).put("gov", mapJson(sn.gov)).put("df", mapJson(sn.df)).put("hist", hist)
                     .put("lc", sn.lastChange).put("sig", sn.presSig).put("at", System.currentTimeMillis());
             sn.at = System.currentTimeMillis();
             prefs.edit().putString("snap" + t, o.toString()).apply();
@@ -604,6 +1372,15 @@ public class MainActivity extends Activity {
                 readMap(o.optJSONObject("states"), sn.states);
                 readMap(o.optJSONObject("gov"), sn.gov);
                 readMap(o.optJSONObject("df"), sn.df);
+                JSONArray hist = o.optJSONArray("hist");
+                for (int i = 0; hist != null && i < hist.length(); i++) {
+                    JSONObject ho = hist.optJSONObject(i);
+                    if (ho == null) continue;
+                    LinkedHashMap<String, Float> h = new LinkedHashMap<>();
+                    java.util.Iterator<String> it = ho.keys();
+                    while (it.hasNext()) { String k = it.next(); h.put(k, (float) ho.optDouble(k)); }
+                    sn.hist.add(h);
+                }
                 sn.lastChange = o.optLong("lc");
                 sn.presSig = o.optString("sig");
                 sn.at = o.optLong("at");

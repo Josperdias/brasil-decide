@@ -15,7 +15,7 @@ final class Model {
     private Model() {}
 
     static final class Cand {
-        String nome = "", partido = "", numero = "", sit = "";
+        String nome = "", partido = "", numero = "", sit = "", sq = "";
         long votos;
         double pct;
     }
@@ -24,7 +24,7 @@ final class Model {
         final List<Cand> cands = new ArrayList<>();
         double progress, abstPct;
         long sections, sectionsTotal, valid, blank;
-        String date = "", time = "", sig = "";
+        String date = "", time = "", sig = "", photoBase = "";
         boolean fin;
 
         Cand lead() { return !cands.isEmpty() && cands.get(0).votos > 0 ? cands.get(0) : null; }
@@ -32,10 +32,10 @@ final class Model {
         JSONObject toJson() throws Exception {
             JSONArray a = new JSONArray();
             for (Cand c : cands) a.put(new JSONObject().put("n", c.nome).put("p", c.partido).put("u", c.numero)
-                    .put("s", c.sit).put("v", c.votos).put("x", c.pct));
+                    .put("s", c.sit).put("v", c.votos).put("x", c.pct).put("q", c.sq));
             return new JSONObject().put("c", a).put("pr", progress).put("ap", abstPct).put("se", sections)
                     .put("st", sectionsTotal).put("va", valid).put("bl", blank).put("d", date).put("t", time)
-                    .put("g", sig).put("f", fin);
+                    .put("g", sig).put("f", fin).put("pb", photoBase);
         }
 
         static Result fromJson(JSONObject o) {
@@ -46,12 +46,12 @@ final class Model {
                 if (c == null) continue;
                 Cand k = new Cand();
                 k.nome = c.optString("n"); k.partido = c.optString("p"); k.numero = c.optString("u");
-                k.sit = c.optString("s"); k.votos = c.optLong("v"); k.pct = c.optDouble("x");
+                k.sit = c.optString("s"); k.votos = c.optLong("v"); k.pct = c.optDouble("x"); k.sq = c.optString("q");
                 r.cands.add(k);
             }
             r.progress = o.optDouble("pr"); r.abstPct = o.optDouble("ap"); r.sections = o.optLong("se");
             r.sectionsTotal = o.optLong("st"); r.valid = o.optLong("va"); r.blank = o.optLong("bl");
-            r.date = o.optString("d"); r.time = o.optString("t"); r.sig = o.optString("g"); r.fin = o.optBoolean("f");
+            r.date = o.optString("d"); r.time = o.optString("t"); r.sig = o.optString("g"); r.fin = o.optBoolean("f"); r.photoBase = o.optString("pb");
             return r;
         }
     }
@@ -92,6 +92,7 @@ final class Model {
                         if (c == null) continue;
                         Cand x = new Cand();
                         x.numero = c.optString("n");
+                        x.sq = c.optString("sqcand");
                         x.nome = c.optString("nmu", c.optString("nm", "Candidato"));
                         x.partido = par.optString("sg");
                         x.votos = intv(c.opt("vap"));
@@ -138,6 +139,14 @@ final class Model {
             {Pattern.compile("caiado", Pattern.CASE_INSENSITIVE), 0xFF2FB3C9},
             {Pattern.compile("tarc[ií]sio", Pattern.CASE_INSENSITIVE), 0xFF7A7DF0}};
     private static final Map<String, Integer> REG = new HashMap<>();
+
+    static int lighten(int c) {
+        float[] hsv = new float[3];
+        android.graphics.Color.colorToHSV(c, hsv);
+        hsv[1] = Math.max(0f, hsv[1] - 0.25f);
+        hsv[2] = Math.min(1f, hsv[2] + 0.12f);
+        return android.graphics.Color.HSVToColor(hsv);
+    }
 
     static synchronized int color(String name) {
         String k = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
