@@ -1,149 +1,52 @@
-(0,0,0,.55);display:none;align-items:flex-end}.sheet.show{display:flex}.sheet-card{width:100%;max-height:82vh;overflow:auto;background:#071321;border:1px solid var(--line);border-radius:24px 24px 0 0;padding:10px 13px calc(18px + env(safe-area-inset-bottom));box-shadow:0 -20px 55px rgba(0,0,0,.55)}.sheet-handle{width:46px;height:4px;border-radius:99px;background:#35506d;margin:0 auto 10px}.sheet-close{float:right;border:1px solid var(--line);background:#0c1e33;color:var(--text);border-radius:10px;padding:7px 9px}.source-note{font-size:.63rem;color:var(--muted);line-height:1.45;margin:16px 2px 0}.tv-mode .appbar,.tv-mode .livebar,.tv-mode .hero-grid,.tv-mode .bottom-nav,.tv-mode .source-note{display:none}.tv-mode{padding-bottom:0}.tv-mode .app{max-width:none;padding:10px}.tv-mode #sec-live{display:block!important}.tv-mode .section:not(#sec-live){display:none!important}.tv-exit{display:none;position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:500;border:1px solid var(--line);background:#0b1d32;color:#fff;border-radius:12px;padding:9px 11px;font-weight:900}.tv-mode .tv-exit{display:block}
-@media(max-width:1100px){.region-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.uf-mosaic{grid-template-columns:repeat(5,minmax(0,1fr))}.state-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:760px){.app{padding-left:10px;padding-right:10px}.hero-grid{grid-template-columns:1.4fr .8fr}.hero-card:nth-child(3){grid-column:1/-1}.grid,.pulse-grid,.lab-grid,.news-radar{grid-template-columns:1fr}.region-grid{grid-template-columns:1fr}.uf-mosaic{grid-template-columns:repeat(4,minmax(0,1fr))}.state-grid{grid-template-columns:1fr}.ne-grid{grid-template-columns:1fr 1fr}.news-card{grid-template-columns:70px minmax(0,1fr)}.news-img{width:70px;height:70px}.livebar{grid-template-columns:minmax(0,1fr) 65px 44px}.live-state small{display:none}.mini-control.refresh-text{font-size:0}.mini-control.refresh-text:after{content:'↻';font-size:1.15rem}.foot{grid-template-columns:1fr 1fr}.brand-mini p{max-width:72vw}.scoreline{grid-template-columns:1fr 80px 1fr}}
-@media(max-width:430px){.uf-mosaic{grid-template-columns:repeat(3,minmax(0,1fr))}.ne-grid{grid-template-columns:1fr}.hero-card .value{font-size:1.18rem}.appbar{padding-left:2px;padding-right:2px}.state-tools input{max-width:56vw}.compare-view{grid-template-columns:1fr}}
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#06111f">
+<meta name="color-scheme" content="dark">
+<title>Eleições 2026 • Apuração ao vivo</title>
+<meta name="description" content="Acompanhe a apuração das eleições 2026 em tempo real com dados oficiais do TSE: mapa por estado, resultado do DF, notícias e imagens para status.">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Eleições 2026 • Apuração ao vivo">
+<meta property="og:description" content="Mapa por estado, resultado do DF, 1º e 2º turno e notícias, com dados oficiais do TSE. Grátis, também em app para Android.">
+<meta property="og:image" content="https://josperdias.github.io/concursos-df/eleicoes/og.png">
+<meta property="og:url" content="https://josperdias.github.io/concursos-df/eleicoes/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 
-/* ===== v2: 2º turno, Mapa SVG, notícias multi-fonte, diagnóstico ===== */
-.turnbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-2px 0 12px;flex-wrap:wrap}
-.turn-box{display:inline-flex;gap:4px;border:1px solid var(--line);background:rgba(10,23,40,.88);border-radius:14px;padding:4px}
-.turn-btn{border:0;background:transparent;color:var(--muted);font-weight:900;border-radius:10px;padding:9px 16px;min-height:40px}
-.turn-btn.active{color:#04111d;background:linear-gradient(90deg,var(--cyan),var(--mint))}
-.turn-caption{font-size:.68rem;color:var(--muted)}
-.bigprog{height:9px;border-radius:99px;background:#020914;overflow:hidden;margin-top:9px}.bigprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--mint));transition:width .6s ease}
-.hero-card .value small{font-size:.62em;color:var(--muted);font-weight:800}
-.mode-switch{display:inline-flex;gap:4px;border:1px solid var(--line);background:#09182a;border-radius:12px;padding:3px}
-.mode-btn{border:0;background:transparent;color:var(--muted);font-weight:900;border-radius:9px;padding:8px 12px;font-size:.74rem}
-.mode-btn.active{background:#143251;color:var(--text)}
-.mapa-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:12px;align-items:start}
-.map-panel{padding:12px 12px 14px}.map-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap}
-.map-top h3{margin:0;font-size:1rem}
-#brMap{max-width:640px;margin:0 auto}#brMap svg{width:100%;height:auto;max-height:68vh;display:block;touch-action:manipulation}
-.uf{cursor:pointer;outline:none}
-.uf path,.uf .fillc{fill:var(--fill,#17304f);stroke:#cfe3f7;stroke-width:.9;stroke-linejoin:round;transition:fill .7s ease,filter .2s,stroke-width .2s}
-.uf:hover path,.uf:hover .fillc{filter:brightness(1.18) saturate(1.1);stroke-width:1.8}
-.uf:focus-visible path,.uf:focus-visible .fillc{stroke:#fff;stroke-width:2.6}
-.uf.sel path,.uf.sel .fillc{stroke:#fff;stroke-width:2.8;filter:brightness(1.22)}
-.uf.flash path,.uf.flash .fillc{animation:ufFlash 1.4s ease}
-@keyframes ufFlash{0%,100%{filter:brightness(1)}35%{filter:brightness(1.7) drop-shadow(0 0 6px rgba(255,255,255,.85))}}
-.uf .hit{fill:transparent;stroke:none}
-.uf-labels text,.uf.inset text{fill:#fff;font-weight:900;paint-order:stroke;stroke:rgba(2,9,20,.78);stroke-width:2.6px;stroke-linejoin:round;pointer-events:none}
-.uf.inset .fillc{stroke-width:1.4}.inset-cap{fill:var(--muted);font-size:9px;text-anchor:middle}
-.map-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:150px;overflow:auto}
-.map-leg{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#09182a;border-radius:999px;padding:5px 10px;font-size:.7rem;color:#dce8f7;transition:transform .3s}
-.map-leg i{width:11px;height:11px;border-radius:50%;display:block;flex:none;transition:background .5s}.map-leg b{font-size:.72rem}.map-leg span{color:var(--muted)}.map-leg.muted i{background:#17304f;border:1px solid #35577e}
-.map-note{font-size:.62rem;color:var(--muted);margin-top:8px;line-height:1.45}
-.mdet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:13px 14px 8px}.mdet-head h3{margin:0;font-size:1.08rem}
-.mdet-prog{padding:0 14px 6px}.mdet-prog .row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted)}.mdet-prog .row b{color:var(--text);font-size:.95rem}
-.mdet-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px 12px}
-.mdet-stat{background:#08182a;border:1px solid rgba(29,56,88,.74);border-radius:12px;padding:9px}.mdet-stat b{display:block;font-size:.9rem;line-height:1.15}.mdet-stat span{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.mrows{padding:2px 12px 8px}.mrow{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0 4px}.mrow .dot{width:12px;height:12px;border-radius:50%}
-.mname{font-weight:900;font-size:.86rem;line-height:1.1;min-width:0}.mname small{display:block;color:var(--muted);font-weight:500;font-size:.64rem;margin-top:2px}
-.mvotes{text-align:right}.mvotes b{font-size:1rem}.mvotes small{display:block;font-size:.63rem;color:var(--muted)}
-.mbar{grid-column:1/-1;height:7px;border-radius:99px;background:#061221;overflow:hidden}.mbar i{display:block;height:100%;border-radius:99px;transition:width .5s ease}
-.mhist{padding:4px 12px 14px}.mhist h4{margin:6px 0 6px;font-size:.78rem;color:var(--soft)}
-.mhist-row{display:grid;grid-template-columns:50px 1fr auto;gap:8px;font-size:.66rem;color:var(--muted);padding:5px 0;border-bottom:1px solid rgba(29,56,88,.5)}.mhist-row:last-child{border-bottom:0}.mhist-row b{color:var(--text)}
-.spark{width:100%;height:46px;display:block;margin:2px 0 6px}
-.tv-mode #sec-mapa{display:block!important}.tv-mode .mapa-layout{grid-template-columns:1fr}.tv-mode .mapa-side,.tv-mode .map-mode-row{display:none}
-.uf-tile{border-left:4px solid var(--line)}
-.news-card{cursor:pointer}.news-card:active{transform:scale(.995)}.news-card h3{margin:5px 0 4px}.news-desc{font-size:.7rem;color:var(--soft);line-height:1.45;margin-top:5px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
-.news-meta .kind.op{color:#ffd9a0;border-color:#7a5a2a}.news-meta .kind.an{color:#d9c7ff;border-color:#5b4a8a}
-.news-health{font-size:.62rem;color:var(--muted);margin-top:6px;line-height:1.4}
-.reader h2{margin:4px 0 8px;font-size:1.15rem;line-height:1.25}.reader .news-meta{margin-bottom:10px}.reader .body-txt{font-size:.86rem;line-height:1.6;color:var(--soft);white-space:pre-line}.reader .nofeed{font-size:.78rem;color:var(--muted);border:1px dashed #35577e;border-radius:12px;padding:12px;margin:10px 0}
-.reader .open-btn{display:inline-block;margin-top:12px;padding:11px 14px;border-radius:12px;background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;font-weight:900;text-decoration:none;font-size:.8rem}
-.diag-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:.68rem;padding:4px 2px}.diag-grid dt{color:var(--muted)}.diag-grid dd{margin:0;word-break:break-word}
-@media(max-width:900px){.mapa-layout{grid-template-columns:1fr}.map-side-desktop{display:none}}
-@media(max-width:430px){.turn-btn{padding:9px 12px}.mdet-stats{grid-template-columns:1fr 1fr}}
-#sec-mapa .section-head{flex-wrap:wrap}#sec-mapa .section-head .right{text-align:left}
-
-/* ===== banner de download do app Android ===== */
-.dl-banner{display:grid;grid-template-columns:auto 1fr auto;gap:10px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border-radius:18px;border:1px solid rgba(80,213,255,.45);background:linear-gradient(120deg,rgba(80,213,255,.16),rgba(100,245,203,.12))}
-.dl-ico{font-size:1.6rem;line-height:1}.dl-txt b{display:block;font-size:.92rem}.dl-txt span{display:block;color:var(--soft);font-size:.7rem;margin-top:2px;line-height:1.35}
-.dl-btn{background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;font-weight:950;text-decoration:none;border-radius:13px;padding:11px 15px;font-size:.78rem;white-space:nowrap}
-.dl-how{grid-column:1/-1;font-size:.7rem;color:var(--soft)}.dl-how summary{cursor:pointer;color:var(--mint);font-weight:800}.dl-how ol{margin:8px 0 0;padding-left:18px;line-height:1.55}
-.tv-mode .dl-banner{display:none}
-@media(max-width:430px){.dl-banner{grid-template-columns:auto 1fr}.dl-btn{grid-column:1/-1;text-align:center}}
-</style>
-</head>
-<body>
-<button id="tvExit" class="tv-exit">Sair do modo TV</button>
-<div class="app">
-<header class="appbar">
-  <div class="brand-mini">
-    <div class="kicker">Eleições 2026 • Central ao vivo</div>
-    <h1>Brasil decide</h1>
-    <p id="miniStatus">TSE oficial • aguardando primeira atualização</p>
-  </div>
-  <div class="live-orb">◉</div>
-</header>
-<div class="livebar">
-  <div class="live-state"><span class="pulse-dot"></span><div><strong id="statusText">Conectando ao TSE…</strong><small id="statusSub">dados oficiais, sem projeção</small></div></div>
-  <select id="intervalSelect" class="mini-control" aria-label="Intervalo"><option value="5000">5 s</option><option value="10000" selected>10 s</option><option value="15000">15 s</option><option value="30000">30 s</option><option value="60000">60 s</option></select>
-  <button id="refreshBtn" class="mini-control refresh-text">↻ Atualizar</button>
-</div>
-<aside id="dlApp" class="dl-banner"><div class="dl-ico">📲</div><div class="dl-txt"><b>Baixe o app para Android</b><span>Grátis • mapa por estado, resultado do DF, notícias, lives de TV e imagens para status</span></div><a class="dl-btn" href="https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener">Baixar APK</a><details class="dl-how"><summary>Como instalar</summary><ol><li>Toque em <b>Baixar APK</b> e abra o arquivo baixado.</li><li>Se o Android avisar, permita <b>instalar apps desta fonte</b> (fontes desconhecidas) para o navegador.</li><li>Instale e abra o app <b>Eleições 2026</b>. Atualizações: o app avisa quando houver versão nova.</li></ol></details></aside><div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
-<div class="hero-grid">
-  <div class="hero-card primary"><div class="label" id="heroLabel">Apuração presidencial</div><div class="value" id="brProgress">—</div><div class="bigprog"><i id="brProgBar"></i></div><div class="sub" id="brSections">Brasil • carregando seções</div></div>
-  <div class="hero-card"><div class="label">Último dado novo</div><div class="value" id="lastDataChange">—</div><div class="sub" id="pollInfo">consulta em —</div></div>
-  <div class="hero-card"><div class="label">Cobertura</div><div class="value" id="statesLoaded">0/27</div><div class="sub">UFs presidenciais carregadas</div></div>
-</div>
-<div id="notice" class="notice"></div>
-
-<section id="sec-live" class="section active">
-  <div class="section-head"><div><h2>Presidente — Brasil</h2><p>Votos e situação publicados oficialmente pelo TSE.</p></div><div class="right" id="nextPoll">próxima consulta —</div></div>
-  <div id="nationalScoreline" class="scoreline"><div class="side"><div class="who">1º colocado</div><div class="big">—</div></div><div class="middle"><b>—</b><span>diferença</span></div><div class="side"><div class="who">2º colocado</div><div class="big">—</div></div></div>
-  <div class="grid"><article class="card wide" id="card-pres-br"><div class="loading">Carregando resultado nacional…</div></article></div>
-  <div class="section-head"><div><h2>Leitura instantânea</h2><p>O que mudou desde a atualização anterior — sem previsão.</p></div></div>
-  <div class="pulse-grid">
-    <article class="card"><div class="card-head"><div class="head-left"><div class="icon">⚡</div><div><h3>Últimos movimentos</h3><div class="sub">Alterações detectadas pelo app</div></div></div></div><div id="liveEvents" class="feed"><div class="empty">Aguardando mudanças nos arquivos do TSE…</div></div></article>
-    <article class="card"><div class="card-head"><div class="head-left"><div class="icon">📡</div><div><h3>Pulso da apuração</h3><div class="sub">Métricas da sessão atual</div></div></div></div><div id="pulseStats" class="mini-stats"></div></article>
-  </div>
-</section>
-
-<section id="sec-pulse" class="section">
-  <div class="section-head"><div><h2>Pulso nacional</h2><p>Histórico que o próprio aparelho registra enquanto você acompanha.</p></div></div>
-  <article class="card"><div class="chart-wrap"><div class="chart-head"><strong>Trajetória do top 3</strong><span>percentual dos votos válidos • desde que o app abriu</span></div><svg id="historyChart" class="chart" viewBox="0 0 1000 280" preserveAspectRatio="none"></svg><div id="chartLegend" class="legend"></div></div></article>
-  <div class="section-head"><div><h2>Estados em movimento</h2><p>Onde mais seções entraram na última rodada.</p></div></div>
-  <div id="statePulseGrid" class="grid"></div>
-</section>
-
-<section id="sec-mapa" class="section">
-  <div class="section-head"><div><h2>Mapa eleitoral</h2><p id="mapaHint">Cada UF assume a cor de quem lidera ali. Toque em um estado para ver top 3, diferença e histórico.</p></div><div class="right map-mode-row"><div class="mode-switch" id="mapMode"><button class="mode-btn active" data-mode="pres">Presidente</button><button class="mode-btn" data-mode="gov">Governador</button></div></div></div>
-  <div class="mapa-layout">
-    <article class="card map-panel">
-      <div class="map-top"><div><h3 id="mapTitle">Presidente — liderança por UF</h3><div class="sub" id="mapSubtitle">Aguardando dados do TSE…</div></div><span class="badge" id="mapLoaded">0/27 UFs</span></div>
-      <div id="brMap"></div>
-      <div id="mapLegend" class="map-legend"></div>
-      <div class="map-note">As cores identificam candidatos no mapa; não representam avaliação política nem projeção. Geometria: @svg-maps/brazil (CC BY 4.0).</div>
-    </article>
-    <div class="mapa-side map-side-desktop"><article class="card" id="mapDetail"><div class="empty">Toque em um estado no mapa.</div></article></div>
-  </div>
-</section>
-
-<section id="sec-map" class="section">
-  <div class="section-head"><div><h2>Mosaico das 27 UFs</h2><p>Toque em uma UF para abrir o top 3 presidencial sem sair da tela.</p></div><div class="right" id="mosaicHint">líder + apuração</div></div>
-  <div id="ufMosaic" class="uf-mosaic"></div>
-  <div class="section-head"><div><h2>Regiões</h2><p>Soma real dos votos dos estados; apuração ponderada pelas seções.</p></div></div>
-  <div id="regionsGrid" class="region-grid"></div>
-  <div class="ne-spot"><div class="section-head" style="margin-top:0"><div><h2>☀️ Nordeste em 9 telas</h2><p>AL, BA, CE, MA, PB, PE, PI, RN e SE.</p></div><div class="right" id="neLoaded">0/9 UFs</div></div><div id="northeastStates" class="ne-grid"></div></div>
-  <div class="section-head"><div><h2>Todos os estados</h2><p>Top 3 e percentual de seções totalizadas.</p></div><div class="state-tools"><input id="stateSearch" placeholder="Buscar UF…"></div></div>
-  <div id="statesContainer" class="state-groups"></div>
-</section>
-
-<section id="sec-df" class="section">
-  <div class="section-head"><div><h2>Distrito Federal</h2><p>Presidente no DF, Governo, Senado, Câmara e CLDF.</p></div></div>
-  <div class="grid">
-    <article class="card" id="card-pres-df"><div class="loading">Presidente no DF…</div></article>
-    <article class="card" id="card-gov"><div class="loading">Governador…</div></article>
-    <article class="card" id="card-sen"><div class="loading">Senado…</div></article>
-    <article class="card" id="card-depf"><div class="loading">Deputado Federal…</div></article>
-    <article class="card wide" id="card-depd"><div class="loading">Deputado Distrital…</div></article>
-  </div>
-</section>
-
-<section id="sec-news" class="section">
-  <div class="section-head"><div><h2>Radar mundial de notícias</h2><p>Várias fontes (Google News em PT/EN/ES, veículos por RSS e GDELT como radar). Toque numa matéria para ler o trecho dentro do app.</p></div><div class="right"><button id="newsRefresh" class="mini-control">↻ Notícias</button></div></div>
-  <div class="news-toolbar" id="newsToolbar">
-    <button class="news-filter active" data-feed="world">🌍 Mundo</button>
-    <button class="news-filter" data-feed="brasil">🇧🇷 Brasil</button>
-    <button class="news-filter" data-feed="markets">📈 Mercados</button>
-    <button class="news-filter" data-fe
+<style>
+:root{
+ --bg:#040913;--bg2:#071321;--panel:#0a1728;--panel2:#0e2138;--line:#1d3858;
+ --text:#f7fbff;--muted:#93a9c2;--soft:#c6d5e5;--cyan:#50d5ff;--mint:#64f5cb;
+ --green:#55df8b;--amber:#ffc966;--red:#ff8585;--purple:#b9a0ff;
+ --shadow:0 16px 44px rgba(0,0,0,.28);--radius:20px
+}
+*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;min-height:100vh;background:
+ radial-gradient(900px 420px at 30% -5%,rgba(31,90,150,.36),transparent 64%),
+ linear-gradient(180deg,#07111e 0%,#040913 48%,#02060d 100%);color:var(--text);
+ font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+ padding-bottom:calc(84px + env(safe-area-inset-bottom));-webkit-tap-highlight-color:transparent}
+button,select,input{font:inherit}.app{max-width:1500px;margin:auto;padding:0 14px 28px}.appbar{padding:calc(10px + env(safe-area-inset-top)) 2px 8px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.brand-mini{min-width:0}.brand-mini .kicker{font-size:.68rem;font-weight:950;letter-spacing:.15em;text-transform:uppercase;color:var(--mint)}
+.brand-mini h1{margin:4px 0 2px;font-size:clamp(1.35rem,5vw,2.15rem);line-height:1.02;letter-spacing:-.035em}.brand-mini p{margin:0;color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:78vw}
+.live-orb{flex:0 0 auto;width:42px;height:42px;border-radius:14px;border:1px solid var(--line);background:linear-gradient(145deg,#102642,#091626);display:grid;place-items:center;font-size:1rem;box-shadow:var(--shadow)}
+.livebar{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;margin:8px 0 12px}.live-state,.mini-control{min-height:44px;border:1px solid var(--line);background:rgba(10,23,40,.88);border-radius:14px;color:var(--text)}
+.live-state{display:flex;align-items:center;gap:9px;padding:0 13px;min-width:0}.live-state strong{font-size:.83rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.live-state small{display:block;color:var(--muted);font-size:.62rem;margin-top:1px}.pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(85,223,139,.55);animation:pulse 1.8s infinite;flex:none}@keyframes pulse{70%{box-shadow:0 0 0 9px rgba(85,223,139,0)}100%{box-shadow:0 0 0 0 rgba(85,223,139,0)}}
+.mini-control{padding:0 11px;font-weight:900}.mini-control:active{transform:scale(.98)}select.mini-control{appearance:none;min-width:67px;text-align:center}select.df-uf{min-width:176px;max-width:100%;text-align:left;padding:0 12px}.hero-grid{display:grid;grid-template-columns:1.6fr .8fr .8fr;gap:10px;margin-bottom:13px}
+.hero-card{border:1px solid var(--line);border-radius:18px;background:linear-gradient(150deg,rgba(15,34,57,.94),rgba(6,17,31,.96));padding:13px;min-width:0;box-shadow:var(--shadow)}.hero-card .label{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-weight:850}.hero-card .value{font-size:1.38rem;font-weight:1000;letter-spacing:-.03em;margin-top:4px}.hero-card .sub{font-size:.68rem;color:var(--muted);margin-top:2px}.hero-card.primary{position:relative;overflow:hidden}.hero-card.primary:after{content:"";position:absolute;width:150px;height:150px;border-radius:50%;background:rgba(80,213,255,.1);right:-55px;top:-75px}
+.notice{display:none;padding:10px 12px;border-radius:13px;margin:0 0 12px;background:#2d1d0c;border:1px solid #795724;color:#ffe5ae;font-size:.78rem}.notice.show{display:block}
+.section{display:none}.section.active{display:block}.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin:18px 2px 10px}.section-head h2{margin:0;font-size:1.22rem;letter-spacing:-.02em}.section-head p{margin:3px 0 0;color:var(--muted);font-size:.76rem;line-height:1.35}.section-head .right{color:var(--muted);font-size:.72rem;text-align:right}
+.card{background:linear-gradient(155deg,rgba(14,31,52,.98),rgba(6,16,29,.98));border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}.card.changed{animation:changed .95s ease;border-color:rgba(85,223,139,.75)}@keyframes changed{50%{transform:translateY(-2px);box-shadow:0 0 0 2px rgba(85,223,139,.12),var(--shadow)}}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wide{grid-column:1/-1}.card-head{display:flex;justify-content:space-between;gap:10px;padding:13px 14px 10px;border-bottom:1px solid rgba(29,56,88,.84)}.head-left{display:flex;gap:10px;min-width:0}.icon{width:40px;height:40px;border-radius:13px;background:#113052;display:grid;place-items:center;font-size:1.1rem;flex:none}.card h3{margin:0;font-size:1rem}.sub{color:var(--muted);font-size:.7rem;margin-top:3px;line-height:1.3}.progbox{text-align:right;min-width:112px}.progbox b{font-size:.82rem}.progbox small{display:block;font-size:.64rem;color:var(--muted);margin-top:2px}.progress{height:6px;border-radius:99px;background:#020914;overflow:hidden;margin-top:6px}.bar{height:100%;background:linear-gradient(90deg,var(--cyan),var(--mint));transition:width .45s ease}.body{padding:6px 11px 9px}.cand{display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:9px;align-items:center;padding:10px 3px;border-bottom:1px solid rgba(29,56,88,.62);position:relative}.cand:last-child{border-bottom:0}.cand.lead{background:linear-gradient(90deg,rgba(100,245,203,.055),transparent)}.avatar,.avatar-fallback{width:42px;height:42px;border-radius:50%;border:1px solid #35577e;background:#122a47}.avatar{object-fit:cover}.avatar-fallback{display:grid;place-items:center;font-size:.7rem;font-weight:950;color:#d1deec}.cname{font-weight:950;line-height:1.1}.cmeta{display:flex;gap:5px;flex-wrap:wrap;color:var(--muted);font-size:.66rem;margin-top:4px}.tag{border:1px solid #35577e;border-radius:999px;padding:1px 6px}.tag.good{color:#9ff2bd;border-color:#2d774d}.rank{display:inline-grid;place-items:center;width:23px;height:19px;border-radius:6px;background:#143251;margin-right:6px;font-size:.62rem}.votes{text-align:right;min-width:93px}.pct{font-size:1rem;font-weight:1000}.num{font-size:.66rem;color:var(--muted);margin-top:2px}.delta{font-size:.63rem;color:var(--mint);font-weight:850;margin-top:2px}.candbar{grid-column:2/-1;height:4px;border-radius:99px;background:#061221;overflow:hidden;margin-top:-5px}.candbar i{display:block;height:100%;background:linear-gradient(90deg,#3cb8e6,#67e6bc);border-radius:99px}.foot{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;padding:9px;border-top:1px solid var(--line);background:rgba(1,8,15,.42)}.foot div{border-radius:9px;background:#09192b;padding:7px}.foot b{display:block;font-size:.76rem}.foot span{font-size:.61rem;color:var(--muted)}.last-change{font-size:.63rem;color:var(--muted);padding:0 13px 10px}
+.scoreline{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;border:1px solid var(--line);background:linear-gradient(145deg,#0c1e33,#071320);border-radius:18px;padding:12px;margin:12px 0}.scoreline .side{min-width:0}.scoreline .side:last-child{text-align:right}.scoreline .who{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.scoreline .big{font-weight:1000;font-size:1.06rem;margin-top:2px}.scoreline .middle{text-align:center}.scoreline .middle b{display:block;font-size:.95rem}.scoreline .middle span{font-size:.61rem;color:var(--muted)}
+.pulse-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:12px}.feed{padding:5px 11px}.event{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;align-items:start;padding:10px 2px;border-bottom:1px solid rgba(29,56,88,.62)}.event:last-child{border-bottom:0}.event-ico{width:28px;height:28px;border-radius:9px;background:#102b49;display:grid;place-items:center;font-size:.78rem}.event strong{font-size:.78rem;display:block}.event p{margin:2px 0 0;font-size:.68rem;color:var(--muted);line-height:1.3}.event time{font-size:.61rem;color:var(--muted);white-space:nowrap}.mini-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:11px}.mini-stat{background:#08182a;border:1px solid rgba(29,56,88,.74);border-radius:13px;padding:10px}.mini-stat .k{color:var(--muted);font-size:.62rem;text-transform:uppercase;letter-spacing:.08em}.mini-stat .v{font-weight:1000;font-size:1.02rem;margin-top:4px}.mini-stat .s{font-size:.61rem;color:var(--muted);margin-top:2px}.chart-wrap{padding:10px 12px 13px}.chart-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px}.chart-head strong{font-size:.82rem}.chart-head span{font-size:.64rem;color:var(--muted)}.chart{width:100%;height:210px;display:block;background:linear-gradient(180deg,rgba(12,30,50,.65),rgba(4,12,21,.25));border-radius:13px;border:1px solid rgba(29,56,88,.7)}.legend{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}.legend span{font-size:.64rem;color:var(--muted)}.legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}.l1{background:var(--cyan)}.l2{background:var(--mint)}.l3{background:var(--purple)}
+.region-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}.region-card .cand{grid-template-columns:minmax(0,1fr) auto}.region-card .avatar,.region-card .avatar-fallback,.region-card .candbar{display:none}.region-card .foot{grid-template-columns:1fr 1fr}.region-card .votes{min-width:72px}.region-card .cname{font-size:.84rem}.region-card .card-head{padding:11px}.region-card .body{padding-top:4px}.region-card .progbox{min-width:84px}
+.uf-mosaic{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:7px}.uf-tile{border:1px solid var(--line);background:linear-gradient(150deg,#0d2138,#071522);border-radius:13px;padding:9px;text-align:left;color:var(--text);min-width:0}.uf-tile:active{transform:scale(.98)}.uf-tile .uf{display:flex;justify-content:space-between;align-items:center;gap:5px}.uf-tile .uf b{font-size:.85rem}.uf-tile .uf span{font-size:.6rem;color:var(--mint)}.uf-tile .leader{font-size:.68rem;font-weight:900;margin-top:7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.uf-tile .lpct{font-size:.65rem;color:var(--muted);margin-top:2px}.uf-tile .tinybar{height:3px;border-radius:99px;background:#06111d;overflow:hidden;margin-top:7px}.uf-tile .tinybar i{display:block;height:100%;background:linear-gradient(90deg,var(--cyan),var(--mint))}
+.state-tools{display:flex;gap:8px;align-items:center}.state-tools input{width:210px;max-width:42vw;border:1px solid var(--line);background:#0a192b;color:var(--text);border-radius:12px;padding:9px 10px;outline:none}.state-groups{margin-top:10px}.state-group{margin-top:15px}.state-group-title{display:flex;align-items:center;gap:8px;margin:0 1px 8px}.state-group-title h3{margin:0;font-size:.96rem}.badge{border:1px solid var(--line);border-radius:999px;color:var(--muted);font-size:.63rem;padding:3px 7px}.state-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}.state-card .card-head{padding:10px}.state-card .body{padding:4px 8px 8px}.state-card .cand{grid-template-columns:minmax(0,1fr) auto;padding:7px 2px}.state-card .avatar,.state-card .avatar-fallback,.state-card .candbar{display:none}.state-card .foot{grid-template-columns:1fr 1fr;padding:7px}.state-card .foot div:nth-child(n+3){display:none}.state-card .cname{font-size:.8rem}.state-card .votes{min-width:74px}.state-card .pct{font-size:.85rem}.state-card .progbox{min-width:82px}
+.ne-spot{margin-top:14px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,rgba(22,42,68,.72),rgba(5,15,27,.8));padding:12px}.ne-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}.ne-mini{background:#08182a;border:1px solid rgba(29,56,88,.72);border-radius:12px;padding:9px}.ne-top{display:flex;justify-content:space-between;gap:5px}.ne-top b{font-size:.75rem}.ne-top span{font-size:.62rem;color:var(--mint)}.ne-c{display:flex;justify-content:space-between;gap:5px;font-size:.66rem;padding:3px 0}.ne-c span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ne-c:first-of-type{font-weight:900}
+.news-toolbar{display:flex;gap:7px;overflow:auto;padding-bottom:4px}.news-filter{border:1px solid var(--line);background:#09182a;color:var(--muted);border-radius:999px;padding:8px 11px;font-size:.72rem;font-weight:900;white-space:nowrap}.news-filter.active{background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04101c;border-color:transparent}.news-radar{display:grid;grid-template-columns:.7fr 1.3fr;gap:12px;margin-top:11px}.radar-panel{padding:12px}.radar-metrics{display:grid;grid-template-columns:1fr 1fr;gap:7px}.radar-metric{background:#08182a;border:1px solid rgba(29,56,88,.72);border-radius:12px;padding:9px}.radar-metric .k{font-size:.59rem;color:var(--muted);text-transform:uppercase}.radar-metric .v{font-size:.98rem;font-weight:1000;margin-top:3px}.topic-cloud{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}.topic{border:1px solid #2b4d70;background:#0b1e34;border-radius:999px;padding:5px 8px;font-size:.64rem}.country-bars{margin-top:10px}.country-row{display:grid;grid-template-columns:70px 1fr 28px;gap:7px;align-items:center;margin:6px 0;font-size:.63rem}.country-row i{height:5px;border-radius:99px;background:linear-gradient(90deg,var(--cyan),var(--mint));display:block}.news-list{display:grid;gap:8px}.news-card{border:1px solid var(--line);background:linear-gradient(150deg,#0c1e33,#061321);border-radius:16px;padding:11px;display:grid;grid-template-columns:82px minmax(0,1fr);gap:10px}.news-img{width:82px;height:82px;border-radius:12px;object-fit:cover;background:#0c2440}.news-img.fallback{display:grid;place-items:center;font-size:1.5rem}.news-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;font-size:.61rem;color:var(--muted)}.news-meta .kind{color:#bde9ff;border:1px solid #2d5379;border-radius:999px;padding:1px 6px}.news-card h3{font-size:.83rem;line-height:1.25;margin:5px 0 4px}.news-quick{font-size:.68rem;color:var(--soft);line-height:1.42;margin-top:5px}.news-tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.news-tags span{font-size:.58rem;color:var(--muted);border:1px solid #284765;border-radius:999px;padding:2px 6px}.news-status{font-size:.68rem;color:var(--muted);margin-top:7px}.news-disclaimer{font-size:.65rem;color:var(--muted);line-height:1.45;margin-top:9px}.empty,.loading{padding:20px;text-align:center;color:var(--muted)}
+.lab-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tool-card{padding:12px}.tool-card h3{margin:0 0 3px;font-size:.95rem}.tool-card p{margin:0 0 10px;color:var(--muted);font-size:.68rem;line-height:1.35}.compare-controls{display:grid;grid-template-columns:1fr 1fr;gap:7px}.compare-controls select{border:1px solid var(--line);background:#08182a;color:var(--text);border-radius:11px;padding:9px}.compare-view{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.compare-side{background:#08182a;border:1px solid rgba(29,56,88,.72);border-radius:12px;padding:9px}.compare-side h4{margin:0 0 6px}.compare-c{display:flex;justify-content:space-between;gap:6px;font-size:.68rem;padding:4px 0;border-bottom:1px solid rgba(29,56,88,.5)}.compare-c:last-child{border-bottom:0}.milestones{display:flex;gap:6px;flex-wrap:wrap}.milestone{border:1px solid var(--line);border-radius:999px;padding:7px 9px;color:var(--muted);font-size:.67rem;font-weight:850}.milestone.hit{background:rgba(85,223,139,.11);border-color:#33764f;color:#a7f0c1}.action-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.action-btn{border:1px solid var(--line);background:#0b1d32;color:var(--text);border-radius:12px;padding:11px;font-weight:900;font-size:.74rem;text-align:left}.action-btn b{display:block}.action-btn span{display:block;color:var(--muted);font-size:.61rem;font-weight:500;margin-top:2px}.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);opacity:0;pointer-events:none;background:#10263f;border:1px solid #315778;color:var(--text);padding:10px 13px;border-radius:12px;font-size:.72rem;z-index:300;transition:.25s}.toast.show{opacity:1;transform:translate(-50%,0)}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:150;display:flex;gap:5px;overflow-x:auto;padding:7px max(7px,env(safe-area-inset-right)) calc(7px + env(safe-area-inset-bottom)) max(7px,env(safe-area-inset-left));background:rgba(3,9,17,.97);border-top:1px solid var(--line);backdrop-filter:blur(17px);box-shadow:0 -12px 34px rgba(0,0,0,.34)}.nav-btn{flex:1 0 72px;min-height:49px;border:1px solid transparent;background:transparent;color:#8fa6bf;border-radius:13px;font-weight:900;font-size:.62rem;display:grid;place-items:center;padding:4px}.nav-btn i{font-style:normal;font-size:1.05rem;display:block;margin-bottom:1px}.nav-btn.active{background:linear-gradient(135deg,var(--cyan),var(--mint));color:#04111d}.nav-btn:active{tran

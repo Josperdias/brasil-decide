@@ -1,0 +1,66 @@
+"y":243.8,"r":6.9},"TO":{"x":398,"y":249.6,"r":30.2}};
+/* ---------- Mapa SVG real do Brasil ---------- */
+const PALETTE=['#e05a62','#4287e8','#37b980','#e3a43d','#9d70e8','#31a7b8','#db62b0','#82b84d','#e77d43','#6378dc','#b973d1','#4ba36b'];
+const KNOWN_COLORS=[[/\blula\b/i,'#e23d4f'],[/fl[aá]vio/i,'#28b874'],[/bolsonaro/i,'#3384e8'],[/ciro/i,'#f2a93b'],[/simone/i,'#9b6bea'],[/caiado/i,'#2fb3c9'],[/tarc[ií]sio/i,'#7a7df0']];
+const colorReg=loadJSON('eleCandColors',{});
+function candColor(name){const k=String(name||'').trim().toLowerCase();if(!k)return'#45648a';const f=KNOWN_COLORS.find(x=>x[0].test(k));if(f)return f[1];if(colorReg[k])return colorReg[k];const used=new Set(Object.values(colorReg));let c=PALETTE.find(x=>!used.has(x));if(!c)c=`hsl(${Math.round((Object.keys(colorReg).length*137.508)%360)} 62% 58%)`;colorReg[k]=c;saveJSON('eleCandColors',colorReg);return c}
+const leadOf=d=>{const c=d&&d.cands&&d.cands[0];return c&&c.votos>0?c:null};
+const mapData=()=>st.mapMode==='gov'?st.gov:st.states;
+const hk=mode=>`${st.turn}|${mode}`;
+const flash=new Set();
+function buildMapSVG(){const host=$('brMap');if(!host||host.firstChild)return;
+ let h=`<svg viewBox="${MAP_VB}" role="group" aria-label="Mapa do Brasil por UF">`;
+ for(const uf of Object.keys(MAP_PATHS))h+=`<g class="uf" data-uf="${uf}" tabindex="0" role="button" aria-label="${esc(UFS[uf][0])}"><path d="${MAP_PATHS[uf]}"/>${uf==='DF'?'<circle class="hit" cx="408.8" cy="329.3" r="10"/>':''}</g>`;
+ h+='<g class="uf-labels">';for(const[uf,l]of Object.entries(MAP_LABELS)){if(l.r<6.5)continue;h+=`<text x="${l.x}" y="${l.y}" font-size="${Math.max(7,Math.min(15,l.r*1.05)).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${uf}</text>`}h+='</g>';
+ h+=`<g class="uf inset" data-uf="DF" tabindex="0" role="button" aria-label="Distrito Federal"><circle class="fillc" cx="62" cy="566" r="19"/><text x="62" y="566" font-size="13" text-anchor="middle" dominant-baseline="central">DF</text><text class="inset-cap" x="62" y="597" style="stroke:none">Distrito Federal</text></g></svg>`;
+ host.innerHTML=h;
+ const pick=e=>{const g=e.target.closest&&e.target.closest('.uf');if(g)selectUF(g.dataset.uf,true)};
+ host.addEventListener('click',pick);host.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();pick(e)}})}
+function updateLeaders(){for(const mode of['pres','gov']){const data=mode==='gov'?st.gov:st.states,key=hk(mode),prev=st.leaders[key]||(st.leaders[key]={});for(const uf of Object.keys(UFS)){const l=leadOf(data[uf]);if(!l)continue;if(prev[uf]&&prev[uf]!==l.nome){flash.add(mode+uf);addEvent('🗺️',`${UFS[uf][0]} mudou de líder`,`${l.nome} passou à frente • ${mode==='gov'?'Governador':'Presidente'} • ${st.turn}º turno`)}prev[uf]=l.nome}}}
+function recordHist(mode,uf,d){const k=hk(mode),m=st.ufHist[k]||(st.ufHist[k]={}),arr=m[uf]||(m[uf]=[]),sig=signature(d),last=arr[arr.length-1];if(last&&last.g===sig)return;const a=d.cands[0],b=d.cands[1];arr.push({t:Date.now(),p:d.progress,s:d.sections,l:a?a.nome:'',lp:a?a.pct:0,gap:a&&b?a.votos-b.votos:0,g:sig});if(arr.length>24)arr.splice(0,arr.length-24)}
+let ufHistTimer=0;function saveUfHist(){clearTimeout(ufHistTimer);ufHistTimer=setTimeout(()=>saveJSON('eleUfHistV1',st.ufHist),400)}
+function selectUF(uf,user){st.mapSel=uf;renderMap();if(user&&window.matchMedia('(max-width:900px)').matches)openSheet('map',mapSheetHTML(uf))}
+function spark(arr){if(arr.length<2)return'';const vals=arr.map(x=>x.gap),mn=Math.min(...vals),mx=Math.max(...vals),rg=Math.max(1,mx-mn),pts=vals.map((v,i)=>`${(i*(300/(vals.length-1))).toFixed(1)},${(42-(v-mn)/rg*38).toFixed(1)}`).join(' ');return`<svg class="spark" viewBox="0 0 300 46" preserveAspectRatio="none"><polyline points="${pts}" fill="none" stroke="#64f5cb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+function ufDetailHTML(uf){const mode=st.mapMode,d=mapData()[uf],name=UFS[uf][0],cargo=mode==='gov'?'Governador':'Presidente',head=`<div class="mdet-head"><div><h3>${esc(name)} (${uf})</h3><div class="sub">${cargo} • ${st.turn}º turno</div></div></div>`;
+ if(!d){const ab=mode==='gov'&&st.govAbsent[uf];return head+`<div class="empty">${ab?`Sem disputa neste cargo/UF${st.turn===2?' no 2º turno':''}.`:'Dados ainda não carregados.'}</div>`}
+ const a=d.cands[0],b=d.cands[1],gap=a&&b?a.votos-b.votos:null,pp=a&&b?a.pct-b.pct:null,p=Math.max(0,Math.min(100,d.progress||0)),hist=((st.ufHist[hk(mode)]||{})[uf]||[]).slice(-6);
+ const rows=d.cands.slice(0,3).map((c,i)=>{const col=candColor(c.nome);return`<div class="mrow"><span class="dot" style="background:${col}"></span><div class="mname"><span class="rank">${i+1}º</span>${esc(c.nome)}<small>${esc(c.partido)}${c.numero?' · nº '+esc(c.numero):''}${c.sit?' · '+esc(c.sit):''}</small></div><div class="mvotes"><b>${fmtPct(c.pct)}</b><small>${fmtInt(c.votos)} votos</small></div><div class="mbar"><i style="width:${Math.max(0,Math.min(100,c.pct||0))}%;background:${col}"></i></div></div>`}).join('')||'<div class="empty">Sem votos disponíveis ainda.</div>';
+ const hh=hist.length?`<div class="mhist"><h4>Histórico recente</h4>${spark(hist)}${hist.slice().reverse().map(x=>`<div class="mhist-row"><span>${new Date(x.t).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}</span><span>${fmtPct(x.p)} apurado • ${esc(x.l)} ${fmtPct(x.lp)}</span><b>${fmtInt(x.gap)}</b></div>`).join('')}<div class="sub" style="margin-top:6px">Diferença 1º × 2º em votos, registrada a cada arquivo novo do TSE.</div></div>`:'<div class="mhist"><h4>Histórico recente</h4><div class="sub">O histórico desta UF começa a ser registrado neste aparelho a partir da próxima atualização do TSE.</div></div>';
+ return head+`<div class="mdet-prog"><div class="row"><span>Apuração</span><b>${fmtPct(p)}</b></div><div class="bigprog"><i style="width:${p}%"></i></div><div class="row" style="margin-top:4px"><span>${fmtInt(d.sections)}/${fmtInt(d.sectionsTotal)} seções totalizadas</span><span>${d.final?'totalização final':''}</span></div></div>`
+ +`<div class="mdet-stats"><div class="mdet-stat"><span>Liderando</span><b style="color:${a?candColor(a.nome):'inherit'}">${a?esc(a.nome):'—'}</b></div><div class="mdet-stat"><span>Diferença 1º × 2º</span><b>${gap==null?'—':fmtInt(gap)+' votos'}</b><span>${pp==null?'':fmtPct(pp).replace('%','')+' p.p.'}</span></div></div><div class="mrows">${rows}</div>${hh}<div class="last-change">Arquivo TSE: ${esc([d.date,d.time].filter(Boolean).join(' • ')||'horário não informado')}</div>`}
+const mapSheetHTML=uf=>ufDetailHTML(uf);
+function renderMap(){buildMapSVG();const host=$('brMap');if(!host)return;const data=mapData(),mode=st.mapMode,counts=new Map();let loaded=0,absent=0;
+ for(const uf of Object.keys(UFS)){const d=data[uf],l=leadOf(d),gs=host.querySelectorAll(`.uf[data-uf="${uf}"]`);if(l){loaded++;const e=counts.get(l.nome)||{n:0,p:l.partido};e.n++;counts.set(l.nome,e)}else if(mode==='gov'&&st.govAbsent[uf]&&!d)absent++;
+  gs.forEach(g=>{if(l)g.style.setProperty('--fill',candColor(l.nome));else g.style.removeProperty('--fill');g.classList.toggle('sel',st.mapSel===uf);g.setAttribute('aria-label',`${UFS[uf][0]}${l?' — lidera '+l.nome:''}`);
+   if(flash.has(mode+uf)){g.classList.remove('flash');void g.getBoundingClientRect();g.classList.add('flash');setTimeout(()=>g.classList.remove('flash'),1500)}});flash.delete(mode+uf)}
+ const sel=host.querySelector('.uf.sel:not(.inset)');if(sel){const labels=host.querySelector('.uf-labels');if(labels&&sel.nextElementSibling!==labels)sel.parentNode.insertBefore(sel,labels)}
+ $('mapTitle').textContent=`${mode==='gov'?'Governador':'Presidente'} — liderança por UF`;$('mapLoaded').textContent=`${loaded}/27 UFs`;
+ $('mapSubtitle').textContent=loaded?`${st.turn}º turno • ${loaded} UFs coloridas${absent?` • ${absent} sem disputa`:''}`:`Aguardando dados do TSE • ${st.turn}º turno`;
+ document.querySelectorAll('#mapMode .mode-btn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+ const pills=[...counts.entries()].sort((a,b)=>b[1].n-a[1].n||a[0].localeCompare(b[0],'pt-BR')).map(([n,e])=>`<div class="map-leg"><i style="background:${candColor(n)}"></i><b>${esc(n)}</b><span>${e.n} UF${e.n>1?'s':''}</span></div>`);
+ const rest=27-loaded;if(loaded&&rest>0)pills.push(`<div class="map-leg muted"><i></i><b>${absent?'Sem disputa / sem dados':'Sem dados ainda'}</b><span>${rest} UF${rest>1?'s':''}</span></div>`);
+ $('mapLegend').innerHTML=pills.join('')||'<div class="map-leg muted"><i></i><b>Aguardando líderes por UF…</b></div>';
+ $('mapDetail').innerHTML=ufDetailHTML(st.mapSel||'DF')}
+function setMapMode(m){m=m==='gov'?'gov':'pres';if(st.mapMode===m)return;st.mapMode=m;renderMap();if(m==='gov'&&!Object.keys(st.gov).length){st.nextAt=Date.now();refresh()}}
+/* ---------- cola: sheet, fotos, diagnóstico, eventos ---------- */
+function openSheet(kind,html){st.sheetKind=kind;$('sheetContent').innerHTML=html;$('sheet').classList.add('show');const c=$('sheetContent').closest('.sheet-card');if(c)c.scrollTop=0}
+function closeSheet(){st.sheetKind='';$('sheet').classList.remove('show')}
+function refreshSheet(){if(st.sheetKind==='map'&&$('sheet').classList.contains('show'))$('sheetContent').innerHTML=mapSheetHTML(st.mapSel||'DF')}
+window.photoErr=img=>{const alt=img.dataset.alt;if(alt&&!img.dataset.tried&&img.getAttribute('src')!==alt){img.dataset.tried='1';img.src=alt;return}img.outerHTML=`<div class="avatar-fallback">${esc(img.dataset.i||'?')}</div>`};
+function renderDiag(){const el=$('diagBox');if(!el)return;const cd=codesFor(st.turn),h=(st.news.feeds[st.newsFeed]||{}).health||[];el.innerHTML=`<dl class="diag-grid"><dt>Versão</dt><dd>${esc(APP_VERSION)}</dd><dt>Rede</dt><dd>${NATIVE?'ponte nativa (Android)':'navegador (fetch)'} • ${navigator.onLine===false?'sem conexão':'online'}</dd><dt>Endpoint TSE</dt><dd>${esc(BASE)}/${CICLO}/…</dd><dt>Turno / códigos</dt><dd>${st.turn}º • ${esc(cd.fed)} / ${esc(cd.est)}${st.cfg?' (ele-c.json)':' (padrão)'}</dd><dt>Última consulta</dt><dd>${st.lastPoll?esc(st.lastPoll.toLocaleString('pt-BR')):'—'}</dd><dt>Último erro</dt><dd>${esc(st.lastError||'nenhum')}</dd><dt>Notícias</dt><dd>${h.length?h.filter(x=>x.ok).length+'/'+h.length+' fontes':'—'}</dd></dl>`}
+if(!st.news.feeds)st.news={feeds:{}};
+if(NATIVE){const e=$('dlApp');if(e)e.remove();const s=$('shareSite');if(s)s.remove()}
+if($('shareSite'))$('shareSite').onclick=async()=>{const url=location.href.split('#')[0],data={title:'Eleições 2026 • Apuração ao vivo',text:'Acompanhe a apuração das eleições 2026 com dados oficiais do TSE:',url};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);toast('Link copiado')}}catch(e){}};
+$('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
+document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
+$('newsList').addEventListener('click',e=>{const c=e.target.closest('.news-card');if(c)openArticle(Number(c.dataset.i))});
+$('newsList').addEventListener('keydown',e=>{if(e.key==='Enter'){const c=e.target.closest('.news-card');if(c)openArticle(Number(c.dataset.i))}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden&&Date.now()>=st.nextAt-1000)refresh()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});
+window.addEventListener('online',()=>{st.nextAt=Date.now()});
+updateTurnUI();setupCompare();loadCache();renderAll();renderNews();refresh();setInterval(tick,250);setInterval(()=>{const f=st.news.feeds[st.newsFeed];if((!f||Date.now()-f.at>5*60*1000)&&$('sec-news').classList.contains('active'))refreshNews(false)},60000);
+
+})();
+</script>
+</body>
+</html>
