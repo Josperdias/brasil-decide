@@ -10,21 +10,31 @@ from collections import defaultdict
 
 CDN = "https://cdn.tse.jus.br/estatistica/sead/odsele"
 FONTE = "TSE — Dados Abertos (consulta_cand, bem_candidato, prestação de contas)"
+UAS = ["Mozilla/5.0 BrasilDecide-dados", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"]
 NULOS = {"", "#NULO", "#NULO#", "#NE", "NÃO DIVULGÁVEL", "NAO DIVULGAVEL"}
 csv.field_size_limit(1 << 24)
 
 
 def baixar(ds, fn, dest):
-    t = time.time()
-    req = urllib.request.Request(f"{CDN}/{ds}/{fn}", headers={"User-Agent": "Mozilla/5.0 BrasilDecide-dados"})
-    with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
-        while True:
-            b = r.read(1 << 20)
-            if not b:
-                break
-            f.write(b)
-    print(f"baixado {fn}: {os.path.getsize(dest)/1e6:.1f} MB em {time.time()-t:.0f}s", flush=True)
-    return zipfile.ZipFile(dest)
+    ultimo = None
+    for tentativa in range(6):
+        t = time.time()
+        try:
+            req = urllib.request.Request(f"{CDN}/{ds}/{fn}", headers={"User-Agent": UAS[tentativa % len(UAS)], "Accept": "*/*"})
+            with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
+                while True:
+                    b = r.read(1 << 20)
+                    if not b:
+                        break
+                    f.write(b)
+            print(f"baixado {fn}: {os.path.getsize(dest)/1e6:.1f} MB em {time.time()-t:.0f}s", flush=True)
+            return zipfile.ZipFile(dest)
+        except Exception as e:  # o CDN do TSE às vezes responde 403 de forma intermitente
+            ultimo = e
+            espera = 15 * (tentativa + 1)
+            print(f"falha ao baixar {fn} (tentativa {tentativa + 1}/6): {e}; nova tentativa em {espera}s", flush=True)
+            time.sleep(espera)
+    raise ultimo
 
 
 def linhas(z, nome):

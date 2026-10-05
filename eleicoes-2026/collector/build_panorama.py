@@ -7,6 +7,8 @@ from collections import defaultdict
 CDN = "https://cdn.tse.jus.br/estatistica/sead/odsele"
 csv.field_size_limit(1 << 24)
 UA = {"User-Agent": "Mozilla/5.0 BrasilDecide-dados", "Accept": "application/json"}
+UAS = [{"User-Agent": "Mozilla/5.0 BrasilDecide-dados", "Accept": "*/*"},
+       {"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36", "Accept": "*/*"}]
 CARGOS = {"PRESIDENTE": "pres", "GOVERNADOR": "gov", "SENADOR": "sen", "DEPUTADO FEDERAL": "df",
           "DEPUTADO ESTADUAL": "de", "DEPUTADO DISTRITAL": "dd"}
 NULOS = {"", "#NULO", "#NULO#", "#NE", "NÃO DIVULGÁVEL"}
@@ -21,13 +23,24 @@ def get(url):
 def candidatos(ano):
     tmp = tempfile.mkdtemp()
     dest = os.path.join(tmp, "c.zip")
-    req = urllib.request.Request(f"{CDN}/consulta_cand/consulta_cand_{ano}.zip", headers=UA)
-    with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
-        while True:
-            b = r.read(1 << 20)
-            if not b:
-                break
-            f.write(b)
+    ultimo = None
+    for tentativa in range(6):
+        try:
+            req = urllib.request.Request(f"{CDN}/consulta_cand/consulta_cand_{ano}.zip", headers=UAS[tentativa % len(UAS)])
+            with urllib.request.urlopen(req, timeout=600) as r, open(dest, "wb") as f:
+                while True:
+                    b = r.read(1 << 20)
+                    if not b:
+                        break
+                    f.write(b)
+            ultimo = None
+            break
+        except Exception as e:  # o CDN do TSE às vezes responde 403 de forma intermitente
+            ultimo = e
+            print(f"falha ao baixar candidatos (tentativa {tentativa + 1}/6): {e}", flush=True)
+            time.sleep(15 * (tentativa + 1))
+    if ultimo:
+        raise ultimo
     z = zipfile.ZipFile(dest)
     nome = [n for n in z.namelist() if n.upper().endswith("_BRASIL.CSV")][0]
     vistos = set()
