@@ -122,6 +122,10 @@ public class MainActivity extends Activity {
     private final Map<String, Long> livesAt = new HashMap<>();
     private int studioType = StatusCard.PLACAR, studioFormat = StatusCard.STORY;
     private String studioUf = "DF";
+    private String localUf = "DF"; // aba Estado: sempre abre no DF
+    private int localPickX;
+    private final java.util.Set<String> localBusy = new java.util.HashSet<>();
+    private final Map<String, Long> localAt = new HashMap<>();
     private int studioCargo = 2;
     private Bitmap studioBmp;
     private boolean studioBusy;
@@ -167,6 +171,7 @@ public class MainActivity extends Activity {
         if (in != null) { // atalhos de teste/automação: --es tab news --es sel SP --ez tv true
             if (in.getStringExtra("tab") != null) goTab(in.getStringExtra("tab"));
             if (in.getStringExtra("sel") != null) sel = in.getStringExtra("sel");
+            if (in.getStringExtra("luf") != null) { localUf = in.getStringExtra("luf").toUpperCase(Locale.ROOT); studioUf = localUf; }
             if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
             if (in.getIntExtra("turn", 0) == 2) turn = 2;
             tv = in.getBooleanExtra("tv", false);
@@ -399,7 +404,7 @@ public class MainActivity extends Activity {
             b.setPadding(0, Ui.dp(7), 0, Ui.dp(7));
             if (on) b.setBackground(Ui.accent(16));
             b.addView(new NavIconView(this, TAB_ICON[i]).state(on, on ? Ui.INK : Ui.MUTED));
-            TextView l = Ui.text(this, t[2], 11, on ? Ui.INK : Ui.MUTED, true);
+            TextView l = Ui.text(this, t[0].equals("df") ? localUf : t[2], 11, on ? Ui.INK : Ui.MUTED, true);
             l.setPadding(0, Ui.dp(3), 0, 0);
             l.setSingleLine();
             b.addView(l);
@@ -960,16 +965,132 @@ public class MainActivity extends Activity {
         return t;
     }
 
-    private void renderDf() {
-        content.addView(sectionHead("Distrito Federal", "Presidente no DF, Governo, Senado, Câmara e CLDF."));
-        for (Object[] s : DF_SRC) {
-            String key = (String) s[0];
-            String title = (String) s[1], icon = (String) s[2];
-            if (turn == 2 && !key.equals("pres") && !key.equals("gov")) { content.addView(emptyCard(title, "Sem disputa neste cargo no 2º turno.")); continue; }
-            if (Boolean.TRUE.equals(snap().dfAbsent.get(key)) && snap().df.get(key) == null) { content.addView(emptyCard(title, "Sem disputa neste cargo/UF.")); continue; }
-            int top = key.equals("pres") ? (turn == 2 ? 2 : 3) : key.equals("gov") ? (turn == 2 ? 2 : 6) : key.equals("sen") ? 8 : key.equals("depf") ? 10 : 14;
-            content.addView(resultCard(title, cargoSub("Distrito Federal"), icon, snap().df.get(key), top));
+    private static int localCargo(String key, String uf) {
+        switch (key) {
+            case "pres": return 1;
+            case "gov": return 3;
+            case "sen": return 5;
+            case "depf": return 6;
+            default: return uf.equals("DF") ? 8 : 7; // Deputado Distrital no DF, Estadual nos demais
         }
+    }
+
+    private String localTitle(String key) {
+        boolean df = localUf.equals("DF");
+        switch (key) {
+            case "pres": return "Presidente da República";
+            case "gov": return df ? "Governador do Distrito Federal" : "Governador — " + ufName(localUf);
+            case "sen": return df ? "Senador pelo Distrito Federal" : "Senador — " + ufName(localUf);
+            case "depf": return "Deputado Federal — " + localUf;
+            default: return (df ? "Deputado Distrital — " : "Deputado Estadual — ") + localUf;
+        }
+    }
+
+    private String localSub(String key) {
+        String nm = ufName(localUf);
+        switch (key) {
+            case "sen": return cargoSub(nm + " • 2 vagas");
+            case "depf": return cargoSub(nm + " • " + StatusCard.bancada(localUf) + " vagas");
+            case "depd": return cargoSub(nm + " • " + StatusCard.vagasEst(localUf) + " vagas");
+            default: return cargoSub(nm);
+        }
+    }
+
+    private List<Callable<Object[]>> localTasks(int t, String uf) {
+        List<Callable<Object[]>> ts = new ArrayList<>();
+        String fed = codes[t - 1][0], est = codes[t - 1][1], abr = uf.toLowerCase(Locale.ROOT);
+        for (Object[] s : DF_SRC) {
+            String k = (String) s[0];
+            if (t == 2 && !k.equals("pres") && !k.equals("gov")) continue;
+            boolean isFed = (Boolean) s[4];
+            ts.add(task("d:" + uf + "|" + k, Tse.url(isFed ? fed : est, abr, localCargo(k, uf)), 300000, Tse.photoBase(isFed ? fed : est, isFed ? "br" : abr)));
+        }
+        return ts;
+    }
+
+    /** Busca os cargos de uma UF (aba Estado e estúdio de imagens) sem refazer o ciclo nacional. */
+    private void loadLocal(final String uf, boolean force, final Runnable after) {
+        final int t = turn;
+        final String key = t + uf;
+        if (localBusy.contains(key)) { if (after != null) ui.postDelayed(() -> loadLocal(uf, false, after), 1500); return; }
+        Long at = localAt.get(key);
+        if (!force && at != null && System.currentTimeMillis() - at < 30000) { if (after != null) after.run(); return; }
+        localBusy.add(key);
+        bg.execute(() -> {
+            final Map<String, Model.Result> ok = new HashMap<>();
+            final Map<String, Boolean> ab = new HashMap<>();
+            try {
+                for (Object[] o : runAll(localTasks(t, uf))) {
+                    String k = (String) o[0];
+                    Tse.Fetch f = (Tse.Fetch) o[1];
+                    String id = k.substring(2);
+                    if (f.error != null) { lastError = k + " → " + f.error; continue; }
+                    if (f.result != null) ok.put(id, f.result); else if (f.absent) ab.put(id, true);
+                }
+            } catch (Throwable th) { lastError = "estado: " + th; }
+            ui.post(() -> {
+                localBusy.remove(key);
+                localAt.put(key, System.currentTimeMillis());
+                snaps[t - 1].df.putAll(ok);
+                snaps[t - 1].dfAbsent.putAll(ab);
+                if (!ok.isEmpty()) saveCache(t);
+                if (after != null) after.run();
+                if (!tv || resumed) render();
+            });
+        });
+    }
+
+    private View localPicker() {
+        final HorizontalScrollView hs = new HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout row = Ui.row(this);
+        List<String> order = new ArrayList<>();
+        order.add("DF");
+        for (String[] u : UFS) if (!u[0].equals("DF")) order.add(u[0]);
+        for (final String uf : order) {
+            boolean on = localUf.equals(uf);
+            TextView t = Ui.text(this, uf, 13, on ? Ui.INK : Ui.MUTED, true);
+            t.setPadding(Ui.dp(14), Ui.dp(9), Ui.dp(14), Ui.dp(9));
+            t.setBackground(on ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+            t.setOnClickListener(v -> { localUf = uf; loadLocal(uf, false, null); render(); });
+            row.addView(t, Ui.margins(Ui.lp(-2, -2), 0, 0, 7, 0));
+        }
+        hs.addView(row);
+        hs.setOnScrollChangeListener((v, x, y, ox, oy) -> localPickX = x);
+        hs.post(() -> hs.scrollTo(localPickX, 0));
+        LinearLayout.LayoutParams lp = Ui.lp(-1, -2);
+        lp.bottomMargin = Ui.dp(10);
+        hs.setLayoutParams(lp);
+        return hs;
+    }
+
+    private void renderDf() {
+        final String nm = ufName(localUf);
+        boolean loading = localBusy.contains(turn + localUf);
+        content.addView(sectionHead(nm, loading ? "Carregando os resultados de " + nm + "…" : "Presidente, Governo, Senado, Câmara e Assembleia. Escolha outro estado abaixo."));
+        content.addView(localPicker());
+        for (Object[] s : DF_SRC) {
+            String key = (String) s[0], icon = (String) s[2];
+            String title = localTitle(key), dk = localUf + "|" + key;
+            if (turn == 2 && !key.equals("pres") && !key.equals("gov")) { content.addView(emptyCard(title, "Sem disputa neste cargo no 2º turno.")); continue; }
+            Model.Result r = snap().df.get(dk);
+            if (Boolean.TRUE.equals(snap().dfAbsent.get(dk)) && r == null) { content.addView(emptyCard(title, "Sem disputa neste cargo/UF.")); continue; }
+            int top = key.equals("pres") ? (turn == 2 ? 2 : 3) : key.equals("gov") ? (turn == 2 ? 2 : 6) : key.equals("sen") ? 8 : key.equals("depf") ? 10 : 14;
+            content.addView(resultCard(title, localSub(key), icon, r, top));
+        }
+        LinearLayout c = Ui.row(this);
+        c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 18, 0x6650D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        c.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        c.addView(Ui.text(this, "📸", 24, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, "Imagem de " + nm, 14, Ui.TEXT, true));
+        t.addView(Ui.text(this, "Card pronto (story ou post) com os cargos deste estado.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        c.addView(t, Ui.lp(0, -2, 1f));
+        c.addView(Ui.text(this, "Criar ›", 13, Ui.MINT, true));
+        c.setOnClickListener(v -> { studioType = StatusCard.DFC; studioUf = localUf; showStatusStudio(); });
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 12));
+        content.addView(c);
+        if (!loading) loadLocal(localUf, false, null);
     }
 
     // ---------------------------------------------------------------- notícias
@@ -1541,7 +1662,8 @@ public class MainActivity extends Activity {
         d.ufCode = studioUf;
         d.ufName = ufName(studioUf);
         d.ufRes = snap().states.get(studioUf);
-        d.df = new HashMap<>(snap().df);
+        d.df = new HashMap<>();
+        for (Map.Entry<String, Model.Result> e : snap().df.entrySet()) if (e.getKey().startsWith(studioUf + "|")) d.df.put(e.getKey().substring(studioUf.length() + 1), e.getValue());
         d.dfCargo = studioCargo;
         d.at = lastPoll == 0 ? System.currentTimeMillis() : lastPoll;
         return d;
@@ -1575,6 +1697,10 @@ public class MainActivity extends Activity {
     private void regenStudio() {
         studioBusy = true;
         buildStudio();
+        if (studioType == StatusCard.DFC) loadLocal(studioUf, false, this::generateStudioNow); else generateStudioNow();
+    }
+
+    private void generateStudioNow() {
         generateStatus(b -> { studioBmp = b; studioBusy = false; buildStudio(); }, statusData());
     }
 
@@ -1584,7 +1710,7 @@ public class MainActivity extends Activity {
         studioHolder.addView(Ui.text(this, "📸 Imagem para status", 20, Ui.TEXT, true));
         studioHolder.addView(Ui.text(this, "Card pronto com resultado oficial, fonte e horário — para WhatsApp, Instagram e redes.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 12));
         FlowLayout types = new FlowLayout(this, 7);
-        String[] tn = {"Placar", "Mapa", "Estado", "DF"};
+        String[] tn = {"Placar", "Mapa", "Estado", "Cargos"};
         for (int i = 0; i < 4; i++) {
             final int ti = i;
             types.addView(optChip(tn[i], studioType == i, v -> { studioType = ti; regenStudio(); }));
@@ -1595,7 +1721,9 @@ public class MainActivity extends Activity {
         fmts.addView(optChip("Post 1:1", studioFormat == StatusCard.POST, v -> { studioFormat = StatusCard.POST; regenStudio(); }));
         studioHolder.addView(fmts, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
         if (studioType == StatusCard.DFC) {
-            studioHolder.addView(Ui.text(this, "CARGO NO DISTRITO FEDERAL", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 2, 0, 6));
+            studioHolder.addView(Ui.text(this, "ESTADO", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 2, 0, 6));
+            studioHolder.addView(ufSpinnerFor(studioUf, uf -> { studioUf = uf; regenStudio(); }), Ui.margins(Ui.lp(Ui.dp(130), Ui.dp(42)), 0, 0, 0, 8));
+            studioHolder.addView(Ui.text(this, "CARGO", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 2, 0, 6));
             FlowLayout cg = new FlowLayout(this, 7);
             for (int i = 0; i < StatusCard.DF_LABELS.length; i++) {
                 final int ci = i;
@@ -1673,8 +1801,8 @@ public class MainActivity extends Activity {
     }
 
     private String statusCaption() {
-        Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : studioType == StatusCard.DFC ? snap().df.get(StatusCard.DF_KEYS[studioCargo]) : snap().pres;
-        String where = studioType == StatusCard.UF ? ufName(studioUf) : studioType == StatusCard.DFC ? "DF • " + StatusCard.DF_LABELS[studioCargo] : "Brasil";
+        Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : studioType == StatusCard.DFC ? snap().df.get(studioUf + "|" + StatusCard.DF_KEYS[studioCargo]) : snap().pres;
+        String where = studioType == StatusCard.UF ? ufName(studioUf) : studioType == StatusCard.DFC ? studioUf + " • " + StatusCard.DF_LABELS[studioCargo] : "Brasil";
         StringBuilder b = new StringBuilder("Eleições 2026 • " + turn + "º turno • " + where + "\n");
         if (r != null) {
             for (int i = 0; i < Math.min(studioType == StatusCard.DFC && studioCargo >= 2 ? (studioCargo == 2 ? 2 : 4) : 3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
@@ -1828,6 +1956,7 @@ public class MainActivity extends Activity {
         busy = true;
         final int t = turn;
         final boolean wantGov = govMode;
+        final String lu = localUf;
         ui.post(() -> { statusText = "Consultando o TSE…"; if (!tv) render(); });
         bg.execute(() -> {
             final Map<String, Model.Result> sOk = new HashMap<>(), gOk = new HashMap<>(), dOk = new HashMap<>();
@@ -1851,12 +1980,7 @@ public class MainActivity extends Activity {
                     List<Callable<Object[]>> ts = new ArrayList<>();
                     for (String[] u : UFS) ts.add(task("s:" + u[0], Tse.url(fed, u[0].toLowerCase(Locale.ROOT), 1), 300000, Tse.photoBase(fed, "br")));
                     if (wantGov) for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000, Tse.photoBase(est, u[0].toLowerCase(Locale.ROOT))));
-                    for (Object[] s : DF_SRC) {
-                        String k = (String) s[0];
-                        if (t == 2 && !k.equals("pres") && !k.equals("gov")) continue;
-                        boolean isFed = (Boolean) s[4];
-                        ts.add(task("d:" + k, Tse.url(isFed ? fed : est, "df", (Integer) s[3]), 300000, Tse.photoBase(isFed ? fed : est, isFed ? "br" : "df")));
-                    }
+                    ts.addAll(localTasks(t, lu));
                     for (Object[] o : runAll(ts)) {
                         String k = (String) o[0];
                         Tse.Fetch f = (Tse.Fetch) o[1];
@@ -1874,6 +1998,7 @@ public class MainActivity extends Activity {
                 try {
                     if (cfgDone) codesFromConfig = true;
                     commit(t, pres[0], sOk, gOk, dOk, gAbs, dAbs, wait[0], fails);
+                    localAt.put(t + lu, System.currentTimeMillis());
                 } catch (Throwable th) { lastError = "commit: " + th; }
                 busy = false;
                 if (!tv || resumed) render();

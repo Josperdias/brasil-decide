@@ -93,13 +93,31 @@ final class StatusCard {
         Model.Result r = mainResult(d);
         if (r == null || d.type == MAPA) return out;
         int key = d.type == DFC ? d.dfCargo : -1;
-        if (key == 3 || key == 4) out.addAll(elected(r, gridCount(d.dfCargo, d.format)));
+        if (key == 3 || key == 4) out.addAll(elected(r, gridCount(d)));
         else if (key == 1 || key == 2) out.addAll(r.cands.subList(0, Math.min(5, r.cands.size())));
         else out.addAll(r.cands.subList(0, Math.min(3, r.cands.size())));
         return out;
     }
 
-    private static int gridCount(int cargo, int format) { return cargo == 3 ? 8 : (format == STORY ? 12 : 8); }
+    private static final String[] UF_ORDER = {"AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"};
+    private static final int[] BANCADA = {8, 9, 8, 8, 39, 22, 8, 10, 17, 18, 8, 8, 53, 17, 12, 30, 25, 10, 46, 8, 31, 8, 8, 16, 70, 8, 8};
+
+    /** Vagas na Câmara dos Deputados da UF (total de 513). */
+    static int bancada(String uf) {
+        for (int i = 0; i < UF_ORDER.length; i++) if (UF_ORDER[i].equals(uf)) return BANCADA[i];
+        return 8;
+    }
+
+    /** Vagas na Assembleia Legislativa (CLDF no DF): 3x a bancada até 12 federais; acima disso, bancada + 24. */
+    static int vagasEst(String uf) {
+        int n = bancada(uf);
+        return n <= 12 ? 3 * n : n + 24;
+    }
+
+    private static int gridCount(Data d) {
+        int cap = d.format == STORY ? 12 : 8;
+        return d.dfCargo == 3 ? Math.min(bancada(d.ufCode), cap) : cap;
+    }
 
     /** Eleitos (situação começa com "Eleito"); se o TSE ainda não marcou ninguém, os mais votados. */
     static List<Model.Cand> elected(Model.Result r, int n) {
@@ -117,7 +135,7 @@ final class StatusCard {
         background(c, H);
         boolean story = d.format == STORY;
         Model.Result r = mainResult(d);
-        String kicker = "ELEIÇÕES 2026  •  " + d.turn + "º TURNO" + (d.type == DFC ? "  •  DISTRITO FEDERAL" : "");
+        String kicker = "ELEIÇÕES 2026  •  " + d.turn + "º TURNO" + (d.type == DFC ? "  •  " + d.ufName.toUpperCase(Locale.ROOT) : "");
         Paint k = paint(Ui.MINT, story ? 30 : 26, true, Paint.Align.LEFT);
         k.setLetterSpacing(0.16f);
         c.drawText(kicker, M, story ? 128 : 82, k);
@@ -127,8 +145,10 @@ final class StatusCard {
             case MAPA: title = "Quem lidera cada UF"; sub = "Presidente • mapa por estado"; break;
             case UF: title = d.ufName; sub = "Presidente • " + d.ufCode; break;
             default: {
-                String[] t = {"Presidente no DF", "Governo do DF", "Senado Federal — DF", "Câmara dos Deputados — DF", "Câmara Legislativa (CLDF)"};
-                String[] vg = {"votação no Distrito Federal", "1 vaga", "2 vagas", "8 vagas", "24 vagas"};
+                boolean df = d.ufCode.equals("DF");
+                String[] t = df ? new String[]{"Presidente no DF", "Governo do DF", "Senado Federal — DF", "Câmara dos Deputados — DF", "Câmara Legislativa (CLDF)"}
+                        : new String[]{"Presidente em " + d.ufCode, "Governo — " + d.ufName, "Senado Federal — " + d.ufCode, "Câmara dos Deputados — " + d.ufCode, "Assembleia Legislativa — " + d.ufCode};
+                String[] vg = {df ? "votação no Distrito Federal" : "votação em " + d.ufName, "1 vaga", "2 vagas", bancada(d.ufCode) + " vagas", vagasEst(d.ufCode) + " vagas"};
                 title = t[d.dfCargo];
                 sub = vg[d.dfCargo] + (r == null ? "" : "  •  " + pc(r.progress) + " das seções");
             }
@@ -310,13 +330,13 @@ final class StatusCard {
 
     // deputados: grade de eleitos (foto, nome, partido, votos)
     private static void electedGrid(Canvas c, Data d, Model.Result r, float y, int H, boolean story) {
-        int count = gridCount(d.dfCargo, d.format);
+        int count = gridCount(d);
         List<Model.Cand> list = elected(r, count);
         boolean anyEl = false;
         for (Model.Cand cd : r.cands) if (cd.sit.toLowerCase(Locale.ROOT).startsWith("eleito")) { anyEl = true; break; }
         int cols = 2, rows = (list.size() + 1) / 2;
         float gap = 18, areaBottom = H - 180;
-        c.drawText((anyEl ? "ELEITOS • " : "MAIS VOTADOS • ") + list.size() + (d.dfCargo == 4 && anyEl ? " DE 24 VAGAS (MAIS VOTADOS)" : d.dfCargo == 3 && anyEl ? " DE 8 VAGAS" : ""), M, y + 16, labelPaint(story));
+        c.drawText((anyEl ? "ELEITOS • " : "MAIS VOTADOS • ") + list.size() + (d.dfCargo == 4 && anyEl ? " DE " + vagasEst(d.ufCode) + " VAGAS (MAIS VOTADOS)" : d.dfCargo == 3 && anyEl ? " DE " + bancada(d.ufCode) + " VAGAS" : ""), M, y + 16, labelPaint(story));
         y += story ? 44 : 34;
         float cw = (W - 2 * M - gap) / 2, ch = Math.min((areaBottom - y - gap * (rows - 1)) / Math.max(1, rows), story ? 250 : 170);
         for (int i = 0; i < list.size(); i++) {

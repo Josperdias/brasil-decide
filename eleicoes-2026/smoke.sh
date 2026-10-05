@@ -27,6 +27,10 @@ for tab in mapa brasil ufs df news lives mais; do
   alive $N; shot native-$tab
   crashes
 done
+# aba Estado: abre no DF e também em outro estado (SP) — cartões e imagens de status do estado escolhido
+adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP > /dev/null; sleep 28; alive $N; shot native-df-sp; crashes
+adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP --ez genstatus true > /dev/null; sleep 45; alive $N
+for t in 10 11 12 13 14; do adb exec-out run-as $N cat cache/share/test-$t-0.png > dist/status-sp-$t-0.png || true; done
 # 2º turno e modo TV
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --ei turn 2 > /dev/null; sleep 20; alive $N; shot native-turno2
 adb shell am start -S -W -n $N/.MainActivity --ez tv true > /dev/null; sleep 20; alive $N; shot native-tv
