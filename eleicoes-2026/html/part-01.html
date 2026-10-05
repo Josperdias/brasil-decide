@@ -1,0 +1,160 @@
+e!important}.tv-exit{display:none;position:fixed;top:calc(8px + env(safe-area-inset-top));right:8px;z-index:500;border:1px solid var(--line);background:#0b1d32;color:#fff;border-radius:12px;padding:9px 11px;font-weight:900}.tv-mode .tv-exit{display:block}
+@media(max-width:1100px){.region-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.uf-mosaic{grid-template-columns:repeat(5,minmax(0,1fr))}.state-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.app{padding-left:10px;padding-right:10px}.hero-grid{grid-template-columns:1.4fr .8fr}.hero-card:nth-child(3){grid-column:1/-1}.grid,.pulse-grid,.lab-grid,.news-radar{grid-template-columns:1fr}.region-grid{grid-template-columns:1fr}.uf-mosaic{grid-template-columns:repeat(4,minmax(0,1fr))}.state-grid{grid-template-columns:1fr}.ne-grid{grid-template-columns:1fr 1fr}.news-card{grid-template-columns:70px minmax(0,1fr)}.news-img{width:70px;height:70px}.livebar{grid-template-columns:minmax(0,1fr) 65px 44px}.live-state small{display:none}.mini-control.refresh-text{font-size:0}.mini-control.refresh-text:after{content:'↻';font-size:1.15rem}.foot{grid-template-columns:1fr 1fr}.brand-mini p{max-width:72vw}.scoreline{grid-template-columns:1fr 80px 1fr}}
+@media(max-width:430px){.uf-mosaic{grid-template-columns:repeat(3,minmax(0,1fr))}.ne-grid{grid-template-columns:1fr}.hero-card .value{font-size:1.18rem}.appbar{padding-left:2px;padding-right:2px}.state-tools input{max-width:56vw}.compare-view{grid-template-columns:1fr}}
+
+/* ===== v2: 2º turno, Mapa SVG, notícias multi-fonte, diagnóstico ===== */
+.turnbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:-2px 0 12px;flex-wrap:wrap}
+.turn-box{display:inline-flex;gap:4px;border:1px solid var(--line);background:rgba(10,23,40,.88);border-radius:14px;padding:4px}
+.turn-btn{border:0;background:transparent;color:var(--muted);font-weight:900;border-radius:10px;padding:9px 16px;min-height:40px}
+.turn-btn.active{color:#04111d;background:linear-gradient(90deg,var(--cyan),var(--mint))}
+.turn-caption{font-size:.68rem;color:var(--muted)}
+.bigprog{height:9px;border-radius:99px;background:#020914;overflow:hidden;margin-top:9px}.bigprog i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--mint));transition:width .6s ease}
+.hero-card .value small{font-size:.62em;color:var(--muted);font-weight:800}
+.mode-switch{display:inline-flex;gap:4px;border:1px solid var(--line);background:#09182a;border-radius:12px;padding:3px}
+.mode-btn{border:0;background:transparent;color:var(--muted);font-weight:900;border-radius:9px;padding:8px 12px;font-size:.74rem}
+.mode-btn.active{background:#143251;color:var(--text)}
+.mapa-layout{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(300px,.75fr);gap:12px;align-items:start}
+.map-panel{padding:12px 12px 14px}.map-top{display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:6px;flex-wrap:wrap}
+.map-top h3{margin:0;font-size:1rem}
+#brMap{max-width:640px;margin:0 auto}#brMap svg{width:100%;height:auto;max-height:68vh;display:block;touch-action:manipulation}
+.uf{cursor:pointer;outline:none}
+.uf path,.uf .fillc{fill:var(--fill,#17304f);stroke:#cfe3f7;stroke-width:.9;stroke-linejoin:round;transition:fill .7s ease,filter .2s,stroke-width .2s}
+.uf:hover path,.uf:hover .fillc{filter:brightness(1.18) saturate(1.1);stroke-width:1.8}
+.uf:focus-visible path,.uf:focus-visible .fillc{stroke:#fff;stroke-width:2.6}
+.uf.sel path,.uf.sel .fillc{stroke:#fff;stroke-width:2.8;filter:brightness(1.22)}
+.uf.flash path,.uf.flash .fillc{animation:ufFlash 1.4s ease}
+@keyframes ufFlash{0%,100%{filter:brightness(1)}35%{filter:brightness(1.7) drop-shadow(0 0 6px rgba(255,255,255,.85))}}
+.uf .hit{fill:transparent;stroke:none}
+.uf-labels text,.uf.inset text{fill:#fff;font-weight:900;paint-order:stroke;stroke:rgba(2,9,20,.78);stroke-width:2.6px;stroke-linejoin:round;pointer-events:none}
+.uf.inset .fillc{stroke-width:1.4}.inset-cap{fill:var(--muted);font-size:9px;text-anchor:middle}
+.map-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;max-height:150px;overflow:auto}
+.map-leg{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:#09182a;border-radius:999px;padding:5px 10px;font-size:.7rem;color:#dce8f7;transition:transform .3s}
+.map-leg i{width:11px;height:11px;border-radius:50%;display:block;flex:none;transition:background .5s}.map-leg b{font-size:.72rem}.map-leg span{color:var(--muted)}.map-leg.muted i{background:#17304f;border:1px solid #35577e}
+.map-note{font-size:.62rem;color:var(--muted);margin-top:8px;line-height:1.45}
+.mdet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:13px 14px 8px}.mdet-head h3{margin:0;font-size:1.08rem}
+.mdet-prog{padding:0 14px 6px}.mdet-prog .row{display:flex;justify-content:space-between;font-size:.74rem;color:var(--muted)}.mdet-prog .row b{color:var(--text);font-size:.95rem}
+.mdet-stats{display:grid;grid-template-columns:1fr 1fr;gap:7px;padding:8px 12px}
+.mdet-stat{background:#08182a;border:1px solid rgba(29,56,88,.74);border-radius:12px;padding:9px}.mdet-stat b{display:block;font-size:.9rem;line-height:1.15}.mdet-stat span{font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.mrows{padding:2px 12px 8px}.mrow{display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 0 4px}.mrow .dot{width:12px;height:12px;border-radius:50%}
+.mname{font-weight:900;font-size:.86rem;line-height:1.1;min-width:0}.mname small{display:block;color:var(--muted);font-weight:500;font-size:.64rem;margin-top:2px}
+.mvotes{text-align:right}.mvotes b{font-size:1rem}.mvotes small{display:block;font-size:.63rem;color:var(--muted)}
+.mbar{grid-column:1/-1;height:7px;border-radius:99px;background:#061221;overflow:hidden}.mbar i{display:block;height:100%;border-radius:99px;transition:width .5s ease}
+.mhist{padding:4px 12px 14px}.mhist h4{margin:6px 0 6px;font-size:.78rem;color:var(--soft)}
+.mhist-row{display:grid;grid-template-columns:50px 1fr auto;gap:8px;font-size:.66rem;color:var(--muted);padding:5px 0;border-bottom:1px solid rgba(29,56,88,.5)}.mhist-row:last-child{border-bottom:0}.mhist-row b{color:var(--text)}
+.spark{width:100%;height:46px;display:block;margin:2px 0 6px}
+.tv-mode #sec-mapa{display:block!important}.tv-mode .mapa-layout{grid-template-columns:1fr}.tv-mode .mapa-side,.tv-mode .map-mode-row{display:none}
+.uf-tile{border-left:4px solid var(--line)}
+.news-card{cursor:pointer}.news-card:active{transform:scale(.995)}.news-card h3{margin:5px 0 4px}.news-desc{font-size:.7rem;color:var(--soft);line-height:1.45;margin-top:5px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.news-meta .kind.op{color:#ffd9a0;border-color:#7a5a2a}.news-meta .kind.an{color:#d9c7ff;border-color:#5b4a8a}
+.news-health{font-size:.62rem;color:var(--muted);margin-top:6px;line-height:1.4}
+.reader h2{margin:4px 0 8px;font-size:1.15rem;line-height:1.25}.reader .news-meta{margin-bottom:10px}.reader .body-txt{font-size:.86rem;line-height:1.6;color:var(--soft);white-space:pre-line}.reader .nofeed{font-size:.78rem;color:var(--muted);border:1px dashed #35577e;border-radius:12px;padding:12px;margin:10px 0}
+.reader .open-btn{display:inline-block;margin-top:12px;padding:11px 14px;border-radius:12px;background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;font-weight:900;text-decoration:none;font-size:.8rem}
+.diag-grid{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;font-size:.68rem;padding:4px 2px}.diag-grid dt{color:var(--muted)}.diag-grid dd{margin:0;word-break:break-word}
+@media(max-width:900px){.mapa-layout{grid-template-columns:1fr}.map-side-desktop{display:none}}
+@media(max-width:430px){.turn-btn{padding:9px 12px}.mdet-stats{grid-template-columns:1fr 1fr}}
+#sec-mapa .section-head{flex-wrap:wrap}#sec-mapa .section-head .right{text-align:left}
+</style>
+</head>
+<body>
+<button id="tvExit" class="tv-exit">Sair do modo TV</button>
+<div class="app">
+<header class="appbar">
+  <div class="brand-mini">
+    <div class="kicker">Eleições 2026 • Central ao vivo</div>
+    <h1>Brasil decide</h1>
+    <p id="miniStatus">TSE oficial • aguardando primeira atualização</p>
+  </div>
+  <div class="live-orb">◉</div>
+</header>
+<div class="livebar">
+  <div class="live-state"><span class="pulse-dot"></span><div><strong id="statusText">Conectando ao TSE…</strong><small id="statusSub">dados oficiais, sem projeção</small></div></div>
+  <select id="intervalSelect" class="mini-control" aria-label="Intervalo"><option value="5000">5 s</option><option value="10000" selected>10 s</option><option value="15000">15 s</option><option value="30000">30 s</option><option value="60000">60 s</option></select>
+  <button id="refreshBtn" class="mini-control refresh-text">↻ Atualizar</button>
+</div>
+<div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
+<div class="hero-grid">
+  <div class="hero-card primary"><div class="label" id="heroLabel">Apuração presidencial</div><div class="value" id="brProgress">—</div><div class="bigprog"><i id="brProgBar"></i></div><div class="sub" id="brSections">Brasil • carregando seções</div></div>
+  <div class="hero-card"><div class="label">Último dado novo</div><div class="value" id="lastDataChange">—</div><div class="sub" id="pollInfo">consulta em —</div></div>
+  <div class="hero-card"><div class="label">Cobertura</div><div class="value" id="statesLoaded">0/27</div><div class="sub">UFs presidenciais carregadas</div></div>
+</div>
+<div id="notice" class="notice"></div>
+
+<section id="sec-live" class="section active">
+  <div class="section-head"><div><h2>Presidente — Brasil</h2><p>Votos e situação publicados oficialmente pelo TSE.</p></div><div class="right" id="nextPoll">próxima consulta —</div></div>
+  <div id="nationalScoreline" class="scoreline"><div class="side"><div class="who">1º colocado</div><div class="big">—</div></div><div class="middle"><b>—</b><span>diferença</span></div><div class="side"><div class="who">2º colocado</div><div class="big">—</div></div></div>
+  <div class="grid"><article class="card wide" id="card-pres-br"><div class="loading">Carregando resultado nacional…</div></article></div>
+  <div class="section-head"><div><h2>Leitura instantânea</h2><p>O que mudou desde a atualização anterior — sem previsão.</p></div></div>
+  <div class="pulse-grid">
+    <article class="card"><div class="card-head"><div class="head-left"><div class="icon">⚡</div><div><h3>Últimos movimentos</h3><div class="sub">Alterações detectadas pelo app</div></div></div></div><div id="liveEvents" class="feed"><div class="empty">Aguardando mudanças nos arquivos do TSE…</div></div></article>
+    <article class="card"><div class="card-head"><div class="head-left"><div class="icon">📡</div><div><h3>Pulso da apuração</h3><div class="sub">Métricas da sessão atual</div></div></div></div><div id="pulseStats" class="mini-stats"></div></article>
+  </div>
+</section>
+
+<section id="sec-pulse" class="section">
+  <div class="section-head"><div><h2>Pulso nacional</h2><p>Histórico que o próprio aparelho registra enquanto você acompanha.</p></div></div>
+  <article class="card"><div class="chart-wrap"><div class="chart-head"><strong>Trajetória do top 3</strong><span>percentual dos votos válidos • desde que o app abriu</span></div><svg id="historyChart" class="chart" viewBox="0 0 1000 280" preserveAspectRatio="none"></svg><div id="chartLegend" class="legend"></div></div></article>
+  <div class="section-head"><div><h2>Estados em movimento</h2><p>Onde mais seções entraram na última rodada.</p></div></div>
+  <div id="statePulseGrid" class="grid"></div>
+</section>
+
+<section id="sec-mapa" class="section">
+  <div class="section-head"><div><h2>Mapa eleitoral</h2><p id="mapaHint">Cada UF assume a cor de quem lidera ali. Toque em um estado para ver top 3, diferença e histórico.</p></div><div class="right map-mode-row"><div class="mode-switch" id="mapMode"><button class="mode-btn active" data-mode="pres">Presidente</button><button class="mode-btn" data-mode="gov">Governador</button></div></div></div>
+  <div class="mapa-layout">
+    <article class="card map-panel">
+      <div class="map-top"><div><h3 id="mapTitle">Presidente — liderança por UF</h3><div class="sub" id="mapSubtitle">Aguardando dados do TSE…</div></div><span class="badge" id="mapLoaded">0/27 UFs</span></div>
+      <div id="brMap"></div>
+      <div id="mapLegend" class="map-legend"></div>
+      <div class="map-note">As cores identificam candidatos no mapa; não representam avaliação política nem projeção. Geometria: @svg-maps/brazil (CC BY 4.0).</div>
+    </article>
+    <div class="mapa-side map-side-desktop"><article class="card" id="mapDetail"><div class="empty">Toque em um estado no mapa.</div></article></div>
+  </div>
+</section>
+
+<section id="sec-map" class="section">
+  <div class="section-head"><div><h2>Mosaico das 27 UFs</h2><p>Toque em uma UF para abrir o top 3 presidencial sem sair da tela.</p></div><div class="right" id="mosaicHint">líder + apuração</div></div>
+  <div id="ufMosaic" class="uf-mosaic"></div>
+  <div class="section-head"><div><h2>Regiões</h2><p>Soma real dos votos dos estados; apuração ponderada pelas seções.</p></div></div>
+  <div id="regionsGrid" class="region-grid"></div>
+  <div class="ne-spot"><div class="section-head" style="margin-top:0"><div><h2>☀️ Nordeste em 9 telas</h2><p>AL, BA, CE, MA, PB, PE, PI, RN e SE.</p></div><div class="right" id="neLoaded">0/9 UFs</div></div><div id="northeastStates" class="ne-grid"></div></div>
+  <div class="section-head"><div><h2>Todos os estados</h2><p>Top 3 e percentual de seções totalizadas.</p></div><div class="state-tools"><input id="stateSearch" placeholder="Buscar UF…"></div></div>
+  <div id="statesContainer" class="state-groups"></div>
+</section>
+
+<section id="sec-df" class="section">
+  <div class="section-head"><div><h2>Distrito Federal</h2><p>Presidente no DF, Governo, Senado, Câmara e CLDF.</p></div></div>
+  <div class="grid">
+    <article class="card" id="card-pres-df"><div class="loading">Presidente no DF…</div></article>
+    <article class="card" id="card-gov"><div class="loading">Governador…</div></article>
+    <article class="card" id="card-sen"><div class="loading">Senado…</div></article>
+    <article class="card" id="card-depf"><div class="loading">Deputado Federal…</div></article>
+    <article class="card wide" id="card-depd"><div class="loading">Deputado Distrital…</div></article>
+  </div>
+</section>
+
+<section id="sec-news" class="section">
+  <div class="section-head"><div><h2>Radar mundial de notícias</h2><p>Várias fontes (Google News em PT/EN/ES, veículos por RSS e GDELT como radar). Toque numa matéria para ler o trecho dentro do app.</p></div><div class="right"><button id="newsRefresh" class="mini-control">↻ Notícias</button></div></div>
+  <div class="news-toolbar" id="newsToolbar">
+    <button class="news-filter active" data-feed="world">🌍 Mundo</button>
+    <button class="news-filter" data-feed="brasil">🇧🇷 Brasil</button>
+    <button class="news-filter" data-feed="markets">📈 Mercados</button>
+    <button class="news-filter" data-feed="opinions">💬 Análises & opiniões</button>
+  </div>
+  <div class="news-radar">
+    <article class="card radar-panel">
+      <div class="radar-metrics"><div class="radar-metric"><div class="k">matérias</div><div class="v" id="newsCount">—</div></div><div class="radar-metric"><div class="k">fontes</div><div class="v" id="newsSources">—</div></div><div class="radar-metric"><div class="k">países</div><div class="v" id="newsCountries">—</div></div><div class="radar-metric"><div class="k">idiomas</div><div class="v" id="newsLanguages">—</div></div></div>
+      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Temas nas manchetes</h2></div></div><div id="topicCloud" class="topic-cloud"></div>
+      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Origem da cobertura</h2></div></div><div id="countryBars" class="country-bars"></div>
+      <div id="newsStatus" class="news-status">Aguardando atualização…</div>
+      <div class="news-disclaimer">As opiniões aparecem atribuídas às respectivas fontes. O app não transforma manchetes ou colunas em fatos e não faz avaliação política própria.</div>
+    </article>
+    <div id="newsList" class="news-list"><div class="card loading">Buscando cobertura internacional…</div></div>
+  </div>
+</section>
+
+<section id="sec-lab" class="section">
+  <div class="section-head"><div><h2>Laboratório da apuração</h2><p>Ferramentas que transformam o painel em uma central de acompanhamento.</p></div></div>
+  <div class="lab-grid">
+    <article class="card tool-card"><h3>🔬 Comparador de UFs</h3><p>Coloque dois estados lado a lado e compare o top 3 e o andamento das seções.</p><div class="compare-controls"><select id="compareA"></select><select id="compareB"></select></div><div id="compareView" class="compare-view"></div></article>
+    <article class="card tool-card"><h3>🎯 Marcos da totalização</h3><p>O app marca automaticamente os percentuais nacionais já alcançados.</p><div id="milestones" class="milestones"></div></article>
+    <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto
