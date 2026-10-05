@@ -128,7 +128,8 @@ public class MainActivity extends Activity {
     private ImageView studioPreview;
     private LinearLayout studioHolder;
     private Dialog sheetDialog;
-    private boolean updateAvailable, updateChecked, updating;
+    private boolean updateAvailable, updating, awaitingInstallPermission;
+    private long lastUpdateCheck;
     private int updatePct;
     private int remoteVersion;
     private long delayMs = 10000, intervalMs = 10000, lastPoll;
@@ -186,6 +187,8 @@ public class MainActivity extends Activity {
         resumed = true;
         ui.removeCallbacks(poller);
         ui.post(poller);
+        checkUpdate();
+        if (awaitingInstallPermission && Build.VERSION.SDK_INT >= 26 && getPackageManager().canRequestPackageInstalls()) { awaitingInstallPermission = false; startUpdate(); }
     }
 
     @Override protected void onPause() {
@@ -275,8 +278,8 @@ public class MainActivity extends Activity {
 
     /** Pergunta ao GitHub se há versão mais nova do app (release app-latest; "versionCode=N" nas notas). Falha em silêncio. */
     private void checkUpdate() {
-        if (updateChecked) return;
-        updateChecked = true;
+        if (System.currentTimeMillis() - lastUpdateCheck < 20 * 60 * 1000L) return;
+        lastUpdateCheck = System.currentTimeMillis();
         bg.execute(() -> {
             try {
                 java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(RELEASE_API).openConnection();
@@ -324,6 +327,7 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
+            if (updateAvailable) content.addView(updateBanner());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
                 case "mapa":
@@ -698,7 +702,6 @@ public class MainActivity extends Activity {
     }
 
     private void renderBrasil() {
-        if (updateAvailable) content.addView(updateBanner());
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
@@ -788,7 +791,7 @@ public class MainActivity extends Activity {
         c.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
         c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
-        t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão do app disponível", 14, Ui.TEXT, true));
+        t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão disponível (build " + remoteVersion + ")", 14, Ui.TEXT, true));
         t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar na tela do Android." : "Toque para atualizar aqui mesmo — sem abrir o navegador.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         if (updating) t.addView(new GradientBar(this, 6).colors(Ui.AMBER, Ui.MINT).value(updatePct), Ui.margins(Ui.lp(-1, Ui.dp(6)), 0, 8, 0, 0));
         c.addView(t, Ui.lp(0, -2, 1f));
@@ -802,7 +805,8 @@ public class MainActivity extends Activity {
     private void startUpdate() {
         if (updating) return;
         if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
-            Toast.makeText(this, "Permita instalar atualizações por este app e volte para tocar de novo", Toast.LENGTH_LONG).show();
+            awaitingInstallPermission = true;
+            Toast.makeText(this, "Ative “Permitir desta fonte” e volte — a atualização começa sozinha", Toast.LENGTH_LONG).show();
             try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); }
             catch (Throwable t) { openUrl(DL_URL); }
             return;
