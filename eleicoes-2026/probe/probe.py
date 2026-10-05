@@ -116,3 +116,22 @@ for e, cargo, nome in [("6259", 3, "governador"), ("6259", 5, "senador"), ("6259
             print("   ", c.get("n"), c.get("nmu") or c.get("nm"), c.get("vap"), c.get("pvap"), c.get("st"), c.get("e"), c.get("sqcand"))
     except Exception as ex:
         print(nome, "ERRO", ex)
+
+print("\n== CORS (Origin = github.io): o site no navegador consegue ler estas fontes?")
+ORIGIN = "https://josperdias.github.io"
+def cors(name, url):
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": DESKTOP, "Origin": ORIGIN, "Accept": "*/*"})
+        with urllib.request.urlopen(req, timeout=25) as r:
+            print(f"CORS {name}: status {r.status} | allow-origin={r.headers.get('Access-Control-Allow-Origin')!r}")
+    except Exception as ex:
+        print(f"CORS {name}: ERRO {ex}")
+cors("TSE json", "https://resultados.tse.jus.br/oficial/ele2026/6257/dados/br/br-c0001-e006257-u.json")
+cors("TSE ele-c", "https://resultados.tse.jus.br/oficial/comum/config/ele-c.json")
+cors("TSE foto", "https://resultados.tse.jus.br/oficial/ele2026/6257/fotos/br/280002551544.jpeg")
+cors("GDELT", "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Brazil%20election%22&mode=ArtList&maxrecords=3&format=json&timespan=24h")
+cors("GoogleNews RSS", f"https://news.google.com/rss/search?q={q}&hl=pt-BR&gl=BR&ceid=BR:pt-419")
+cors("g1 RSS", "https://g1.globo.com/rss/g1/politica/")
+cors("BBC PT RSS", "https://feeds.bbci.co.uk/portuguese/rss.xml")
+cors("allorigins", "https://api.allorigins.win/raw?url=" + urllib.parse.quote("https://g1.globo.com/rss/g1/politica/"))
+cors("corsproxy.io", "https://corsproxy.io/?url=" + urllib.parse.quote("https://g1.globo.com/rss/g1/politica/"))
