@@ -1,78 +1,51 @@
 #!/usr/bin/env python3
-"""Sonda 5: ciclos antigos no TSE e dados por partido/federação (Câmara, Senado, Assembleias) para o Panorama Político."""
+"""Sonda 6: os resultados de 2022 ainda existem no host de resultados do TSE? E a composição atual da Câmara (Câmara API) para comparação."""
 import json, urllib.request, gzip
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-BASE = "https://resultados.tse.jus.br/oficial"
-
-def jget(url):
+def get(url):
     req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json", "Accept-Encoding": "gzip"})
     try:
         with urllib.request.urlopen(req, timeout=40) as r:
             b = r.read()
             if r.headers.get("Content-Encoding") == "gzip": b = gzip.decompress(b)
-            print(f">> {url} -> {r.status} ({len(b)} bytes)")
-            return json.loads(b.decode("utf-8-sig"))
+            return r.status, b.decode("utf-8-sig", "replace"), dict(r.headers)
     except urllib.error.HTTPError as e:
-        print(f">> {url} -> HTTP {e.code}"); return None
+        return e.code, "", {}
     except Exception as e:
-        print(f">> {url} -> ERRO {e}"); return None
+        return 0, "ERRO " + str(e), {}
 
-cfg = jget(BASE + "/comum/config/ele-c.json")
-cycles = {}
-for p in cfg["pl"]:
-    es = [(e.get("cd"), e.get("cdt2"), e.get("t"), e.get("tp"), e.get("nm")) for e in p["e"] if e.get("tp") in ("1", "2", "8", "9")]
-    if p["c"] in cycles and p["c"] != "ele2026":
-        cycles[p["c"]]["e"].extend(p["e"]); continue
-    print("CICLO", p["c"], p["dt"], "| eleições (cd, cdt2, turno, tipo, nome):")
-    for x in es[:8]: print("    ", x)
-    cycles[p["c"]] = p
+B = "https://resultados.tse.jus.br/oficial"
+for label, url in [
+    ("2022 presidente BR 1T (544)", f"{B}/ele2022/544/dados/br/br-c0001-e000544-u.json"),
+    ("2022 presidente BR 2T (545)", f"{B}/ele2022/545/dados/br/br-c0001-e000545-u.json"),
+    ("2022 dep. federal SP (546)", f"{B}/ele2022/546/dados/sp/sp-c0006-e000546-u.json"),
+    ("2022 config ele-c", f"{B}/ele2022/comum/config/ele-c.json"),
+    ("2022 mun config 544", f"{B}/ele2022/544/config/mun-e000544-cm.json"),
+    ("2018 presidente BR (297)", f"{B}/ele2018/297/dados/br/br-c0001-e000297-u.json"),
+]:
+    st, body, h = get(url)
+    print(f"{label}: HTTP {st}, {len(body)} bytes", (body[:120].replace("\n", " ") if st == 200 else ""))
 
-def cands(j):
-    out = []
-    for cg in j.get("carg", []):
-        for a in cg.get("agr", []):
-            for pr in a.get("par", []):
-                for c in pr.get("cand", []):
-                    out.append((c, pr, a))
-    return out
+# Câmara: composição por partido da legislatura anterior (57 = atual 2023-2027; 56 = anterior) e partidos
+for label, url in [
+    ("Câmara partidos (itens=100)", "https://dadosabertos.camara.leg.br/api/v2/partidos?itens=100&ordem=ASC&ordenarPor=sigla"),
+    ("Câmara deputados legislatura 57 (total no header)", "https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=57&itens=1"),
+    ("Câmara deputados legislatura 56 (total no header)", "https://dadosabertos.camara.leg.br/api/v2/deputados?idLegislatura=56&itens=1"),
+    ("Câmara partido 36899? membros", "https://dadosabertos.camara.leg.br/api/v2/partidos/36899/membros?itens=1"),
+]:
+    st, body, h = get(url)
+    print(f"{label}: HTTP {st}, x-total-count={h.get('x-total-count')}, {len(body)} bytes", body[:140].replace("\n", " ") if st == 200 else "")
 
-def summary(j, label):
-    print(f"--- {label}")
-    print("   carg:", [(c.get("cd"), c.get("nmn"), c.get("nv")) for c in j.get("carg", [])], "| s.pst:", j.get("s", {}).get("pst"))
-    cs = cands(j)
-    print("   n candidatos:", len(cs))
-    el = [(c.get("nmu"), pr.get("sg"), c.get("st"), c.get("vap")) for c, pr, a in cs if str(c.get("st", "")).lower().startswith("eleito")]
-    print("   eleitos:", len(el), el[:4])
-    c0, pr0, a0 = cs[0]
-    print("   agr:", {k: a0.get(k) for k in ("n", "nm", "tp", "com", "vag", "tvtn")}, "| par:", {k: pr0.get(k) for k in ("n", "sg", "nm", "nfed", "tvtn", "tvan")})
-    print("   campos do 1º cand:", sorted(c0.keys()))
-
-# 2026: deputado federal em SP
-j = jget(f"{BASE}/ele2026/6259/dados/sp/sp-c0006-e006259-u.json")
-if j: summary(j, "2026 SP dep. federal")
-j = jget(f"{BASE}/ele2026/6259/dados/sp/sp-c0005-e006259-u.json")
-if j: summary(j, "2026 SP senador")
-j = jget(f"{BASE}/ele2026/6259/dados/sp/sp-c0007-e006259-u.json")
-if j: summary(j, "2026 SP dep. estadual")
-
-# 2022: descobrir códigos pelo config
-p22 = cycles.get("ele2022")
-if p22:
-    est = [e for e in p22["e"] if e.get("tp") == "1" and e.get("t") == "1"]
-    fed = [e for e in p22["e"] if e.get("tp") == "8" and e.get("t") == "1"]
-    print("2022 estaduais 1º turno:", [(e["cd"], e["nm"]) for e in est], "| federais:", [(e["cd"], e["nm"]) for e in fed])
-    for e in est[:1]:
-        cd = e["cd"]; pad = "e" + cd.zfill(6)
-        j = jget(f"{BASE}/ele2022/{cd}/dados/sp/sp-c0006-{pad}-u.json")
-        if j: summary(j, "2022 SP dep. federal")
-    for e in fed[:1]:
-        cd = e["cd"]; pad = "e" + cd.zfill(6)
-        j = jget(f"{BASE}/ele2022/{cd}/dados/br/br-c0001-{pad}-u.json")
-        if j: summary(j, "2022 presidente BR")
-else:
-    print("ciclo ele2022 NÃO listado no config")
-for c in ("ele2018", "ele2020", "ele2024"):
-    print(c, "listado:", c in cycles)
-print("ciclos no config:", sorted(cycles.keys()))
+# federações no arquivo de resultado de 2026 (procura agrupamento do tipo federação)
+st, body, _ = get(f"{B}/ele2026/6259/dados/sp/sp-c0006-e006259-u.json")
+if st == 200:
+    j = json.loads(body)
+    tps = {}
+    ex = None
+    for cg in j["carg"]:
+        for a in cg["agr"]:
+            tps[a.get("tp")] = tps.get(a.get("tp"), 0) + 1
+            if a.get("tp") not in ("i",) and ex is None: ex = {k: a.get(k) for k in ("n", "nm", "tp", "com", "vag")}
+    print("tipos de agrupamento (dep. federal SP):", tps, "| exemplo não-isolado:", ex)
 print("FIM")
