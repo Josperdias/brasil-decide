@@ -175,6 +175,17 @@ final class News {
         return a;
     }
 
+    /** Busca avulsa no Google News (PT) para a ficha do candidato; devolve só título, fonte, data e link. */
+    static List<Article> about(String query) throws Exception {
+        Source s = new Source("gn-ficha", "Google News", gn(query, "pt-BR", "BR", "BR:pt-419"), "pt", "BR", null, "", null);
+        List<Article> out = new ArrayList<>();
+        for (String[] r : parse(get(s.url))) {
+            Article a = toArticle(r, s);
+            if (!a.title.isEmpty()) out.add(a);
+        }
+        return out;
+    }
+
     /** Busca todas as fontes do filtro em paralelo; cada fonte que cair só some, sem derrubar o resto. */
     static Batch load(String filter, ExecutorService pool) {
         Batch b = new Batch();

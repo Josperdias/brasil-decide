@@ -123,6 +123,10 @@ public class MainActivity extends Activity {
     private int studioType = StatusCard.PLACAR, studioFormat = StatusCard.STORY;
     private String studioUf = "DF";
     private String localUf = "DF"; // aba Estado: sempre abre no DF
+    private String ctxUe = "BR", ctxRole = "candidato à presidência";
+    private boolean roundShowElected;
+    private long roundGovAt;
+    private boolean roundGovBusy;
     private int localPickX;
     private final java.util.Set<String> localBusy = new java.util.HashSet<>();
     private final Map<String, Long> localAt = new HashMap<>();
@@ -178,6 +182,7 @@ public class MainActivity extends Activity {
             if (in.getStringExtra("lfilter") != null) livesFilter = in.getStringExtra("lfilter");
             genStatusPending = in.getBooleanExtra("genstatus", false);
             if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
+            if (in.getStringExtra("ficha") != null) { final int fi = Integer.parseInt(in.getStringExtra("ficha")); ui.postDelayed(() -> { Model.Result pr = snap().pres; if (pr != null && fi < pr.cands.size()) showFicha(pr.cands.get(fi), pr, "BR", "candidato à presidência"); }, 14000); }
             if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
         buildUi();
@@ -333,6 +338,7 @@ public class MainActivity extends Activity {
             nav.setVisibility(View.VISIBLE);
             renderHeader();
             if (updateAvailable) content.addView(updateBanner());
+            if (tab.equals("brasil") || tab.equals("mapa")) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
                 case "mapa":
@@ -543,6 +549,8 @@ public class MainActivity extends Activity {
         row.addView(right, Ui.margins(Ui.lp(-2, -2), 8, 0, 0, 0));
         w.addView(row);
         w.addView(new GradientBar(this, 5).colors(col, Model.lighten(col)).value(c.pct));
+        final String fue = ctxUe, frole = ctxRole;
+        w.setOnClickListener(vw -> showFicha(c, r, fue, frole));
         return w;
     }
 
@@ -556,6 +564,12 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout resultCard(String title, String sub, String icon, Model.Result r, int top) {
+        return resultCard(title, sub, icon, r, top, "BR", "candidato à presidência");
+    }
+
+    private LinearLayout resultCard(String title, String sub, String icon, Model.Result r, int top, String ue, String role) {
+        ctxUe = ue;
+        ctxRole = role;
         LinearLayout c = Ui.card(this);
         LinearLayout head = Ui.row(this);
         TextView ic = Ui.text(this, icon, 18, Ui.TEXT, false);
@@ -676,7 +690,8 @@ public class MainActivity extends Activity {
         content.addView(c);
         if (govMode && data.get(sel) == null && Boolean.TRUE.equals(snap().govAbsent.get(sel)))
             content.addView(emptyCard(ufName(sel) + " (" + sel + ")", "Sem disputa neste cargo/UF" + (turn == 2 ? " no 2º turno." : ".")));
-        else content.addView(resultCard(ufName(sel) + " (" + sel + ")", cargoSub(govMode ? "Governador" : "Presidente"), "📍", data.get(sel), 3));
+        else content.addView(resultCard(ufName(sel) + " (" + sel + ")", cargoSub(govMode ? "Governador" : "Presidente"), "📍", data.get(sel), 3, govMode ? sel : "BR", govMode ? "candidato a governador" : "candidato à presidência"));
+        content.addView(roundCard());
     }
 
     private TextView modeBtn(String label, boolean on, boolean gov) {
@@ -711,6 +726,7 @@ public class MainActivity extends Activity {
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
         content.addView(promoStatus());
+        content.addView(roundCard());
         content.addView(resultCard("Presidente da República", cargoSub("Brasil"), "🇧🇷", r, turn == 2 ? 2 : 3));
         if (r == null && waiting) content.addView(emptyCard("Aguardando o TSE", "O resultado presidencial do " + turn + "º turno ainda não foi publicado. Nova consulta automática em ~60 s."));
 
@@ -1076,7 +1092,8 @@ public class MainActivity extends Activity {
             Model.Result r = snap().df.get(dk);
             if (Boolean.TRUE.equals(snap().dfAbsent.get(dk)) && r == null) { content.addView(emptyCard(title, "Sem disputa neste cargo/UF.")); continue; }
             int top = key.equals("pres") ? (turn == 2 ? 2 : 3) : key.equals("gov") ? (turn == 2 ? 2 : 6) : key.equals("sen") ? 8 : key.equals("depf") ? 10 : 14;
-            content.addView(resultCard(title, localSub(key), icon, r, top));
+            String role = key.equals("pres") ? "candidato à presidência" : key.equals("gov") ? "candidato a governador" : key.equals("sen") ? "candidato ao Senado" : key.equals("depf") ? "candidato a deputado federal" : "candidato a deputado";
+            content.addView(resultCard(title, localSub(key), icon, r, top, key.equals("pres") ? "BR" : localUf, role));
         }
         LinearLayout c = Ui.row(this);
         c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 18, 0x6650D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
@@ -1447,6 +1464,260 @@ public class MainActivity extends Activity {
         d.show();
         sheetDialog = d;
         return d;
+    }
+
+    // ============================================================ 2º turno: data e quem disputa
+    private static final java.time.LocalDate ROUND2 = java.time.LocalDate.of(2026, 10, 25);
+
+    private View roundStrip() {
+        long days = java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo")), ROUND2);
+        String when = days > 1 ? "faltam " + days + " dias" : days == 1 ? "é amanhã" : days == 0 ? "é hoje!" : "já aconteceu";
+        LinearLayout c = Ui.row(this);
+        c.setBackground(Ui.fill(0xFF0B1D32, 14, Ui.LINE));
+        c.setPadding(Ui.dp(12), Ui.dp(9), Ui.dp(12), Ui.dp(9));
+        c.addView(Ui.text(this, "🗓️", 16, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 9, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, "2º turno: domingo, 25/10/2026", 13, Ui.TEXT, true));
+        t.addView(Ui.text(this, "Presidente e governadores onde ninguém passou de 50%", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+        c.addView(t, Ui.lp(0, -2, 1f));
+        c.addView(Ui.chip(this, when, days <= 0 ? Ui.GREEN : Ui.AMBER));
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        return c;
+    }
+
+    private static boolean goesToRound2(Model.Result r) {
+        if (r != null) for (Model.Cand k : r.cands) if (k.sit.toLowerCase(Locale.ROOT).contains("2º")) return true;
+        return false;
+    }
+
+    private static boolean electedFirst(Model.Result r) {
+        if (r != null) for (Model.Cand k : r.cands) if (k.sit.toLowerCase(Locale.ROOT).startsWith("eleito")) return true;
+        return false;
+    }
+
+    /** Governadores do 1º turno de todas as UFs (para saber onde haverá 2º turno), sem depender do modo Governador do mapa. */
+    private void loadRoundGov() {
+        if (roundGovBusy || System.currentTimeMillis() - roundGovAt < 5 * 60 * 1000L) return;
+        roundGovBusy = true;
+        final Model.Result[] pres1 = {null};
+        bg.execute(() -> {
+            final Map<String, Model.Result> ok = new HashMap<>();
+            final Map<String, Boolean> ab = new HashMap<>();
+            try {
+                String est = codes[0][1];
+                List<Callable<Object[]>> ts = new ArrayList<>();
+                for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000, Tse.photoBase(est, u[0].toLowerCase(Locale.ROOT))));
+                for (Object[] o : runAll(ts)) {
+                    Tse.Fetch f = (Tse.Fetch) o[1];
+                    String id = ((String) o[0]).substring(2);
+                    if (f.error != null) continue;
+                    if (f.result != null) ok.put(id, f.result); else if (f.absent) ab.put(id, true);
+                }
+                if (snaps[0].pres == null) {
+                    List<Object[]> br = runAll(java.util.Collections.singletonList(task("br", Tse.url(codes[0][0], "br", 1), 60000, Tse.photoBase(codes[0][0], "br"))));
+                    if (!br.isEmpty() && ((Tse.Fetch) br.get(0)[1]).result != null) pres1[0] = ((Tse.Fetch) br.get(0)[1]).result;
+                }
+            } catch (Throwable th) { lastError = "2º turno: " + th; }
+            ui.post(() -> {
+                roundGovBusy = false;
+                roundGovAt = System.currentTimeMillis();
+                if (pres1[0] != null && snaps[0].pres == null) snaps[0].pres = pres1[0];
+                snaps[0].gov.putAll(ok);
+                snaps[0].govAbsent.putAll(ab);
+                if (!ok.isEmpty()) saveCache(1);
+                if (!tv || resumed) render();
+            });
+        });
+    }
+
+    private View roundCard() {
+        loadRoundGov();
+        LinearLayout c = Ui.card(this);
+        c.addView(Ui.text(this, "Quem disputa o 2º turno", 15, Ui.TEXT, true));
+        c.addView(Ui.text(this, "Domingo, 25/10/2026 • dados oficiais do 1º turno (TSE)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
+        // presidente
+        Model.Result p1 = snaps[0].pres;
+        List<Model.Cand> pair = new ArrayList<>();
+        if (p1 != null) for (Model.Cand k : p1.cands) if (k.sit.toLowerCase(Locale.ROOT).contains("2º")) pair.add(k);
+        c.addView(Ui.text(this, "PRESIDENTE", 10, Ui.MUTED, true));
+        if (pair.size() >= 2) {
+            LinearLayout row = Ui.row(this);
+            row.setPadding(0, Ui.dp(6), 0, Ui.dp(8));
+            row.addView(side(pair.get(0).nome + " (" + pair.get(0).partido + ")", pc(pair.get(0).pct), Model.color(pair.get(0).nome), Gravity.START), Ui.lp(0, -2, 1f));
+            row.addView(Ui.text(this, "×", 18, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 8, 0, 8, 0));
+            row.addView(side(pair.get(1).nome + " (" + pair.get(1).partido + ")", pc(pair.get(1).pct), Model.color(pair.get(1).nome), Gravity.END), Ui.lp(0, -2, 1f));
+            c.addView(row);
+        } else if (p1 != null && electedFirst(p1)) c.addView(Ui.text(this, "Definido no 1º turno.", 12, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 8));
+        else c.addView(Ui.text(this, p1 == null ? "Carregando…" : "Aguardando a totalização do 1º turno.", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 8));
+        // governadores
+        List<String> r2 = new ArrayList<>(), won = new ArrayList<>();
+        int pending = 0, loaded = 0;
+        for (String[] u : UFS) {
+            Model.Result g = snaps[0].gov.get(u[0]);
+            if (g == null) continue;
+            loaded++;
+            if (goesToRound2(g)) r2.add(u[0]); else if (electedFirst(g)) won.add(u[0]); else pending++;
+        }
+        View sep = new View(this);
+        sep.setBackgroundColor(0xCC1D3858);
+        c.addView(sep, Ui.margins(Ui.lp(-1, 1), 0, 4, 0, 8));
+        c.addView(Ui.text(this, "GOVERNADORES", 10, Ui.MUTED, true));
+        if (loaded == 0) c.addView(Ui.text(this, roundGovBusy ? "Carregando os 27 estados…" : "Sem dados de governador ainda.", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 4));
+        else {
+            c.addView(Ui.text(this, r2.size() + (r2.size() == 1 ? " estado vai" : " estados vão") + " a 2º turno • " + won.size() + " eleitos no 1º turno" + (pending > 0 ? " • " + pending + " em apuração" : ""), 13, Ui.TEXT, true), Ui.margins(Ui.lp(-2, -2), 0, 5, 0, 8));
+            for (final String uf : r2) {
+                Model.Result g = snaps[0].gov.get(uf);
+                List<Model.Cand> two = new ArrayList<>();
+                for (Model.Cand k : g.cands) if (k.sit.toLowerCase(Locale.ROOT).contains("2º")) two.add(k);
+                LinearLayout row = Ui.col(this);
+                row.setBackground(Ui.fill(0xFF08182A, 12, Ui.LINE));
+                row.setPadding(Ui.dp(11), Ui.dp(9), Ui.dp(11), Ui.dp(9));
+                row.addView(Ui.text(this, ufName(uf) + " (" + uf + ")", 13, Ui.TEXT, true));
+                String line = "";
+                for (int i = 0; i < Math.min(2, two.size()); i++) line += (i > 0 ? "  ×  " : "") + two.get(i).nome + " (" + two.get(i).partido + ") " + pc(two.get(i).pct);
+                TextView tl = Ui.text(this, line, 11, Ui.SOFT, false);
+                tl.setPadding(0, Ui.dp(3), 0, 0);
+                row.addView(tl);
+                row.setOnClickListener(v -> showSheet(roundUfView(uf)));
+                c.addView(row, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 7));
+            }
+            if (!won.isEmpty()) {
+                TextView tg = Ui.text(this, roundShowElected ? "▾ Governadores eleitos no 1º turno" : "▸ Ver governadores eleitos no 1º turno", 12, Ui.MINT, true);
+                tg.setPadding(0, Ui.dp(6), 0, Ui.dp(6));
+                tg.setOnClickListener(v -> { roundShowElected = !roundShowElected; render(); });
+                c.addView(tg);
+                if (roundShowElected) {
+                    FlowLayout fl = new FlowLayout(this, 6);
+                    for (String uf : won) {
+                        Model.Cand w = null;
+                        for (Model.Cand k : snaps[0].gov.get(uf).cands) if (k.sit.toLowerCase(Locale.ROOT).startsWith("eleito")) { w = k; break; }
+                        fl.addView(legendPill(w == null ? Ui.MUTED : Model.color(w.nome), uf + " • " + (w == null ? "—" : w.nome), ""));
+                    }
+                    c.addView(fl);
+                }
+            }
+        }
+        c.addView(Ui.text(this, "Senado, Câmara e Assembleias Legislativas não têm 2º turno: a eleição é decidida no turno único.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 0));
+        return c;
+    }
+
+    private View roundUfView(String uf) {
+        LinearLayout c = Ui.col(this);
+        Model.Result g = snaps[0].gov.get(uf);
+        c.addView(Ui.text(this, "Governador • " + ufName(uf), 18, Ui.TEXT, true));
+        c.addView(Ui.text(this, "1º turno • candidatos que vão ao 2º turno (25/10/2026)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 8));
+        if (g == null) return c;
+        ctxUe = uf;
+        ctxRole = "candidato a governador";
+        int i = 0;
+        for (Model.Cand k : g.cands) if (k.sit.toLowerCase(Locale.ROOT).contains("2º")) c.addView(candRow(g, k, i++, true));
+        return c;
+    }
+
+    // ============================================================ ficha do candidato (dados oficiais + manchetes de terceiros)
+    private static String ageOf(String born) {
+        try {
+            java.time.LocalDate b = java.time.LocalDate.parse(born, java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+            return java.time.temporal.ChronoUnit.YEARS.between(b, java.time.LocalDate.now(java.time.ZoneId.of("America/Sao_Paulo"))) + " anos";
+        } catch (Throwable t) { return ""; }
+    }
+
+    private void kv(LinearLayout box, String k, String v) {
+        if (v == null || v.isEmpty()) return;
+        LinearLayout row = Ui.row(this);
+        row.setPadding(0, Ui.dp(4), 0, Ui.dp(4));
+        TextView kk = Ui.text(this, k, 11, Ui.MUTED, false);
+        row.addView(kk, Ui.lp(Ui.dp(92), -2));
+        row.addView(Ui.text(this, v, 12, Ui.TEXT, false), Ui.lp(0, -2, 1f));
+        box.addView(row);
+    }
+
+    private TextView linkRow(String text, String sub, final String url) {
+        TextView t = Ui.text(this, text + (sub.isEmpty() ? "" : "\n" + sub), 12, Ui.TEXT, false);
+        t.setPadding(Ui.dp(2), Ui.dp(7), Ui.dp(2), Ui.dp(7));
+        t.setOnClickListener(v -> openUrl(url));
+        return t;
+    }
+
+    private void fillArticles(LinearLayout box, List<News.Article> list, String emptyMsg) {
+        box.removeAllViews();
+        if (list == null) { box.addView(Ui.text(this, "Não foi possível buscar agora. Tente de novo mais tarde.", 11, Ui.MUTED, false)); return; }
+        if (list.isEmpty()) { box.addView(Ui.text(this, emptyMsg, 11, Ui.MUTED, false)); return; }
+        SimpleDateFormat df = new SimpleDateFormat("dd/MM", BR);
+        for (News.Article a : list) box.addView(linkRow("• " + a.title, a.source + (a.ts > 0 ? " • " + df.format(new Date(a.ts)) : ""), a.url));
+    }
+
+    private void showFicha(final Model.Cand c, final Model.Result r, final String ue, final String role) {
+        LinearLayout v = Ui.col(this);
+        int col = Model.color(c.nome);
+        LinearLayout head = Ui.row(this);
+        AvatarView av = new AvatarView(this, 58).set(c.nome, col);
+        if (r != null && !r.photoBase.isEmpty() && !c.sq.isEmpty()) Photos.load(r.photoBase + c.sq + ".jpeg", av);
+        head.addView(av, Ui.margins(Ui.lp(Ui.dp(58), Ui.dp(58)), 0, 0, 12, 0));
+        LinearLayout hn = Ui.col(this);
+        hn.addView(Ui.text(this, c.nome, 19, Ui.TEXT, true));
+        hn.addView(Ui.text(this, c.partido + (c.numero.isEmpty() ? "" : " · nº " + c.numero) + " • " + role.substring(0, 1).toUpperCase(Locale.ROOT) + role.substring(1), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        head.addView(hn, Ui.lp(0, -2, 1f));
+        v.addView(head);
+
+        LinearLayout reg = Ui.card(this);
+        reg.addView(Ui.text(this, "REGISTRO NO TSE", 10, Ui.MUTED, true));
+        kv(reg, "Nome completo", c.full);
+        kv(reg, "Idade", ageOf(c.born));
+        kv(reg, "Situação", c.sit);
+        kv(reg, "Vice", c.vice);
+        kv(reg, "Coligação", c.coal);
+        kv(reg, "Votos", n(c.votos) + " (" + pc(c.pct) + " dos válidos, " + turn + "º turno)");
+        v.addView(reg, Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+
+        LinearLayout off = Ui.card(this);
+        off.addView(Ui.text(this, "PATRIMÔNIO, PLANO DE GOVERNO E GASTOS DE CAMPANHA", 10, Ui.MUTED, true));
+        off.addView(Ui.text(this, "Ficha oficial do TSE (DivulgaCandContas): bens declarados, propostas e prestação de contas de campanha.", 11, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 6));
+        off.addView(actionBtn("Abrir ficha oficial no TSE ›", "divulgacandcontas.tse.jus.br", x -> openUrl(Ficha.tseLink(c, ue))));
+        v.addView(off, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+
+        final LinearLayout mand = Ui.card(this);
+        mand.addView(Ui.text(this, "MANDATO ATUAL (DADOS ABERTOS)", 10, Ui.MUTED, true));
+        mand.addView(Ui.text(this, "Buscando na Câmara e no Senado…", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        v.addView(mand, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+
+        final LinearLayout newsBox = Ui.card(this), chkBox = Ui.card(this);
+        newsBox.addView(Ui.text(this, "MANCHETES RECENTES", 10, Ui.MUTED, true));
+        final LinearLayout nl = Ui.col(this), cl = Ui.col(this);
+        nl.addView(Ui.text(this, "Buscando…", 11, Ui.MUTED, false));
+        newsBox.addView(nl, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
+        chkBox.addView(Ui.text(this, "CHECAGENS DE FATOS (LUPA, AOS FATOS, ESTADÃO VERIFICA, G1, BOATOS)", 10, Ui.MUTED, true));
+        cl.addView(Ui.text(this, "Buscando…", 11, Ui.MUTED, false));
+        chkBox.addView(cl, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
+        v.addView(newsBox, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+        v.addView(chkBox, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+        v.addView(Ui.text(this, "Manchetes e checagens são resultados automáticos de busca em veículos de terceiros, com fonte e link; podem incluir homônimos. O app não opina, não verifica e não escreve conteúdo sobre candidatos. Dados do registro: TSE; mandato: Câmara dos Deputados e Senado Federal.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 12, 2, 4));
+        final Dialog d = showSheet(v);
+
+        newsPool.execute(() -> {
+            final Ficha.Mandate m = Ficha.mandate(c);
+            ui.post(() -> {
+                if (!d.isShowing()) return;
+                mand.removeAllViews();
+                mand.addView(Ui.text(this, "MANDATO ATUAL (DADOS ABERTOS)", 10, Ui.MUTED, true));
+                if (m == null) {
+                    mand.addView(Ui.text(this, "Não consta como deputado federal nem senador em exercício (ou o nome civil não bateu com o do TSE).", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+                    return;
+                }
+                kv(mand, "Casa", m.house + (m.uf.isEmpty() ? "" : " • " + m.party + "/" + m.uf));
+                if (m.proposals >= 0) kv(mand, "Proposições", n(m.proposals) + " apresentadas desde fev/2023 (projetos, requerimentos etc.)");
+                if (m.spent >= 0) kv(mand, "Cota 2026", "R$ " + String.format(BR, "%,.2f", m.spent) + " em notas apresentadas (cota parlamentar)");
+                if (!m.url.isEmpty()) mand.addView(linkRow("Ver página oficial ›", "", m.url));
+            });
+        });
+        newsPool.execute(() -> {
+            final List<News.Article> a = Ficha.headlines(c, role, false);
+            ui.post(() -> { if (d.isShowing()) fillArticles(nl, a, "Nenhuma manchete recente encontrada."); });
+        });
+        newsPool.execute(() -> {
+            final List<News.Article> a = Ficha.headlines(c, role, true);
+            ui.post(() -> { if (d.isShowing()) fillArticles(cl, a, "Nenhuma checagem encontrada para este nome."); });
+        });
     }
 
     private View detailView(String uf) {

@@ -16,6 +16,8 @@ final class Model {
 
     static final class Cand {
         String nome = "", partido = "", numero = "", sit = "", sq = "";
+        /** dados do registro presentes no arquivo de resultado: nome civil, nascimento (dd/MM/aaaa), vice e coligação */
+        String full = "", born = "", vice = "", coal = "";
         long votos;
         double pct;
     }
@@ -32,7 +34,8 @@ final class Model {
         JSONObject toJson() throws Exception {
             JSONArray a = new JSONArray();
             for (Cand c : cands) a.put(new JSONObject().put("n", c.nome).put("p", c.partido).put("u", c.numero)
-                    .put("s", c.sit).put("v", c.votos).put("x", c.pct).put("q", c.sq));
+                    .put("s", c.sit).put("v", c.votos).put("x", c.pct).put("q", c.sq)
+                    .put("fn", c.full).put("bd", c.born).put("vc", c.vice).put("co", c.coal));
             return new JSONObject().put("c", a).put("pr", progress).put("ap", abstPct).put("se", sections)
                     .put("st", sectionsTotal).put("va", valid).put("bl", blank).put("d", date).put("t", time)
                     .put("g", sig).put("f", fin).put("pb", photoBase);
@@ -47,6 +50,7 @@ final class Model {
                 Cand k = new Cand();
                 k.nome = c.optString("n"); k.partido = c.optString("p"); k.numero = c.optString("u");
                 k.sit = c.optString("s"); k.votos = c.optLong("v"); k.pct = c.optDouble("x"); k.sq = c.optString("q");
+                k.full = c.optString("fn"); k.born = c.optString("bd"); k.vice = c.optString("vc"); k.coal = c.optString("co");
                 r.cands.add(k);
             }
             r.progress = o.optDouble("pr"); r.abstPct = o.optDouble("ap"); r.sections = o.optLong("se");
@@ -103,6 +107,16 @@ final class Model {
                             st = e.equals("s") ? "Eleito" : e.equals("2") ? "2º turno" : "";
                         }
                         x.sit = st;
+                        x.full = c.optString("nm");
+                        x.born = c.optString("dt");
+                        JSONArray vs = c.optJSONArray("vs");
+                        for (int q = 0; vs != null && q < vs.length(); q++) {
+                            JSONObject vv = vs.optJSONObject(q);
+                            if (vv != null && "v".equals(vv.optString("tp")) && x.vice.isEmpty())
+                                x.vice = vv.optString("nmu", vv.optString("nm")) + (vv.optString("sgp").isEmpty() ? "" : " (" + vv.optString("sgp") + ")");
+                        }
+                        String agNm = ag.optString("nm").trim(), agCom = ag.optString("com").trim();
+                        if (!agCom.isEmpty() && !agCom.equalsIgnoreCase(par.optString("sg"))) x.coal = (agNm.isEmpty() ? "" : agNm + " — ") + agCom;
                         r.cands.add(x);
                     }
                 }

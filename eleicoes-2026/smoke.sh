@@ -34,6 +34,8 @@ for t in 10 11 12 13 14; do adb exec-out run-as $N cat cache/share/test-$t-0.png
 # 2º turno e modo TV
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --ei turn 2 > /dev/null; sleep 20; alive $N; shot native-turno2
 adb shell am start -S -W -n $N/.MainActivity --ez tv true > /dev/null; sleep 20; alive $N; shot native-tv
+# ficha do candidato (registro TSE, mandato, manchetes, checagens)
+adb shell am start -S -W -n $N/.MainActivity --es tab brasil --es ficha 0 > /dev/null; sleep 50; alive $N; shot native-ficha; crashes
 # painel de UF e estúdio de imagens
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es sel SP --es sheet SP > /dev/null; sleep 22; alive $N; shot native-sheet-sp
 adb shell am start -S -W -n $N/.MainActivity --es tab brasil --ez studio true --ez genstatus true > /dev/null; sleep 45; alive $N; shot native-studio
