@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: python3 eleicoes-2026/probe/probe.py
+      - run: python3 eleicoes-2026/probe/probe_candidatos.py
