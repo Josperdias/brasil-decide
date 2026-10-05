@@ -11,6 +11,11 @@ on:
 permissions:
   contents: write
 
+# um build novo cancela o anterior (evita que um build antigo termine depois e sobrescreva a release app-latest)
+concurrency:
+  group: eleicoes-android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
