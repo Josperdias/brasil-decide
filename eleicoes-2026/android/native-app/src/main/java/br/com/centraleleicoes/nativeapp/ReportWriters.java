@@ -198,7 +198,7 @@ final class ReportWriters {
         put(z, "_rels/.rels", XML + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument\" Target=\"xl/workbook.xml\"/></Relationships>");
         put(z, "xl/workbook.xml", wb.toString());
         put(z, "xl/_rels/workbook.xml.rels", rel.toString());
-        put(z, "xl/styles.xml", XML + "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs></styleSheet>");
+        put(z, "xl/styles.xml", XML + "<styleSheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><fonts count=\"2\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font><font><b/><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts><fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count=\"1\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/></cellStyleXfs><cellXfs count=\"2\"><xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/><xf numFmtId=\"0\" fontId=\"1\" fillId=\"0\" borderId=\"0\" xfId=\"0\" applyFont=\"1\"/></cellXfs><cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>");
 
         StringBuilder s = new StringBuilder(XML + "<worksheet xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><cols><col min=\"1\" max=\"1\" width=\"110\" customWidth=\"1\"/></cols><sheetData>");
         int row = 1;
@@ -404,7 +404,7 @@ final class ReportWriters {
         b.add("Atualizado em " + r.generated, 28, 0xFF9FB4C8, false, 30);
         int maxH = 0;
         for (int i = 0; i < Math.min(8, r.highlights.size()); i++) b.add(r.highlights.get(i), 32, 0xFFE8F0F8, false, 22);
-        b.add("Fonte: TSE • contas do app sobre números oficiais • sem projeção • apuração parcial pode mudar", 24, 0xFF9FB4C8, false, 0);
+        b.add("Fonte: TSE • contas do app sobre números oficiais • sem projeção" + (r.partial ? " • apuração parcial pode mudar" : ""), 24, 0xFF9FB4C8, false, 0);
         int h = 2 * pad;
         for (int i = 0; i < blocks.size(); i++) h += blocks.get(i).getHeight() + gaps.get(i).intValue();
         Bitmap bmp = Bitmap.createBitmap(w, Math.max(h, 900), Bitmap.Config.ARGB_8888);

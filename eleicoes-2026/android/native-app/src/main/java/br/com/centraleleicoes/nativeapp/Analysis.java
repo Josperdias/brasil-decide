@@ -39,6 +39,7 @@ final class Analysis {
 
     static final class Report {
         String title = "", subtitle = "", generated = "", source = "";
+        boolean partial;
         final List<String> highlights = new ArrayList<>();
         final List<String> caveats = new ArrayList<>();
         final List<Table> tables = new ArrayList<>();
@@ -59,6 +60,7 @@ final class Analysis {
         rep.generated = new SimpleDateFormat("dd/MM/yyyy HH:mm", BR).format(new Date());
         rep.source = "Tribunal Superior Eleitoral (resultados.tse.jus.br). Contas feitas pelo app sobre os números oficiais; sem projeção.";
         Model.Result p = in.pres;
+        rep.partial = p == null || (p.progress < 100 && !p.fin);
         if (p == null) {
             rep.highlights.add("Os dados ainda não foram carregados. Abra o app com internet e tente de novo.");
             return rep;
@@ -119,7 +121,7 @@ final class Analysis {
             Collections.sort(tight, (x, y) -> Double.compare((Double) x[1], (Double) y[1]));
             StringBuilder tb = new StringBuilder();
             for (int i = 0; i < Math.min(5, tight.size()); i++) tb.append(i > 0 ? ", " : "").append(tight.get(i)[0]).append(" (").append(String.format(BR, "%.2f", (Double) tight.get(i)[1])).append(" p.p.)");
-            if (tb.length() > 0) rep.highlights.add("Menores diferenças entre 1º e 2º (apuração parcial pode mudar): " + tb + ".");
+            if (tb.length() > 0) rep.highlights.add("Menores diferenças entre 1º e 2º" + (rep.partial ? " (apuração parcial pode mudar)" : "") + ": " + tb + ".");
         }
 
         // governadores
@@ -154,7 +156,7 @@ final class Analysis {
             if (!ct.rows.isEmpty()) rep.tables.add(ct);
         }
 
-        if (p.progress < 100) rep.caveats.add("Apuração parcial: os números mudam à medida que mais seções são totalizadas.");
+        if (rep.partial) rep.caveats.add("Apuração parcial: os números mudam à medida que mais seções são totalizadas.");
         rep.caveats.add("Percentuais agregados são calculados sobre a soma dos votos oficiais, nunca por média de percentuais.");
         rep.caveats.add("Este relatório não é um documento oficial do TSE nem uma projeção; consulte resultados.tse.jus.br.");
         return rep;
