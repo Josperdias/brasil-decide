@@ -150,6 +150,10 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash eleicoes-2026/smoke.sh
+      - name: Validar relatórios da Central de Análises (PDF, Word, Excel, CSV, JSON, imagem)
+        run: |
+          pip install --quiet openpyxl python-docx pypdf pillow
+          python3 eleicoes-2026/tools/validate_reports.py dist
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -169,10 +173,6 @@ jobs:
           git add -A
           git commit -q -m "prints do emulador ${GITHUB_SHA::7}" || exit 0
           git push -f origin smoke-shots
-      - name: Validar relatórios da Central de Análises (PDF, Word, Excel, CSV, JSON, imagem)
-        run: |
-          pip install --quiet openpyxl python-docx pypdf pillow
-          python3 eleicoes-2026/tools/validate_reports.py dist
 
   # só publica release quando os Secrets de assinatura estão configurados e o build foi assinado com eles
   release:
