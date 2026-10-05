@@ -14,6 +14,10 @@ on:
       dir:
         description: "Pasta de saída em 2026/ (use t2 de verdade; 't1-test' para teste)"
         default: "t2"
+  push:
+    paths:
+      - 'eleicoes-2026/collector/**'
+      - '.github/workflows/eleicoes-coletor.yml'
   schedule:
     - cron: "45 18 25 10 *"   # 15:45 no horário de Brasília; o passo "gate" ignora qualquer ano que não seja 2026
 
@@ -40,6 +44,9 @@ jobs:
             else
               echo "run=false" >> "$GITHUB_OUTPUT"; echo "Fora do dia do 2º turno: nada a fazer."
             fi
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            # push em arquivos do coletor: teste curto de 3 minutos com os dados do 1º turno, em pasta de teste
+            echo "run=true" >> "$GITHUB_OUTPUT"; echo "turn=1" >> "$GITHUB_OUTPUT"; echo "min=3" >> "$GITHUB_OUTPUT"; echo "dir=t1-test" >> "$GITHUB_OUTPUT"
           else
             echo "run=true" >> "$GITHUB_OUTPUT"
             echo "turn=${{ github.event.inputs.turn }}" >> "$GITHUB_OUTPUT"
