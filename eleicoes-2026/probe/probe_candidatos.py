@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Sonda 2: fontes OFICIAIS para a ficha do candidato (TSE DivulgaCand/DivulgaCandContas, Câmara, Senado) e datas do TSE."""
-import json, re, urllib.request, urllib.parse, gzip, sys
+"""Sonda 3: detalhes das fontes OFICIAIS abertas (config do TSE com datas, Câmara, Senado) + CORS para o site."""
+import json, re, urllib.request, urllib.parse, gzip
 
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+ORIGIN = "https://josperdias.github.io"
 
 def get(url, hdr=None, timeout=30):
-    h = {"User-Agent": UA, "Accept": "application/json, text/plain, */*", "Accept-Language": "pt-BR,pt;q=0.9", "Accept-Encoding": "gzip"}
+    h = {"User-Agent": UA, "Accept": "application/json, text/plain, */*", "Accept-Language": "pt-BR,pt;q=0.9", "Accept-Encoding": "gzip", "Origin": ORIGIN}
     h.update(hdr or {})
     req = urllib.request.Request(url, headers=h)
     try:
@@ -18,67 +19,72 @@ def get(url, hdr=None, timeout=30):
     except Exception as e:
         return 0, {}, "ERRO " + str(e)
 
-def show(label, url, n=700, hdr=None):
+def show(label, url, n=600, hdr=None):
     st, h, body = get(url, hdr)
-    print(f"\n== {label}\n{url}\nstatus {st} | content-type {h.get('Content-Type','?')} | CORS {h.get('Access-Control-Allow-Origin','-')} | bytes {len(body)}")
+    hl = {k.lower(): v for k, v in h.items()}
+    print(f"\n== {label}\n{url}\nstatus {st} | CORS(origin={ORIGIN}) {hl.get('access-control-allow-origin','-')} | x-total-count {hl.get('x-total-count','-')} | bytes {len(body)}")
     print(body[:n].replace("\n", " "))
     return st, body
 
-def keys(o, d=0, maxd=2):
-    if isinstance(o, dict):
-        return {k: (keys(v, d + 1, maxd) if d < maxd else type(v).__name__) for k, v in list(o.items())[:60]}
-    if isinstance(o, list):
-        return [keys(o[0], d + 1, maxd)] if o else []
-    return type(o).__name__
-
 BASE = "https://resultados.tse.jus.br/oficial"
-st, body = show("config ele-c.json", BASE + "/comum/config/ele-c.json", 1500)
+st, body = show("config ele-c.json (só ele2026)", BASE + "/comum/config/ele-c.json", 0)
 try:
     cfg = json.loads(body)
-    print("chaves:", json.dumps(keys(cfg), ensure_ascii=False)[:1200])
-    for k in ("dt", "dtele", "data", "dataEleicao"):
-        if k in cfg: print(k, "=", cfg[k])
-except Exception as e:
-    print("config não é JSON:", e)
+    for p in cfg["pl"]:
+        if p.get("c") == "ele2026":
+            print("PLEITO", {k: v for k, v in p.items() if k != "e"})
+            for e in p["e"]:
+                if e.get("tp") in ("1", "2", "3", "4", "5", "6") or e.get("t") in ("1", "2"):
+                    print("  ELE", {k: e.get(k) for k in ("cd", "cdt2", "sqele", "nm", "t", "tp", "dt")}, "abr:", [a.get("cd") for a in e.get("abr", [])][:30])
+except Exception as ex:
+    print("erro config:", ex)
 
-# candidatos do 1º turno (presidente) para pegar sqcand e nomes
-st, body = show("presidente BR 1º turno", BASE + "/ele2026/6257/dados/br/br-c0001-e006257-u.json", 300)
-sq = None
+# estrutura do arquivo de resultado (campos de candidato)
+st, body = show("presidente BR 1º turno (estrutura)", BASE + "/ele2026/6257/dados/br/br-c0001-e006257-u.json", 0)
 try:
     j = json.loads(body)
-    print("chaves topo:", json.dumps(keys(j, 0, 1), ensure_ascii=False)[:800])
-    cands = j["cand"] if "cand" in j else (j.get("abr", [{}])[0].get("cand", []))
-    print("cand[0]:", json.dumps(cands[0], ensure_ascii=False)[:600])
-    print("situações:", sorted({c.get("st") for c in cands}))
-    sq = cands[0].get("sqcand"); nm = cands[0].get("nm")
-    print("primeiro:", nm, sq)
-except Exception as e:
-    print("parse presidente:", e)
+    carg = j["carg"][0]
+    print("carg keys:", list(carg.keys()))
+    agr = carg["agr"][0]
+    print("agr keys:", list(agr.keys()))
+    par = agr.get("par", [{}])[0]
+    print("par keys:", list(par.keys()))
+    c = par["cand"][0] if "cand" in par else agr["cand"][0]
+    print("cand:", json.dumps(c, ensure_ascii=False)[:700])
+    sts = {}
+    for a in carg["agr"]:
+        for pr in a.get("par", []):
+            for cd in pr.get("cand", []):
+                sts[cd.get("st")] = sts.get(cd.get("st"), 0) + 1
+        for cd in a.get("cand", []):
+            sts[cd.get("st")] = sts.get(cd.get("st"), 0) + 1
+    print("situações:", sts)
+except Exception as ex:
+    print("erro presidente:", ex)
 
-# governador SP - situações (2º turno?)
-st, body = show("governador SP 1º turno", BASE + "/ele2026/6259/dados/sp/sp-c0003-e006259-u.json", 100)
+# Câmara
+st, body = show("Câmara: deputado por nome+UF", "https://dadosabertos.camara.leg.br/api/v2/deputados?nome=Pavanato&siglaUf=SP", 500)
 try:
-    j = json.loads(body); cands = j["cand"] if "cand" in j else j.get("abr", [{}])[0].get("cand", [])
-    print("SP gov situações:", [(c.get("nm"), c.get("st"), c.get("pvap")) for c in cands[:6]])
-except Exception as e:
-    print("parse gov:", e)
+    dep = json.loads(body)["dados"][0]; did = dep["id"]; print("dep:", dep["nome"], did)
+    show("Câmara: proposições (total no header)", f"https://dadosabertos.camara.leg.br/api/v2/proposicoes?idDeputadoAutor={did}&dataInicio=2023-02-01&itens=3&ordem=DESC&ordenarPor=id", 600)
+    show("Câmara: despesas 2026", f"https://dadosabertos.camara.leg.br/api/v2/deputados/{did}/despesas?ano=2026&itens=5&ordem=DESC&ordenarPor=dataDocumento", 600)
+    show("Câmara: detalhe", f"https://dadosabertos.camara.leg.br/api/v2/deputados/{did}", 500)
+except Exception as ex:
+    print("erro câmara:", ex)
 
-# DivulgaCandContas
-DC = "https://divulgacandcontas.tse.jus.br/divulga/rest/v1"
-show("DC eleicoes ordinarias", DC + "/eleicao/ordinarias", 1500)
-show("DC eleicoes 2026 (variante)", DC + "/eleicao/listar/municipios/2045202026/BR/cargos", 400)
-for el in ("2045202026", "2040602026", "544", "2045202022"):
-    show(f"DC cargos BR {el}", f"{DC}/eleicao/listar/municipios/{el}/BR/cargos", 400)
-for ano in (2026,):
-    for el in ("6257", "2045202026", "544"):
-        show(f"DC candidatos presidente {ano}/BR/{el}", f"{DC}/candidatura/listar/{ano}/BR/{el}/1/candidatos", 900)
-if sq:
-    for el in ("2045202026", "6257", "544"):
-        show(f"DC buscar candidato {sq} el={el}", f"{DC}/candidatura/buscar/2026/BR/{el}/candidato/{sq}", 1800)
+# Senado
+st, body = show("Senado lista atual", "https://legis.senado.leg.br/dadosabertos/senador/lista/atual", 0, {"Accept": "application/json"})
+try:
+    arr = json.loads(body)["ListaParlamentarEmExercicio"]["Parlamentares"]["Parlamentar"]
+    ip = arr[0]["IdentificacaoParlamentar"]; print("n senadores:", len(arr), "| chaves:", list(ip.keys())[:20], "|", ip["NomeParlamentar"], ip.get("SiglaPartidoParlamentar"), ip.get("UfParlamentar"))
+    cod = ip["CodigoParlamentar"]
+    show("Senado: autorias", f"https://legis.senado.leg.br/dadosabertos/senador/{cod}/autorias", 500, {"Accept": "application/json"})
+except Exception as ex:
+    print("erro senado:", ex)
+show("Senado CEAPS 2026", "https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/2026", 500, {"Accept": "application/json"})
 
-# Câmara / Senado
-show("Câmara deputados (nome)", "https://dadosabertos.camara.leg.br/api/v2/deputados?nome=Lula&ordem=ASC&ordenarPor=nome", 500)
-show("Senado lista atual", "https://legis.senado.leg.br/dadosabertos/senador/lista/atual", 600, {"Accept": "application/json"})
-# notícias
+# notícias (CORS do Google News)
 q = urllib.parse.quote('"Lula" candidato presidente')
-show("Google News RSS", f"https://news.google.com/rss/search?q={q}&hl=pt-BR&gl=BR&ceid=BR:pt-419", 500, {"Accept": "application/rss+xml"})
+show("Google News RSS", f"https://news.google.com/rss/search?q={q}&hl=pt-BR&gl=BR&ceid=BR:pt-419", 150, {"Accept": "application/rss+xml"})
+fq = urllib.parse.quote('"Lula" (site:lupa.news OR site:aosfatos.org OR site:estadao.com.br/estadao-verifica OR site:g1.globo.com/fato-ou-fake)')
+show("Google News RSS checagens", f"https://news.google.com/rss/search?q={fq}&hl=pt-BR&gl=BR&ceid=BR:pt-419", 300, {"Accept": "application/rss+xml"})
