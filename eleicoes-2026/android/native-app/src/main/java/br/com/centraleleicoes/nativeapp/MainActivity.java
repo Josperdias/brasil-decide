@@ -1422,8 +1422,9 @@ public class MainActivity extends Activity {
         b.setBackground(Ui.cardBg(16));
         b.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
         b.addView(Ui.text(this, "📺", 20, Ui.TEXT, false));
-        TextView nm = Ui.text(this, name, 13, Ui.TEXT, true);
-        nm.setSingleLine();
+        b.setMinimumWidth(Ui.dp(140));
+        TextView nm = Ui.text(this, name, 14, Ui.TEXT, true);
+        nm.setMaxLines(2);
         nm.setPadding(0, Ui.dp(8), 0, 0);
         b.addView(nm);
         TextView live = Ui.text(this, "● ao vivo ↗", 10, 0xFFFF6B6B, true);

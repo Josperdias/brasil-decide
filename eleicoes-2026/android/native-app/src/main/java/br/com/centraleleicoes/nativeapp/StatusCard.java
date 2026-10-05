@@ -276,7 +276,8 @@ final class StatusCard {
             Paint np = paint(Ui.TEXT, story ? 44 : 32, true, Paint.Align.CENTER);
             String[] ln = nameLines(cd.nome, np, cw - 40);
             for (int k = 0; k < ln.length; k++) c.drawText(ln[k], cx, ty + k * (story ? 50 : 38), np);
-            ty += (ln.length - 1) * (story ? 50 : 38) + (story ? 46 : 36);
+            ty += (story ? 50 : 38) + (story ? 46 : 36); // sempre reserva 2 linhas para alinhar os dois cartões
+            if (ln.length == 1) ty += 0;
             c.drawText(cd.partido + (cd.numero.isEmpty() ? "" : "  •  nº " + cd.numero), cx, ty, paint(Ui.MUTED, story ? 28 : 22, false, Paint.Align.CENTER));
             ty += story ? 100 : 72;
             c.drawText(pc(cd.pct), cx, ty, paint(Ui.TEXT, story ? 88 : 60, true, Paint.Align.CENTER));
@@ -330,10 +331,16 @@ final class StatusCard {
             float ns = story ? 31 : 25;
             Paint np = paint(Ui.TEXT, ns, true, Paint.Align.LEFT);
             String[] ln = nameLines(cd.nome, np, mw);
+            while (ns > 19 && (np.measureText(ln[0]) > mw || (ln.length > 1 && np.measureText(ln[1]) > mw) || ln[ln.length - 1].endsWith("…") || ln[0].endsWith("…"))) {
+                ns -= 1.5f;
+                np.setTextSize(ns);
+                ln = nameLines(cd.nome, np, mw);
+            }
             float ny = cy - (ln.length == 2 ? ns * 0.55f : ns * 0.1f) - (story ? 14 : 8);
             for (int k = 0; k < ln.length; k++) c.drawText(ln[k], tx, ny + k * (ns * 1.18f), np);
             float my = ny + (ln.length - 1) * ns * 1.18f + ns * 1.1f;
-            c.drawText(cd.partido + (cd.numero.isEmpty() ? "" : " • " + cd.numero), tx, my, paint(Ui.MUTED, story ? 23 : 19, false, Paint.Align.LEFT));
+            Paint pp = paint(Ui.MUTED, story ? 23 : 19, false, Paint.Align.LEFT);
+            c.drawText(ell(cd.partido + (cd.numero.isEmpty() ? "" : " • " + cd.numero), pp, mw), tx, my, pp);
             c.drawText(INT.format(cd.votos) + " votos", tx, my + (story ? 36 : 28), paint(Ui.SOFT, story ? 25 : 21, true, Paint.Align.LEFT));
             c.drawText(pc(cd.pct), x + cw - 20, top + (story ? 42 : 34), paint(Ui.MINT, story ? 25 : 20, true, Paint.Align.RIGHT));
         }
