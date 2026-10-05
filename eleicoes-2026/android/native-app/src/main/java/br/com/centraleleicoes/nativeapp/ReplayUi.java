@@ -103,7 +103,7 @@ final class ReplayUi {
         LinearLayout head = Ui.col(cx);
         head.setPadding(Ui.dp(2), Ui.dp(6), 0, Ui.dp(10));
         head.addView(Ui.text(cx, "▶ Replay da apuração", 18, Ui.TEXT, true));
-        head.addView(Ui.text(cx, "Como a eleição chegou até aqui, a partir dos registros do coletor (a cada minuto). Só reproduz os dados oficiais; sem previsão.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        head.addView(Ui.text(cx, "Registros do coletor, minuto a minuto. Só reproduz dados oficiais; sem previsão.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
         root.addView(head);
         if (series == null || series.snaps.isEmpty()) {
             LinearLayout e = Ui.card(cx);

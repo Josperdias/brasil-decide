@@ -11,6 +11,8 @@ adb install -r dist/test-Nativo-debug.apk || fail=1
 
 shot() { adb exec-out screencap -p > "dist/$1.png"; }
 alive() { if adb shell pidof "$1" > /dev/null; then echo "OK: $1 em execucao"; else echo "FALHA: $1 nao esta rodando"; fail=1; fi; }
+# rola a tela proporcionalmente ao tamanho real do aparelho
+scroll() { s=$(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1); w=${s%x*}; h=${s#*x}; adb shell input swipe $((w / 2)) $((h * 72 / 100)) $((w / 2)) $((h * 22 / 100)) 450; sleep 2; }
 # confere que a tela mostra o texto esperado (uiautomator); fecha diálogos do sistema (ANR do launcher) e tenta 3 vezes
 ui_has() {
   for i in 1 2 3 4; do
@@ -44,13 +46,13 @@ adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP --ez gensta
 for t in 10 11 12 13 14; do adb exec-out run-as $N cat cache/share/test-$t-0.png > dist/status-sp-$t-0.png || true; done
 # voto no exterior (aba Mapa > Mundo): 186 localidades; rola a tela para registrar as seções principais
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub mundo > /dev/null; sleep 70; alive $N; shot native-mundo-1; crashes; ui_has "VOTO DOS BRASILEIROS NO EXTERIOR"
-for k in 2 3 4 5 6; do adb shell input swipe 540 1700 540 500 500; sleep 2; shot native-mundo-$k; done
+for k in 2 3 4 5 6 7; do scroll; shot native-mundo-$k; done
 # replay (série de DEMONSTRAÇÃO simulada, só para testar a tela): mapa a 55%, corrida a 40% e gráfico a 80%
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub replay --es rdir demo --ei rpct 55 > /dev/null; sleep 30; alive $N; shot native-replay-1; crashes; ui_has "MONSTRA"
-adb shell input swipe 540 1700 540 500 500; sleep 2; shot native-replay-2
+scroll; shot native-replay-2
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub replay --es rdir demo --ei rmode 1 --ei rpct 40 > /dev/null; sleep 20; alive $N; shot native-replay-corrida
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub replay --es rdir demo --ei rmode 2 --ei rpct 80 > /dev/null; sleep 20; alive $N; shot native-replay-grafico
-adb shell input swipe 540 1700 540 400 500; sleep 1; adb shell input swipe 540 1700 540 400 500; sleep 2; shot native-replay-eventos
+scroll; scroll; scroll; shot native-replay-eventos
 # 2º turno e modo TV
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --ei turn 2 > /dev/null; sleep 20; alive $N; shot native-turno2
 adb shell am start -S -W -n $N/.MainActivity --ez tv true > /dev/null; sleep 20; alive $N; shot native-tv

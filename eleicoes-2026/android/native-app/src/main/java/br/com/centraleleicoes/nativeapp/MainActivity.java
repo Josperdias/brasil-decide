@@ -357,7 +357,7 @@ public class MainActivity extends Activity {
             nav.setVisibility(View.VISIBLE);
             renderHeader();
             if (updateAvailable) content.addView(updateBanner());
-            if (tab.equals("brasil") || tab.equals("mapa")) content.addView(roundStrip());
+            if (tab.equals("brasil") || (tab.equals("mapa") && !mapaSub.equals("mundo") && !mapaSub.equals("replay"))) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
                 case "mapa":

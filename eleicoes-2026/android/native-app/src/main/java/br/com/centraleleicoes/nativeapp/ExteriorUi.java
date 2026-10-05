@@ -171,8 +171,8 @@ final class ExteriorUi {
             c.addView(Ui.text(cx, "Últimos dados do exterior: " + hhmm(s.at) + " • atualização oficial temporariamente indisponível.", 10, Ui.AMBER, true), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
         LinearLayout r1 = Ui.row(cx);
         r1.addView(statBox(n(z.electorate), "eleitorado"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
-        r1.addView(statBox(n(z.turnout) + " • " + pc(z.electorate > 0 ? 100.0 * z.turnout / z.electorate : 0), "comparecimento"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
-        r1.addView(statBox(n(z.absent) + " • " + pc(z.electorate > 0 ? 100.0 * z.absent / z.electorate : 0), "abstenção"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
+        r1.addView(statBox(n(z.turnout), "comparecimento • " + pc(z.electorate > 0 ? 100.0 * z.turnout / z.electorate : 0)), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
+        r1.addView(statBox(n(z.absent), "abstenção • " + pc(z.electorate > 0 ? 100.0 * z.absent / z.electorate : 0)), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
         c.addView(r1, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
         LinearLayout r2 = Ui.row(cx);
         r2.addView(statBox(n(z.valid), "votos válidos"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
@@ -557,8 +557,8 @@ final class ExteriorUi {
         v.addView(Ui.text(cx, n(a.sec) + "/" + n(a.secTotal) + " seções totalizadas", 10, Ui.MUTED, false));
         LinearLayout r1 = Ui.row(cx);
         r1.addView(statBox(n(a.electorate), "eleitorado"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
-        r1.addView(statBox(n(a.turnout) + " • " + pc(a.turnoutPct()), "comparecimento"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
-        r1.addView(statBox(n(a.absent) + " • " + pc(a.abstPct()), "abstenção"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
+        r1.addView(statBox(n(a.turnout), "comparecimento • " + pc(a.turnoutPct())), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
+        r1.addView(statBox(n(a.absent), "abstenção • " + pc(a.abstPct())), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
         v.addView(r1, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
         LinearLayout r2 = Ui.row(cx);
         r2.addView(statBox(n(a.valid), "válidos"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
@@ -606,8 +606,8 @@ final class ExteriorUi {
         v.addView(Ui.text(cx, n(r.sections) + "/" + n(r.sectionsTotal) + " seções totalizadas", 10, Ui.MUTED, false));
         LinearLayout r1 = Ui.row(cx);
         r1.addView(statBox(n(r.electorate), "eleitorado"), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 3, 0));
-        r1.addView(statBox(n(r.turnout) + " • " + pc(r.electorate > 0 ? 100.0 * r.turnout / r.electorate : 0), "comparecimento"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
-        r1.addView(statBox(n(r.absent) + " • " + pc(r.electorate > 0 ? 100.0 * r.absent / r.electorate : 0), "abstenção"), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
+        r1.addView(statBox(n(r.turnout), "comparecimento • " + pc(r.electorate > 0 ? 100.0 * r.turnout / r.electorate : 0)), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 3, 0));
+        r1.addView(statBox(n(r.absent), "abstenção • " + pc(r.electorate > 0 ? 100.0 * r.absent / r.electorate : 0)), Ui.margins(Ui.lp(0, -2, 1.3f), 3, 0, 0, 0));
         v.addView(r1, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 8));
         for (int i = 0; i < Math.min(3, r.cands.size()); i++) v.addView(candBar(r.cands.get(i), i));
         if (r.cands.size() > 1)
