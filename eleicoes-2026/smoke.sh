@@ -39,6 +39,7 @@ for tab in mapa brasil ufs df news lives mais; do
   alive $N; shot native-$tab
   crashes
   [ "$tab" = brasil ] && ui_has "turno: domingo"
+  [ "$tab" = mais ] && ui_has "Panorama político"
 done
 # aba Estado: abre no DF e também em outro estado (SP) — cartões e imagens de status do estado escolhido
 adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP > /dev/null; sleep 28; alive $N; shot native-df-sp; crashes

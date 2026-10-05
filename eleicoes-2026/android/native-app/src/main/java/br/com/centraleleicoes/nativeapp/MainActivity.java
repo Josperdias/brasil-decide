@@ -1259,9 +1259,43 @@ public class MainActivity extends Activity {
         return c;
     }
 
+    // ---------------------------------------------------------------- panorama político
+    private PanoramaUi panoUi;
+    private Panorama.Data panoData;
+    private boolean panoBusy, panoFailed;
+    private long panoAt;
+
+    private PanoramaUi panorama() {
+        if (panoUi == null) panoUi = new PanoramaUi(new PanoramaUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
+            @Override public void rerender() { render(); }
+        });
+        panoUi.setData(panoData, panoBusy, panoFailed);
+        return panoUi;
+    }
+
+    private void loadPanorama(boolean force) {
+        if (panoBusy || (!force && panoData != null && System.currentTimeMillis() - panoAt < 30 * 60 * 1000L)) return;
+        if (!force && panoFailed && System.currentTimeMillis() - panoAt < 60 * 1000L) return;
+        panoBusy = true;
+        exPool.execute(() -> {
+            final Panorama.Data d = Panorama.load();
+            ui.post(() -> {
+                panoBusy = false;
+                panoAt = System.currentTimeMillis();
+                panoFailed = d == null && panoData == null;
+                if (d != null) panoData = d;
+                if (tab.equals("mais") && (d != null || panoFailed)) render();
+            });
+        });
+    }
+
     // ---------------------------------------------------------------- mais (labs)
     private void renderMais() {
         content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
+        content.addView(panorama().build());
+        loadPanorama(false);
 
         // comparador
         LinearLayout cmp = Ui.card(this);
