@@ -21,7 +21,8 @@ public class StatusProvider extends ContentProvider {
 
     @Override public String getType(Uri uri) {
         String n = uri.getLastPathSegment();
-        return n != null && n.endsWith(".apk") ? "application/vnd.android.package-archive" : "image/png";
+        if (n == null) return "image/png";
+        return n.endsWith(".apk") ? "application/vnd.android.package-archive" : n.contains(".") && !n.endsWith(".png") ? ReportWriters.mimeForName(n) : "image/png";
     }
 
     private File resolve(Uri uri) throws FileNotFoundException {

@@ -159,6 +159,7 @@ jobs:
         if: always()
         run: |
           mkdir -p /tmp/shots && cp dist/*.png /tmp/shots/ 2>/dev/null || true
+          for e in pdf docx xlsx csv json; do cp dist/report.$e /tmp/shots/ 2>/dev/null || true; done
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan smoke-shots
@@ -168,6 +169,10 @@ jobs:
           git add -A
           git commit -q -m "prints do emulador ${GITHUB_SHA::7}" || exit 0
           git push -f origin smoke-shots
+      - name: Validar relatórios da Central de Análises (PDF, Word, Excel, CSV, JSON, imagem)
+        run: |
+          pip install --quiet openpyxl python-docx pypdf pillow
+          python3 eleicoes-2026/tools/validate_reports.py dist
 
   # só publica release quando os Secrets de assinatura estão configurados e o build foi assinado com eles
   release:

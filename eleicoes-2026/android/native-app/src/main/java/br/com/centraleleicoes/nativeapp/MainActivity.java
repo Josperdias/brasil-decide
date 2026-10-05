@@ -201,6 +201,7 @@ public class MainActivity extends Activity {
             genStatusPending = in.getBooleanExtra("genstatus", false);
             if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
             if (in.getStringExtra("ficha") != null) { final int fi = Integer.parseInt(in.getStringExtra("ficha")); ui.postDelayed(() -> { Model.Result pr = snap().pres; if (pr != null && fi < pr.cands.size()) showFicha(pr.cands.get(fi), pr, "BR", "candidato à presidência"); }, 14000); }
+            if (in.getBooleanExtra("genreport", false)) ui.postDelayed(this::genReportsForTest, 30000);
             if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
         buildUi();
@@ -1259,6 +1260,51 @@ public class MainActivity extends Activity {
         return c;
     }
 
+    // ---------------------------------------------------------------- central de análises
+    private AnalysisUi analysisUi;
+
+    /** Só para o teste do emulador: grava os seis formatos em cache/share/test-report.* para o CI validar. */
+    private void genReportsForTest() {
+        exPool.execute(() -> {
+            try {
+                java.io.File dir = new java.io.File(getCacheDir(), "share");
+                dir.mkdirs();
+                Analysis.Report rep = Analysis.build(analysis().testInput());
+                for (String f : ReportWriters.FORMATS) ReportWriters.writeTo(new java.io.File(dir, "test-report." + f), rep, f);
+            } catch (Throwable t) { lastError = "relatórios de teste: " + t; android.util.Log.e("BD", "relatorios de teste", t); }
+        });
+    }
+
+    private AnalysisUi analysis() {
+        if (analysisUi == null) analysisUi = new AnalysisUi(new AnalysisUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public Analysis.Input input() {
+                Analysis.Input in = new Analysis.Input();
+                in.turn = turn;
+                in.pres = snap().pres;
+                in.states.putAll(snap().states);
+                in.gov.putAll(snap().gov);
+                in.ex = exSnaps[turn - 1];
+                in.ufs = UFS;
+                return in;
+            }
+            @Override public void shareFile(java.io.File f, String mime) {
+                try {
+                    Uri uri = new Uri.Builder().scheme("content").authority(StatusProvider.AUTHORITY).appendPath(f.getName()).build();
+                    Intent i = new Intent(Intent.ACTION_SEND);
+                    i.setType(mime);
+                    i.putExtra(Intent.EXTRA_STREAM, uri);
+                    i.putExtra(Intent.EXTRA_SUBJECT, "Brasil Decide — relatório da apuração");
+                    i.setClipData(ClipData.newRawUri("relatório", uri));
+                    i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    startActivity(Intent.createChooser(i, "Compartilhar relatório"));
+                } catch (Throwable t) { lastError = "relatório: " + t; Toast.makeText(MainActivity.this, "Não foi possível abrir o compartilhamento", Toast.LENGTH_SHORT).show(); }
+            }
+            @Override public void rerender() { render(); }
+        });
+        return analysisUi;
+    }
+
     // ---------------------------------------------------------------- panorama político
     private PanoramaUi panoUi;
     private Panorama.Data panoData;
@@ -1294,7 +1340,8 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- mais (labs)
     private void renderMais() {
         content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
-        content.addView(panorama().build());
+        content.addView(analysis().build());
+        content.addView(panorama().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
         loadPanorama(false);
 
         // comparador
