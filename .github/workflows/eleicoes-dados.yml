@@ -6,6 +6,7 @@ on:
   push:
     paths:
       - 'eleicoes-2026/collector/build_transparency.py'
+      - 'eleicoes-2026/collector/build_panorama.py'
       - '.github/workflows/eleicoes-dados.yml'
   schedule:
     - cron: "17 7 * * *"
@@ -40,6 +41,8 @@ jobs:
           git -C data config user.email "41898282+github-actions[bot]@users.noreply.github.com"
       - name: Resumir
         run: python3 eleicoes-2026/collector/build_transparency.py --ano 2026 --out data/2026/transparencia
+      - name: Panorama político
+        run: python3 eleicoes-2026/collector/build_panorama.py --ano 2026 --out data/2026
       - name: Publicar
         shell: bash
         run: |
