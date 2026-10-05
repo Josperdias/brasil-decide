@@ -25,7 +25,7 @@ final class Model {
     static final class Result {
         final List<Cand> cands = new ArrayList<>();
         double progress, abstPct;
-        long sections, sectionsTotal, valid, blank;
+        long sections, sectionsTotal, valid, blank, nulls, electorate, turnout, absent;
         String date = "", time = "", sig = "", photoBase = "";
         boolean fin;
 
@@ -38,7 +38,8 @@ final class Model {
                     .put("fn", c.full).put("bd", c.born).put("vc", c.vice).put("co", c.coal));
             return new JSONObject().put("c", a).put("pr", progress).put("ap", abstPct).put("se", sections)
                     .put("st", sectionsTotal).put("va", valid).put("bl", blank).put("d", date).put("t", time)
-                    .put("g", sig).put("f", fin).put("pb", photoBase);
+                    .put("g", sig).put("f", fin).put("pb", photoBase)
+                    .put("nu", nulls).put("el", electorate).put("tu", turnout).put("ab", absent);
         }
 
         static Result fromJson(JSONObject o) {
@@ -56,6 +57,7 @@ final class Model {
             r.progress = o.optDouble("pr"); r.abstPct = o.optDouble("ap"); r.sections = o.optLong("se");
             r.sectionsTotal = o.optLong("st"); r.valid = o.optLong("va"); r.blank = o.optLong("bl");
             r.date = o.optString("d"); r.time = o.optString("t"); r.sig = o.optString("g"); r.fin = o.optBoolean("f"); r.photoBase = o.optString("pb");
+            r.nulls = o.optLong("nu"); r.electorate = o.optLong("el"); r.turnout = o.optLong("tu"); r.absent = o.optLong("ab");
             return r;
         }
     }
@@ -130,6 +132,10 @@ final class Model {
         r.abstPct = e == null ? 0 : dec(e.opt("pa"));
         r.valid = v == null ? 0 : intv(v.has("vv") ? v.opt("vv") : v.opt("vvc"));
         r.blank = v == null ? 0 : intv(v.opt("vb"));
+        r.nulls = v == null ? 0 : intv(v.has("tvn") ? v.opt("tvn") : v.opt("vn"));
+        r.electorate = e == null ? 0 : intv(e.opt("te"));
+        r.turnout = e == null ? 0 : intv(e.opt("c"));
+        r.absent = e == null ? 0 : intv(e.opt("a"));
         r.date = raw.optString("dg", raw.optString("dt", ""));
         r.time = raw.optString("hg", raw.optString("ht", ""));
         String tf = raw.optString("tf", raw.optString("and", "")).toLowerCase(Locale.ROOT);

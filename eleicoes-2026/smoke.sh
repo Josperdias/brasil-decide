@@ -31,6 +31,9 @@ done
 adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP > /dev/null; sleep 28; alive $N; shot native-df-sp; crashes
 adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP --ez genstatus true > /dev/null; sleep 45; alive $N
 for t in 10 11 12 13 14; do adb exec-out run-as $N cat cache/share/test-$t-0.png > dist/status-sp-$t-0.png || true; done
+# voto no exterior (aba Mapa > Mundo): 186 localidades; rola a tela para registrar as seções principais
+adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub mundo > /dev/null; sleep 70; alive $N; shot native-mundo-1; crashes
+for k in 2 3 4 5 6; do adb shell input swipe 540 1700 540 500 500; sleep 2; shot native-mundo-$k; done
 # 2º turno e modo TV
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --ei turn 2 > /dev/null; sleep 20; alive $N; shot native-turno2
 adb shell am start -S -W -n $N/.MainActivity --ez tv true > /dev/null; sleep 20; alive $N; shot native-tv

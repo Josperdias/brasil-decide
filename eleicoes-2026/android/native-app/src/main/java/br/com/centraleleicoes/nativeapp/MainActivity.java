@@ -123,6 +123,12 @@ public class MainActivity extends Activity {
     private int studioType = StatusCard.PLACAR, studioFormat = StatusCard.STORY;
     private String studioUf = "DF";
     private String localUf = "DF"; // aba Estado: sempre abre no DF
+    // Voto no exterior (aba Mapa > Mundo)
+    private ExteriorUi exUi;
+    private final Exterior.Snapshot[] exSnaps = new Exterior.Snapshot[2];
+    private boolean exBusy;
+    private long exAt;
+    private final ExecutorService exPool = Executors.newSingleThreadExecutor();
     private String ctxUe = "BR", ctxRole = "candidato à presidência";
     private boolean roundShowElected;
     private long roundGovAt;
@@ -171,10 +177,12 @@ public class MainActivity extends Activity {
         cmpA = prefs.getString("cmpA", "DF");
         cmpB = prefs.getString("cmpB", "SP");
         loadCache();
+        for (int ti = 1; ti <= 2; ti++) exSnaps[ti - 1] = Exterior.restore(getFilesDir(), ti);
         Intent in = getIntent();
         if (in != null) { // atalhos de teste/automação: --es tab news --es sel SP --ez tv true
             if (in.getStringExtra("tab") != null) goTab(in.getStringExtra("tab"));
             if (in.getStringExtra("sel") != null) sel = in.getStringExtra("sel");
+            if (in.getStringExtra("msub") != null) mapaSub = in.getStringExtra("msub");
             if (in.getStringExtra("luf") != null) { localUf = in.getStringExtra("luf").toUpperCase(Locale.ROOT); studioUf = localUf; }
             if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
             if (in.getIntExtra("turn", 0) == 2) turn = 2;
@@ -342,8 +350,8 @@ public class MainActivity extends Activity {
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
                 case "mapa":
-                    content.addView(subTabs(new String[]{"mapa", "ufs"}, new String[]{"Mapa", "Estados"}, mapaSub, x -> mapaSub = x));
-                    if (mapaSub.equals("ufs")) renderUfs(); else renderMap();
+                    content.addView(subTabs(new String[]{"mapa", "ufs", "mundo"}, new String[]{"Mapa", "Estados", "🌍 Mundo"}, mapaSub, x -> mapaSub = x));
+                    if (mapaSub.equals("ufs")) renderUfs(); else if (mapaSub.equals("mundo")) renderMundo(); else renderMap();
                     break;
                 case "brasil": renderBrasil(); break;
                 case "df": renderDf(); break;
@@ -450,7 +458,7 @@ public class MainActivity extends Activity {
         TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
         rb.setGravity(Gravity.CENTER);
         rb.setBackground(Ui.fill(0xFF0E2138, 13, Ui.LINE));
-        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
+        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); if (tab.equals("mapa") && mapaSub.equals("mundo")) loadExterior(true); });
         bar.addView(rb, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 8, 0, 0, 0));
         content.addView(bar, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
 
@@ -1464,6 +1472,46 @@ public class MainActivity extends Activity {
         d.show();
         sheetDialog = d;
         return d;
+    }
+
+    // ============================================================ voto no exterior
+    private ExteriorUi ex() {
+        if (exUi == null) exUi = new ExteriorUi(new ExteriorUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
+            @Override public void rerender() { render(); }
+            @Override public int turn() { return turn; }
+            @Override public Model.Result nationalPres() { return snap().pres; }
+            @Override public void event(String icon, String title, String detail) { addEvent(icon, title, detail); }
+        });
+        return exUi;
+    }
+
+    private void renderMundo() {
+        ex().setSnapshotIfChanged(exSnaps[turn - 1]);
+        content.addView(ex().build());
+        loadExterior(false);
+    }
+
+    private void loadExterior(boolean force) {
+        final int t = turn;
+        if (exBusy || (!force && exSnaps[t - 1] != null && !exSnaps[t - 1].fromCache && System.currentTimeMillis() - exAt < 5 * 60 * 1000L)) return;
+        exBusy = true;
+        final String fed = codes[t - 1][0];
+        final Exterior.Snapshot prev = exSnaps[t - 1];
+        exPool.execute(() -> {
+            Exterior.Snapshot s = null;
+            try { s = Exterior.load(fed, t, prev); } catch (Throwable th) { lastError = "exterior: " + th; }
+            final Exterior.Snapshot fs = s;
+            if (fs != null && fs.zz != null && !fs.fromCache) Exterior.save(getFilesDir(), fs);
+            ui.post(() -> {
+                exBusy = false;
+                exAt = System.currentTimeMillis();
+                if (fs != null && (fs.zz != null || exSnaps[t - 1] == null)) exSnaps[t - 1] = fs;
+                if (fs != null && !fs.error.isEmpty()) lastError = "exterior: " + fs.error;
+                if (tab.equals("mapa") && mapaSub.equals("mundo") && turn == t && (!tv || resumed)) render();
+            });
+        });
     }
 
     // ============================================================ 2º turno: data e quem disputa
