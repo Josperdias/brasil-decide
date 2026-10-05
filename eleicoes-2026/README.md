@@ -1,4 +1,4 @@
-# Central Eleições 2026
+# Brasil Decide (Eleições 2026)
 
 - `html/part-*.html` — HTML final dividido em partes (concatene em `central-eleicoes-2026.html`; o CI faz isso). HTML único (base antiga completa + aba **Mapa** SVG real + **2º turno** + notícias multi-fonte).
 - `android/` — projeto Gradle com dois apps:

@@ -56,7 +56,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
 /**
- * Central Eleições 2026 — versão Android NATIVA (sem WebView).
+ * Brasil Decide — versão Android NATIVA (sem WebView).
  * Abre offline com o último snapshot, polling pausa em background, falhas de rede nunca derrubam a Activity.
  */
 public class MainActivity extends Activity {
@@ -2074,7 +2074,7 @@ public class MainActivity extends Activity {
     private String statusCaption() {
         Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : studioType == StatusCard.DFC ? snap().df.get(studioUf + "|" + StatusCard.DF_KEYS[studioCargo]) : snap().pres;
         String where = studioType == StatusCard.UF ? ufName(studioUf) : studioType == StatusCard.DFC ? studioUf + " • " + StatusCard.DF_LABELS[studioCargo] : "Brasil";
-        StringBuilder b = new StringBuilder("Eleições 2026 • " + turn + "º turno • " + where + "\n");
+        StringBuilder b = new StringBuilder("Brasil Decide • Eleições 2026 • " + turn + "º turno • " + where + "\n");
         if (r != null) {
             for (int i = 0; i < Math.min(studioType == StatusCard.DFC && studioCargo >= 2 ? (studioCargo == 2 ? 2 : 4) : 3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
             b.append("Apuração: ").append(pc(r.progress)).append(" das seções\n");
@@ -2164,8 +2164,8 @@ public class MainActivity extends Activity {
 
     private String snapshotText() {
         Model.Result d = snap().pres;
-        if (d == null) return "Central Eleições 2026 — dados ainda não carregados.";
-        StringBuilder s = new StringBuilder("Central Eleições 2026 — " + new SimpleDateFormat("dd/MM/yyyy HH:mm", BR).format(new Date()) + "\n" + turn + "º turno • Brasil: " + pc(d.progress) + " das seções totalizadas.\n");
+        if (d == null) return "Brasil Decide — dados ainda não carregados.";
+        StringBuilder s = new StringBuilder("Brasil Decide — " + new SimpleDateFormat("dd/MM/yyyy HH:mm", BR).format(new Date()) + "\n" + turn + "º turno • Brasil: " + pc(d.progress) + " das seções totalizadas.\n");
         for (int i = 0; i < Math.min(3, d.cands.size()); i++) { Model.Cand c = d.cands.get(i); s.append(i + 1).append("º ").append(c.nome).append(" (").append(c.partido).append("): ").append(pc(c.pct)).append(" — ").append(n(c.votos)).append(" votos.\n"); }
         if (d.cands.size() > 1) s.append("Diferença 1º–2º: ").append(n(d.cands.get(0).votos - d.cands.get(1).votos)).append(" votos.\n");
         s.append("Fonte: TSE. Sem projeção.\nApp: ").append(PAGE_URL);

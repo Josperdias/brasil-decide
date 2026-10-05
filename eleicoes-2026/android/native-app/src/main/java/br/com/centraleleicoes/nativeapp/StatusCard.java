@@ -451,7 +451,7 @@ final class StatusCard {
         p.lineTo(cx - 3, cy + 10);
         p.lineTo(cx + 13, cy - 10);
         c.drawPath(p, ck);
-        c.drawText("Central Eleições 2026", cx - 42, cy + 10, paint(Ui.TEXT, 28, true, Paint.Align.RIGHT));
+        c.drawText("Brasil Decide", cx - 42, cy + 10, paint(Ui.TEXT, 28, true, Paint.Align.RIGHT));
         float ry = ly + 108;
         c.drawText("Atualizado em " + new SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", BR).format(new Date(d.at)), M, ry, paint(Ui.MUTED, 25, false, Paint.Align.LEFT));
         fitText(c, "Baixe o app grátis: " + MainActivity.PAGE_URL.replace("https://", ""), W - M, ry, W - 2 * M - 480, 23, 15, Ui.MINT, true, Paint.Align.RIGHT);

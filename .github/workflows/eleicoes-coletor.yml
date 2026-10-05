@@ -1,0 +1,67 @@
+name: Brasil Decide — Coletor da apuração
+
+# Registra a apuração do TSE a cada minuto na branch "eleicao-data" (base do Replay, Momento da Virada, Corrida dos Votos
+# e Linha do Tempo da noite). O 2º turno é em 25/10/2026: o agendamento abaixo só age nesse dia.
+on:
+  workflow_dispatch:
+    inputs:
+      turn:
+        description: "Turno (1 ou 2)"
+        default: "2"
+      minutes:
+        description: "Duração da coleta em minutos"
+        default: "345"
+      dir:
+        description: "Pasta de saída em 2026/ (use t2 de verdade; 't1-test' para teste)"
+        default: "t2"
+  schedule:
+    - cron: "45 18 25 10 *"   # 15:45 no horário de Brasília; o passo "gate" ignora qualquer ano que não seja 2026
+
+permissions:
+  contents: write
+
+concurrency:
+  group: coletor-apuracao
+  cancel-in-progress: false
+
+jobs:
+  coletar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+      - name: gate
+        id: gate
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$(date -u +%Y-%m-%d)" = "2026-10-25" ]; then
+              echo "run=true" >> "$GITHUB_OUTPUT"; echo "turn=2" >> "$GITHUB_OUTPUT"; echo "min=345" >> "$GITHUB_OUTPUT"; echo "dir=t2" >> "$GITHUB_OUTPUT"
+            else
+              echo "run=false" >> "$GITHUB_OUTPUT"; echo "Fora do dia do 2º turno: nada a fazer."
+            fi
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "turn=${{ github.event.inputs.turn }}" >> "$GITHUB_OUTPUT"
+            echo "min=${{ github.event.inputs.minutes }}" >> "$GITHUB_OUTPUT"
+            echo "dir=${{ github.event.inputs.dir }}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Preparar a branch de dados (eleicao-data)
+        if: steps.gate.outputs.run == 'true'
+        shell: bash
+        run: |
+          REPO_URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads "$REPO_URL" eleicao-data > /dev/null 2>&1; then
+            git clone -q --depth 1 --branch eleicao-data "$REPO_URL" data
+          else
+            mkdir data && cd data
+            git init -q -b eleicao-data && git remote add origin "$REPO_URL"
+            printf '%s\n' "Dados coletados do TSE (somente leitura) para o Brasil Decide." > README.md
+            git add -A && git -c user.name=x -c user.email=x@x commit -q -m "inicia branch de dados"
+            cd ..
+          fi
+          git -C data config user.name "github-actions[bot]"
+          git -C data config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Coletar
+        if: steps.gate.outputs.run == 'true'
+        run: python3 eleicoes-2026/collector/collect.py --turn "${{ steps.gate.outputs.turn }}" --minutes "${{ steps.gate.outputs.min }}" --out "data/2026/${{ steps.gate.outputs.dir }}" --repo data

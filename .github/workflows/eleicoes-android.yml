@@ -1,4 +1,4 @@
-name: Central Eleições 2026 — APKs
+name: Brasil Decide — APKs
 
 on:
   workflow_dispatch:
@@ -184,7 +184,7 @@ jobs:
           printf '%s\n' \
             "versionCode=${{ github.run_number }}" \
             "" \
-            "App Android **Eleições 2026** (versão nativa), compilado automaticamente e testado em emulador Android 15." \
+            "App Android **Brasil Decide** (versão nativa), compilado automaticamente e testado em emulador Android 15." \
             "" \
             "**Instalar:** baixe \`CentralEleicoes2026.apk\`, abra o arquivo e, se o Android pedir, permita instalar de fontes desconhecidas." \
             "" \
@@ -196,6 +196,6 @@ jobs:
           if gh release view app-latest --repo "$REPO" > /dev/null 2>&1; then
             gh release edit app-latest --repo "$REPO" --notes-file notes.md --latest
           else
-            gh release create app-latest --repo "$REPO" --target "$GITHUB_SHA" --title "Eleições 2026 — app Android" --notes-file notes.md --latest
+            gh release create app-latest --repo "$REPO" --target "$GITHUB_SHA" --title "Brasil Decide — app Android" --notes-file notes.md --latest
           fi
           gh release upload app-latest dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk dist/central-eleicoes-2026.html --repo "$REPO" --clobber
