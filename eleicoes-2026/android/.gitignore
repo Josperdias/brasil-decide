@@ -3,3 +3,11 @@ build/
 local.properties
 *.iml
 .idea/
+
+# Nunca versionar material de assinatura Android
+keystore/
+*.jks
+*.keystore
+*.p12
+*.pfx
+signing.properties

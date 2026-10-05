@@ -19,6 +19,8 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      signed: ${{ steps.signing.outputs.ready }}
     defaults:
       run:
         working-directory: eleicoes-2026/android
@@ -37,26 +39,74 @@ jobs:
           cat html/part-*.html > central-eleicoes-2026.html
           python3 android/gen_mapdata.py central-eleicoes-2026.html android/native-app/src/main/java/br/com/centraleleicoes/nativeapp/MapData.java
           wc -c central-eleicoes-2026.html
-      - name: Build APKs (WebView + Nativo) — Gradle/AGP oficial, assinados com a chave fixa do projeto
-        run: gradle --no-daemon assembleRelease assembleDebug
-      - name: Verificar assinatura com apksigner (e que é a chave fixa do projeto)
+      - name: Verificar Secrets de assinatura
+        id: signing
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          if [[ -n "$KEYSTORE_B64" && -n "$KEYSTORE_PASSWORD" && -n "$KEY_ALIAS" ]]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Sem Secrets de assinatura (ANDROID_KEYSTORE_B64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS): somente build debug; nenhuma release será publicada."
+          fi
+      - name: Preparar chave privada no runner
+        if: steps.signing.outputs.ready == 'true'
+        shell: bash
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          KEYSTORE_PATH="$RUNNER_TEMP/central-eleicoes-release.p12"
+          (umask 077; printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH")
+          chmod 600 "$KEYSTORE_PATH"
+          echo "ANDROID_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
+          echo "ANDROID_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ANDROID_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+          keytool -list -keystore "$KEYSTORE_PATH" -storetype PKCS12 -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > /dev/null
+      - name: Build debug (chave debug padrão do Gradle; nunca usa a chave de release)
+        run: gradle --no-daemon assembleDebug
+      - name: Build release assinado (somente com Secrets)
+        if: steps.signing.outputs.ready == 'true'
+        run: gradle --no-daemon assembleRelease
+      - name: Verificar assinaturas com apksigner
+        shell: bash
+        env:
+          SIGNED: ${{ steps.signing.outputs.ready }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          EXPECTED="fdbff9e989017b9523315b4037813467d59d6b9b93d31957815827a40b9ceaaa"
-          for apk in webview-app/build/outputs/apk/release/*.apk native-app/build/outputs/apk/release/*.apk native-app/build/outputs/apk/debug/*.apk webview-app/build/outputs/apk/debug/*.apk; do
-            echo "== $apk"
-            "$APKSIGNER" verify --verbose --print-certs "$apk" | tee /tmp/sig.txt | head -6
-            grep -qi "SHA-256 digest: $EXPECTED" /tmp/sig.txt || { echo "ASSINATURA DIFERENTE DA CHAVE FIXA"; exit 1; }
+          # impressão digital da chave antiga (comprometida): nenhum APK pode usá-la
+          OLD="fdbff9e989017b9523315b4037813467d59d6b9b93d31957815827a40b9ceaaa"
+          for apk in webview-app/build/outputs/apk/debug/*.apk native-app/build/outputs/apk/debug/*.apk; do
+            "$APKSIGNER" verify --print-certs "$apk" | tee /tmp/sig.txt | head -3
+            grep -qi "SHA-256 digest: $OLD" /tmp/sig.txt && { echo "CHAVE COMPROMETIDA EM USO"; exit 1; }
           done
+          if [[ "$SIGNED" == "true" ]]; then
+            NEW=$(keytool -list -v -keystore "$ANDROID_KEYSTORE_PATH" -storetype PKCS12 -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" | grep -i 'SHA256:' | head -1 | sed 's/.*SHA256: *//' | tr -d ':' | tr 'A-F' 'a-f')
+            [[ -n "$NEW" && "$NEW" != "$OLD" ]] || { echo "Chave de release invalida ou igual a antiga"; exit 1; }
+            for apk in webview-app/build/outputs/apk/release/*.apk native-app/build/outputs/apk/release/*.apk; do
+              "$APKSIGNER" verify --print-certs "$apk" | tee /tmp/sig.txt | head -3
+              grep -qi "SHA-256 digest: $NEW" /tmp/sig.txt || { echo "ASSINATURA DIFERENTE DA CHAVE DE RELEASE"; exit 1; }
+            done
+          fi
       - name: Conferir que o HTML final está empacotado no APK WebView
-        run: unzip -l webview-app/build/outputs/apk/release/webview-app-release.apk | grep -q 'assets/index.html'
+        run: unzip -l webview-app/build/outputs/apk/debug/webview-app-debug.apk | grep -q 'assets/index.html'
       - name: Renomear
         run: |
           mkdir -p ../dist
-          cp webview-app/build/outputs/apk/release/webview-app-release.apk ../dist/CentralEleicoes2026-WebView.apk
-          cp native-app/build/outputs/apk/release/native-app-release.apk ../dist/CentralEleicoes2026-Nativo.apk
           cp webview-app/build/outputs/apk/debug/webview-app-debug.apk ../dist/test-WebView-debug.apk
           cp native-app/build/outputs/apk/debug/native-app-debug.apk ../dist/test-Nativo-debug.apk
+          if [[ "${{ steps.signing.outputs.ready }}" == "true" ]]; then
+            cp webview-app/build/outputs/apk/release/webview-app-release.apk ../dist/CentralEleicoes2026-WebView.apk
+            cp native-app/build/outputs/apk/release/native-app-release.apk ../dist/CentralEleicoes2026-Nativo.apk
+          fi
           cp ../central-eleicoes-2026.html ../dist/
           ls -la ../dist
       - uses: actions/upload-artifact@v4
@@ -66,7 +116,7 @@ jobs:
       - name: Publicar APKs na branch apk-dist (download direto)
         run: |
           cd "$GITHUB_WORKSPACE"
-          rm -rf /tmp/apkdist && mkdir /tmp/apkdist && cp eleicoes-2026/dist/CentralEleicoes2026-*.apk eleicoes-2026/dist/central-eleicoes-2026.html /tmp/apkdist/
+          rm -rf /tmp/apkdist && mkdir /tmp/apkdist && cp eleicoes-2026/dist/*.apk eleicoes-2026/dist/central-eleicoes-2026.html /tmp/apkdist/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan apk-dist
@@ -115,8 +165,10 @@ jobs:
           git commit -q -m "prints do emulador ${GITHUB_SHA::7}" || exit 0
           git push -f origin smoke-shots
 
+  # só publica release quando os Secrets de assinatura estão configurados e o build foi assinado com eles
   release:
-    needs: smoke
+    needs: [build, smoke]
+    if: needs.build.outputs.signed == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
@@ -138,7 +190,7 @@ jobs:
             "" \
             "\`CentralEleicoes2026-WebView.apk\` é a versão WebView (idêntica ao site; atualiza o conteúdo sozinha pela internet)." \
             "" \
-            "Atualizações: o app avisa e atualiza com um toque. Todos os builds usam a mesma chave de assinatura, então instalam por cima." \
+            "Atualizações: o app avisa e atualiza com um toque. Os builds são assinados com a chave privada do projeto, então instalam por cima uns dos outros." \
             "" \
             "Dados oficiais do TSE; sem projeção. Build ${{ github.run_number }} • commit ${GITHUB_SHA::7}." > notes.md
           if gh release view app-latest --repo "$REPO" > /dev/null 2>&1; then

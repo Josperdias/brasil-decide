@@ -1,6 +1,10 @@
-plugins {
-    id 'com.android.application'
-}
+plugins { id 'com.android.application' }
+
+def signingPath = System.getenv('ANDROID_KEYSTORE_PATH')
+def signingStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def signingAlias = System.getenv('ANDROID_KEY_ALIAS')
+def signingKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: signingStorePassword
+def secureReleaseSigning = signingPath && signingStorePassword && signingAlias
 
 android {
     namespace 'br.com.centraleleicoes.nativeapp'
@@ -10,36 +14,40 @@ android {
         applicationId 'br.com.centraleleicoes.nativeapp'
         minSdk 26
         targetSdk 35
-        // versionCode vem do número do build no CI (sobe a cada release); o app compara com a release publicada
         versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
         versionName "1.${System.getenv('GITHUB_RUN_NUMBER') ?: '0'}"
     }
 
-    // Chave FIXA (keystore/central-eleicoes.jks): todo build é assinado igual, então o Android aceita
-    // instalar a nova versão por cima da antiga (e o app pode se atualizar sozinho). Chave pública do projeto.
     signingConfigs {
-        app {
-            storeFile file('../keystore/central-eleicoes.jks')
-            storeType 'pkcs12'
-            storePassword 'central2026'
-            keyAlias 'central'
-            keyPassword 'central2026'
+        if (secureReleaseSigning) {
+            secureRelease {
+                storeFile file(signingPath)
+                storeType 'pkcs12'
+                storePassword signingStorePassword
+                keyAlias signingAlias
+                keyPassword signingKeyPassword
+            }
         }
     }
+
     buildTypes {
         release {
             minifyEnabled false
-            signingConfig signingConfigs.app
+            if (secureReleaseSigning) signingConfig signingConfigs.secureRelease
         }
-        debug {
-            signingConfig signingConfigs.app
-        }
+        debug {}
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    lint {
-        abortOnError false
+    lint { abortOnError false }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    boolean wantsRelease = graph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (wantsRelease && !secureReleaseSigning) {
+        throw new GradleException('Release bloqueado: configure os Secrets de assinatura.')
     }
 }

@@ -46,9 +46,14 @@ W_=$(adb shell wm size | grep -oE '[0-9]+x[0-9]+' | tail -1); X=$(( ${W_%x*} / 2
 adb shell input tap $X $Y; sleep 1
 for i in 1 2 3 4 5 6; do adb shell input swipe $((X - 300)) $((Y + 600)) $((X + 300)) $((Y + 600)) 300; done
 sleep 4; shot game-2-jogando; alive $N; crashes
-# --- APKs de RELEASE (os publicados): instalam por cima (mesma chave) e abrem
-for apk in CentralEleicoes2026-WebView CentralEleicoes2026-Nativo; do adb install -r dist/$apk.apk || { echo "FALHA ao instalar $apk por cima"; fail=1; }; done
-adb logcat -c
-adb shell am start -S -W -n $N/.MainActivity > /dev/null; sleep 20; alive $N; shot release-nativo; crashes
-adb shell am start -S -W -n $W/.MainActivity > /dev/null; sleep 20; alive $W; shot release-webview; crashes
+# --- APKs de RELEASE (só existem quando o CI tem os Secrets de assinatura): chave diferente da debug, então desinstala antes
+if [ -f dist/CentralEleicoes2026-Nativo.apk ] && [ -f dist/CentralEleicoes2026-WebView.apk ]; then
+  adb uninstall $N > /dev/null; adb uninstall $W > /dev/null
+  for apk in CentralEleicoes2026-WebView CentralEleicoes2026-Nativo; do adb install -r dist/$apk.apk || { echo "FALHA ao instalar $apk"; fail=1; }; done
+  adb logcat -c
+  adb shell am start -S -W -n $N/.MainActivity > /dev/null; sleep 20; alive $N; shot release-nativo; crashes
+  adb shell am start -S -W -n $W/.MainActivity > /dev/null; sleep 20; alive $W; shot release-webview; crashes
+else
+  echo "Sem APKs de release neste build (Secrets de assinatura ausentes): teste feito só com os APKs de debug."
+fi
 exit $fail
