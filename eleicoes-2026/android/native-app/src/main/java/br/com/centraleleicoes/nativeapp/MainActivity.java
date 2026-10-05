@@ -4,8 +4,11 @@ import android.animation.ObjectAnimator;
 import android.app.Activity;
 import android.app.Dialog;
 import android.content.Context;
+import android.content.ClipData;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -17,6 +20,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.TextUtils;
 import android.view.Gravity;
+import android.widget.ImageView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -77,7 +81,11 @@ public class MainActivity extends Activity {
             {"sen", "Senador pelo Distrito Federal", "🏛️", 5, false}, {"depf", "Deputado Federal — DF", "🗳️", 6, false},
             {"depd", "Deputado Distrital — DF", "📜", 8, false}};
     private static final String[][] TABS = {{"mapa", "🗺️", "Mapa"}, {"brasil", "🇧🇷", "Brasil"}, {"ufs", "📍", "UFs"},
-            {"df", "🏛️", "DF"}, {"news", "🌍", "Notícias"}, {"mais", "🧪", "Mais"}};
+            {"df", "🏛️", "DF"}, {"news", "🌍", "Notícias"}, {"lives", "📺", "Lives"}, {"mais", "🧪", "Mais"}};
+    // chave, rótulo, consulta, filtro do YouTube
+    private static final String[][] LIVE_FILTERS = {{"live", "🔴 Ao vivo", "eleições 2026 ao vivo", Youtube.LIVE}, {"apuracao", "📊 Apuração", "apuração eleições 2026", Youtube.BY_DATE},
+            {"debates", "🎙️ Debates", "debate eleições 2026", Youtube.BY_DATE}, {"analises", "💬 Análises", "análise eleições 2026", Youtube.BY_DATE}};
+    private static final String[] CHANNELS = {"GloboNews", "CNN Brasil", "BandNews TV", "Jovem Pan News", "Record News", "SBT News", "TV Senado", "TV Câmara", "TV Brasil", "TSE"};
     private static final String[][] NEWS_FILTERS = {{"brasil", "🇧🇷 Brasil"}, {"mundo", "🌍 Mundo"}, {"mercados", "📈 Mercados"}, {"analises", "💬 Análises"}};
     private static final int[] INTERVALS = {5, 10, 15, 30, 60};
 
@@ -104,7 +112,17 @@ public class MainActivity extends Activity {
     private boolean codesFromConfig;
     private int turn = 1;
     private String tab = "mapa", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
-    private boolean govMode, busy, resumed, waiting, newsBusy, tv;
+    private boolean govMode, busy, resumed, waiting, newsBusy, tv, livesBusy, animateNext = true, genStatusPending;
+    private String livesFilter = "live", livesErr = "";
+    private final Map<String, List<Youtube.Video>> livesCache = new HashMap<>();
+    private final Map<String, Long> livesAt = new HashMap<>();
+    private int studioType = StatusCard.PLACAR, studioFormat = StatusCard.STORY;
+    private String studioUf = "DF";
+    private Bitmap studioBmp;
+    private boolean studioBusy;
+    private ImageView studioPreview;
+    private LinearLayout studioHolder;
+    private Dialog sheetDialog;
     private long delayMs = 10000, intervalMs = 10000, lastPoll;
     private int titleTaps;
     private long firstTap;
@@ -143,6 +161,10 @@ public class MainActivity extends Activity {
             if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
             if (in.getIntExtra("turn", 0) == 2) turn = 2;
             tv = in.getBooleanExtra("tv", false);
+            if (in.getStringExtra("lfilter") != null) livesFilter = in.getStringExtra("lfilter");
+            genStatusPending = in.getBooleanExtra("genstatus", false);
+            if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
+            if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
         buildUi();
         setupEdgeToEdge();
@@ -269,12 +291,26 @@ public class MainActivity extends Activity {
                 case "ufs": renderUfs(); break;
                 case "df": renderDf(); break;
                 case "news": renderNews(); break;
+                case "lives": renderLives(); break;
                 default: renderMais();
             }
             renderNav();
+            if (tab.equals("news") && needNews() && !newsBusy) loadNews(false);
+            if (tab.equals("lives") && needLives() && !livesBusy) loadLives(false);
+            if (animateNext) { animateNext = false; animateIn(); }
             scroll.post(() -> scroll.scrollTo(0, keep));
         } catch (Throwable t) {
             lastError = "render: " + t;
+        }
+    }
+
+    private void animateIn() {
+        int n = Math.min(content.getChildCount(), 12);
+        for (int i = 0; i < n; i++) {
+            View v = content.getChildAt(i);
+            v.setAlpha(0f);
+            v.setTranslationY(Ui.dp(14));
+            v.animate().alpha(1f).translationY(0f).setStartDelay(i * 35L).setDuration(320).start();
         }
     }
 
@@ -286,11 +322,11 @@ public class MainActivity extends Activity {
             b.setGravity(Gravity.CENTER);
             b.setPadding(0, Ui.dp(6), 0, Ui.dp(6));
             if (on) b.setBackground(Ui.accent(14));
-            b.addView(Ui.text(this, t[1], 17, Ui.TEXT, false));
-            TextView l = Ui.text(this, t[2], 10, on ? Ui.INK : Ui.MUTED, true);
+            b.addView(Ui.text(this, t[1], 16, Ui.TEXT, false));
+            TextView l = Ui.text(this, t[2], 9, on ? Ui.INK : Ui.MUTED, true);
             l.setPadding(0, Ui.dp(2), 0, 0);
             b.addView(l);
-            b.setOnClickListener(v -> { tab = t[0]; if (tab.equals("news") && needNews()) loadNews(false); render(); scroll.scrollTo(0, 0); });
+            b.setOnClickListener(v -> { tab = t[0]; animateNext = true; render(); scroll.scrollTo(0, 0); });
             LinearLayout.LayoutParams lp = Ui.lp(0, -2, 1f);
             lp.setMargins(Ui.dp(2), 0, Ui.dp(2), 0);
             nav.addView(b, lp);
@@ -298,53 +334,54 @@ public class MainActivity extends Activity {
     }
 
     private void renderHeader() {
-        TextView kicker = Ui.text(this, "ELEIÇÕES 2026 • CENTRAL AO VIVO", 10, Ui.MINT, true);
-        kicker.setLetterSpacing(0.15f);
-        content.addView(kicker);
-        TextView title = Ui.big(this, "Brasil decide", 30);
-        title.setPadding(0, Ui.dp(4), 0, Ui.dp(2));
+        LinearLayout bar = Ui.row(this);
+        TextView logo = Ui.text(this, "✓", 20, Ui.INK, true);
+        logo.setGravity(Gravity.CENTER);
+        logo.setBackground(Ui.accent(99));
+        bar.addView(logo, Ui.margins(Ui.lp(Ui.dp(42), Ui.dp(42)), 0, 0, 12, 0));
+        LinearLayout t = Ui.col(this);
+        TextView kicker = Ui.text(this, "ELEIÇÕES 2026 • CENTRAL AO VIVO", 9, Ui.MINT, true);
+        kicker.setLetterSpacing(0.14f);
+        t.addView(kicker);
+        TextView title = Ui.big(this, "Brasil decide", 24);
+        title.setPadding(0, Ui.dp(3), 0, 0);
         title.setOnClickListener(v -> easterEgg());
-        content.addView(title);
-        TextView mini = Ui.text(this, "TSE oficial • " + (lastPoll == 0 ? "aguardando primeira atualização" : "última consulta " + hhmm(lastPoll)), 12, Ui.MUTED, false);
-        mini.setPadding(0, 0, 0, Ui.dp(10));
-        content.addView(mini);
+        t.addView(title);
+        bar.addView(t, Ui.lp(0, -2, 1f));
+        TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
+        rb.setGravity(Gravity.CENTER);
+        rb.setBackground(Ui.fill(0xFF0E2138, 13, Ui.LINE));
+        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
+        bar.addView(rb, Ui.lp(Ui.dp(42), Ui.dp(42)));
+        content.addView(bar, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
 
-        // barra ao vivo
+        // status ao vivo (uma linha)
         LinearLayout live = Ui.row(this);
-        live.setBackground(Ui.fill(0xE00A1728, 14, Ui.LINE));
-        live.setPadding(Ui.dp(13), Ui.dp(8), Ui.dp(8), Ui.dp(8));
+        live.setBackground(Ui.fill(0xE00A1728, 12, Ui.LINE));
+        live.setPadding(Ui.dp(12), Ui.dp(8), Ui.dp(12), Ui.dp(8));
         View dot = new View(this);
         boolean bad = statusText.contains("Sem conexão") || statusText.contains("parciais") || statusText.contains("aguardando");
         dot.setBackground(Ui.fill(bad ? Ui.AMBER : Ui.GREEN, 99, 0));
-        live.addView(dot, Ui.margins(Ui.lp(Ui.dp(9), Ui.dp(9)), 0, 0, 10, 0));
+        live.addView(dot, Ui.margins(Ui.lp(Ui.dp(8), Ui.dp(8)), 0, 0, 9, 0));
         ObjectAnimator a = ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.25f);
         a.setDuration(900);
         a.setRepeatMode(ObjectAnimator.REVERSE);
         a.setRepeatCount(ObjectAnimator.INFINITE);
         a.start();
-        LinearLayout txt = Ui.col(this);
-        txt.addView(Ui.text(this, statusText, 13, Ui.TEXT, true));
-        if (!TextUtils.isEmpty(statusSub)) txt.addView(Ui.text(this, statusSub, 10, Ui.MUTED, false));
-        live.addView(txt, Ui.lp(0, -2, 1f));
-        TextView nextIn = Ui.text(this, (delayMs / 1000) + " s", 12, Ui.SOFT, true);
-        nextIn.setPadding(Ui.dp(10), 0, Ui.dp(6), 0);
-        live.addView(nextIn);
-        TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
-        rb.setGravity(Gravity.CENTER);
-        rb.setBackground(Ui.fill(0xFF0E2138, 12, Ui.LINE));
-        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
-        live.addView(rb, Ui.lp(Ui.dp(44), Ui.dp(40)));
-        content.addView(live, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        TextView st = Ui.text(this, statusText, 12, Ui.TEXT, true);
+        st.setSingleLine();
+        st.setEllipsize(TextUtils.TruncateAt.END);
+        live.addView(st, Ui.lp(0, -2, 1f));
+        live.addView(Ui.text(this, "  " + (delayMs / 1000) + " s", 11, Ui.MUTED, true));
+        content.addView(live, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
 
         // seletor de turno
         LinearLayout seg = Ui.row(this);
-        seg.setBackground(Ui.fill(0xE00A1728, 14, Ui.LINE));
-        seg.setPadding(Ui.dp(4), Ui.dp(4), Ui.dp(4), Ui.dp(4));
-        seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(42), 1f));
-        seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(42), 1f));
-        content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 4));
-        content.addView(Ui.text(this, turn + "º turno • TSE " + codes[turn - 1][0] + " (federal) / " + codes[turn - 1][1] + " (estadual)" + (codesFromConfig ? "" : " • padrão"), 10, Ui.MUTED, false),
-                Ui.margins(Ui.lp(-2, -2), 2, 0, 0, 12));
+        seg.setBackground(Ui.fill(0xE00A1728, 13, Ui.LINE));
+        seg.setPadding(Ui.dp(3), Ui.dp(3), Ui.dp(3), Ui.dp(3));
+        seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(38), 1f));
+        seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(38), 1f));
+        content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
     }
 
     private TextView turnBtn(int t) {
@@ -358,27 +395,32 @@ public class MainActivity extends Activity {
 
     private void renderHero() {
         Model.Result r = snap().pres;
+        LinearLayout card = Ui.card(this);
+        card.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
         LinearLayout row = Ui.row(this);
         row.setBaselineAligned(false);
-        LinearLayout a = Ui.card(this);
-        a.setLayoutParams(Ui.margins(Ui.lp(0, -2, 1.55f), 0, 0, 5, 0));
-        a.addView(Ui.label(this, "Apuração presidencial • " + turn + "º"));
-        TextView big = Ui.big(this, r == null ? "—" : pc(r.progress), 30);
+        LinearLayout a = Ui.col(this);
+        a.addView(Ui.label(this, "Apuração • " + turn + "º turno"));
+        TextView big = Ui.big(this, r == null ? "—" : pc(r.progress), 32);
         big.setPadding(0, Ui.dp(5), 0, 0);
         a.addView(big);
-        a.addView(new GradientBar(this, 9).value(r == null ? 0 : r.progress));
-        a.addView(Ui.text(this, r == null ? "carregando seções" : n(r.sections) + "/" + n(r.sectionsTotal) + " seções totalizadas", 10, Ui.MUTED, false));
-        LinearLayout b = Ui.card(this);
-        b.setLayoutParams(Ui.margins(Ui.lp(0, -2, 1f), 5, 0, 0, 0));
-        b.addView(Ui.label(this, "Último dado novo"));
-        TextView t = Ui.big(this, snap().lastChange == 0 ? "—" : hhmmss(snap().lastChange), 22);
-        t.setPadding(0, Ui.dp(8), 0, 0);
+        a.addView(new GradientBar(this, 8).value(r == null ? 0 : r.progress));
+        a.addView(Ui.text(this, r == null ? "carregando seções" : n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 10, Ui.MUTED, false));
+        row.addView(a, Ui.lp(0, -2, 1.5f));
+        View div = new View(this);
+        div.setBackgroundColor(0xFF1D3858);
+        row.addView(div, Ui.margins(Ui.lp(1, Ui.dp(64)), 12, 0, 12, 0));
+        LinearLayout b = Ui.col(this);
+        b.addView(Ui.label(this, "Último dado"));
+        String hm = snap().lastChange == 0 ? "—" : hhmm(snap().lastChange);
+        TextView t = Ui.big(this, hm, 26);
+        t.setPadding(0, Ui.dp(5), 0, 0);
         b.addView(t);
-        b.addView(Ui.text(this, "consulta " + (lastPoll == 0 ? "—" : hhmm(lastPoll)), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        b.addView(Ui.text(this, "consulta " + (lastPoll == 0 ? "—" : hhmmss(lastPoll)), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         b.addView(Ui.text(this, snap().states.size() + "/27 UFs", 10, Ui.MINT, true), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
-        row.addView(a);
-        row.addView(b);
-        content.addView(row, Ui.lp(-1, -2));
+        row.addView(b, Ui.lp(0, -2, 1f));
+        card.addView(row);
+        content.addView(card);
     }
 
     // ============================================================ blocos de resultado
@@ -403,8 +445,8 @@ public class MainActivity extends Activity {
         rank.setGravity(Gravity.CENTER);
         rank.setBackground(Ui.fill(0xFF143251, 6, 0));
         nm.addView(rank, Ui.margins(Ui.lp(Ui.dp(24), Ui.dp(18)), 0, 0, 6, 0));
-        TextView name = Ui.text(this, c.nome, 14, Ui.TEXT, true);
-        name.setSingleLine();
+        TextView name = Ui.text(this, c.nome, 13.5f, Ui.TEXT, true);
+        name.setMaxLines(2);
         name.setEllipsize(TextUtils.TruncateAt.END);
         nm.addView(name, Ui.lp(0, -2, 1f));
         mid.addView(nm);
@@ -465,7 +507,11 @@ public class MainActivity extends Activity {
             head.addView(pr, Ui.margins(Ui.lp(-2, -2), 8, 0, 0, 0));
         }
         c.addView(head);
-        if (r == null) { c.addView(Ui.text(this, "Carregando dados oficiais…", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 12, 0, 4)); return c; }
+        if (r == null) {
+            c.addView(Ui.space(this, 12));
+            for (int i = 0; i < 3; i++) c.addView(new ShimmerView(this, i == 0 ? 54 : 44, 12));
+            return c;
+        }
         View sep = new View(this);
         sep.setBackgroundColor(0xCC1D3858);
         c.addView(sep, Ui.margins(Ui.lp(-1, 1), 0, 11, 0, 3));
@@ -594,6 +640,7 @@ public class MainActivity extends Activity {
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
+        content.addView(promoStatus());
         content.addView(resultCard("Presidente da República", cargoSub("Brasil"), "🇧🇷", r, turn == 2 ? 2 : 3));
         if (r == null && waiting) content.addView(emptyCard("Aguardando o TSE", "O resultado presidencial do " + turn + "º turno ainda não foi publicado. Nova consulta automática em ~60 s."));
 
@@ -671,6 +718,22 @@ public class MainActivity extends Activity {
             }
             content.addView(c);
         }
+    }
+
+    private View promoStatus() {
+        LinearLayout c = Ui.row(this);
+        c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 18, 0x6650D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        c.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        TextView ic = Ui.text(this, "📸", 24, Ui.TEXT, false);
+        c.addView(ic, Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, "Imagens para status", 14, Ui.TEXT, true));
+        t.addView(Ui.text(this, "Gere um card pronto (story ou post) com o resultado oficial.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        c.addView(t, Ui.lp(0, -2, 1f));
+        c.addView(Ui.text(this, "Criar ›", 13, Ui.MINT, true));
+        c.setOnClickListener(v -> { studioType = StatusCard.PLACAR; showStatusStudio(); });
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        return c;
     }
 
     private View miniRow(Model.Cand c, int idx) {
@@ -930,9 +993,13 @@ public class MainActivity extends Activity {
         r1.addView(actionBtn("📺 Modo TV", "Tela cheia, mapa grande", v -> { setTv(true); render(); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 10, 0, 0));
         act.addView(r1);
         LinearLayout r2 = Ui.row(this);
-        r2.addView(actionBtn("🌍 Radar global", "Ir para as notícias", v -> { tab = "news"; if (needNews()) loadNews(false); render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
+        r2.addView(actionBtn("📸 Imagem p/ status", "Story ou post com o resultado", v -> { studioType = StatusCard.PLACAR; showStatusStudio(); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
         r2.addView(actionBtn("🧹 Zerar histórico", "Recomeça o gráfico deste turno", v -> { snap().hist.clear(); saveCache(turn); Toast.makeText(this, "Histórico zerado", Toast.LENGTH_SHORT).show(); render(); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
         act.addView(r2);
+        LinearLayout r3 = Ui.row(this);
+        r3.addView(actionBtn("🌍 Radar global", "Ir para as notícias", v -> { tab = "news"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
+        r3.addView(actionBtn("📺 Lives de TV", "Canais e vídeos ao vivo", v -> { tab = "lives"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
+        act.addView(r3);
         content.addView(act);
 
         // intervalo
@@ -961,7 +1028,15 @@ public class MainActivity extends Activity {
         List<String> items = new ArrayList<>();
         int pos = 0;
         for (int i = 0; i < UFS.length; i++) { items.add(UFS[i][0] + " · " + UFS[i][1]); if (UFS[i][0].equals(current)) pos = i; }
-        ArrayAdapter<String> ad = new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, items);
+        ArrayAdapter<String> ad = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, items) {
+            @Override public View getView(int p, View cv, ViewGroup parent) {
+                TextView t = (TextView) super.getView(p, cv, parent);
+                t.setText(UFS[p][0] + " ▾");
+                t.setTextSize(15);
+                t.setTypeface(Ui.MEDIUM, android.graphics.Typeface.BOLD);
+                return t;
+            }
+        };
         s.setAdapter(ad);
         s.setSelection(pos);
         s.setBackground(Ui.fill(0xFF08182A, 11, Ui.LINE));
@@ -1080,7 +1155,7 @@ public class MainActivity extends Activity {
     }
 
     // ---------------------------------------------------------------- painel deslizante e detalhes
-    private void showSheet(View body) {
+    private Dialog showSheet(View body) {
         final Dialog d = new Dialog(this);
         d.requestWindowFeature(Window.FEATURE_NO_TITLE);
         LinearLayout wrap = Ui.col(this);
@@ -1106,6 +1181,8 @@ public class MainActivity extends Activity {
         }
         d.setCanceledOnTouchOutside(true);
         d.show();
+        sheetDialog = d;
+        return d;
     }
 
     private View detailView(String uf) {
@@ -1147,7 +1224,382 @@ public class MainActivity extends Activity {
         c.addView(stats);
         for (int i = 0; i < Math.min(3, r.cands.size()); i++) c.addView(candRow(r, r.cands.get(i), i, true));
         c.addView(Ui.text(this, "Arquivo TSE: " + ((r.date + " • " + r.time).replaceAll("^ • | • $", "").trim()), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 0));
+        if (!gov) {
+            final String fuf = uf;
+            TextView img = Ui.text(this, "📸 Criar imagem para status deste estado", 13, Ui.INK, true);
+            img.setGravity(Gravity.CENTER);
+            img.setBackground(Ui.accent(13));
+            img.setOnClickListener(v -> { studioType = StatusCard.UF; studioUf = fuf; showStatusStudio(); });
+            c.addView(img, Ui.margins(Ui.lp(-1, Ui.dp(46)), 0, 14, 0, 0));
+        }
         return c;
+    }
+
+    // ---------------------------------------------------------------- lives e vídeos (YouTube)
+    private boolean needLives() {
+        Long at = livesAt.get(livesFilter);
+        return at == null || System.currentTimeMillis() - at > 3 * 60 * 1000;
+    }
+
+    private void openUrl(String url) {
+        try {
+            Uri u = Uri.parse(url);
+            if ("https".equals(u.getScheme()) || "http".equals(u.getScheme())) startActivity(new Intent(Intent.ACTION_VIEW, u));
+        } catch (Throwable t) { Toast.makeText(this, "Não foi possível abrir o link", Toast.LENGTH_SHORT).show(); }
+    }
+
+    private void loadLives(boolean force) {
+        if (livesBusy || (!force && !needLives())) return;
+        livesBusy = true;
+        final String f = livesFilter;
+        String[] def = LIVE_FILTERS[0];
+        for (String[] x : LIVE_FILTERS) if (x[0].equals(f)) def = x;
+        final String q = def[2], sp = def[3];
+        render();
+        bg.execute(() -> {
+            List<Youtube.Video> list = null;
+            String err = "";
+            try { list = Youtube.search(q, sp); } catch (Throwable t) { err = String.valueOf(t.getMessage()); lastError = "youtube: " + t; }
+            final List<Youtube.Video> fl = list;
+            final String fe = err;
+            ui.post(() -> {
+                livesBusy = false;
+                livesErr = fe;
+                if (fl != null) { livesCache.put(f, fl); livesAt.put(f, System.currentTimeMillis()); }
+                else livesAt.put(f, System.currentTimeMillis() - 2 * 60 * 1000); // tenta de novo em ~1 min
+                render();
+            });
+        });
+    }
+
+    private void renderLives() {
+        LinearLayout head = Ui.row(this);
+        head.addView(sectionHead("Lives e vídeos da eleição", "Canais de TV ao vivo e vídeos sobre a apuração. Toque para assistir no YouTube."), Ui.lp(0, -2, 1f));
+        TextView rf = Ui.text(this, livesBusy ? "…" : "↻", 20, Ui.TEXT, true);
+        rf.setGravity(Gravity.CENTER);
+        rf.setBackground(Ui.fill(0xFF0E2138, 12, Ui.LINE));
+        rf.setOnClickListener(v -> loadLives(true));
+        head.addView(rf, Ui.lp(Ui.dp(44), Ui.dp(40)));
+        content.addView(head);
+
+        // canais de TV (atalhos que sempre funcionam: abrem a transmissão ao vivo do canal)
+        content.addView(Ui.text(this, "📺  CANAIS DE TV AO VIVO", 11, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 0, 0, 8));
+        for (int i = 0; i < CHANNELS.length; i += 2) {
+            LinearLayout row = Ui.row(this);
+            row.setBaselineAligned(false);
+            for (int k = 0; k < 2; k++) {
+                if (i + k < CHANNELS.length) row.addView(channelButton(CHANNELS[i + k]), Ui.margins(Ui.lp(0, -2, 1f), k == 0 ? 0 : 5, 0, k == 0 ? 5 : 0, 10));
+                else row.addView(new View(this), Ui.lp(0, 1, 1f));
+            }
+            content.addView(row, Ui.lp(-1, -2));
+        }
+
+        content.addView(Ui.text(this, "🎬  VÍDEOS E TRANSMISSÕES", 11, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 8, 0, 8));
+        HorizontalScrollView hs = new HorizontalScrollView(this);
+        hs.setHorizontalScrollBarEnabled(false);
+        LinearLayout chips = Ui.row(this);
+        for (String[] f : LIVE_FILTERS) {
+            boolean on = livesFilter.equals(f[0]);
+            TextView t = Ui.text(this, f[1], 12, on ? Ui.INK : Ui.MUTED, true);
+            t.setPadding(Ui.dp(13), Ui.dp(9), Ui.dp(13), Ui.dp(9));
+            t.setBackground(on ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+            t.setOnClickListener(v -> { livesFilter = f[0]; render(); });
+            chips.addView(t, Ui.margins(Ui.lp(-2, -2), 0, 0, 7, 0));
+        }
+        hs.addView(chips);
+        content.addView(hs, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+
+        List<Youtube.Video> list = livesCache.get(livesFilter);
+        if (list == null && livesBusy) {
+            for (int i = 0; i < 3; i++) {
+                LinearLayout c = Ui.card(this);
+                c.addView(new ShimmerView(this, 170, 16));
+                c.addView(new ShimmerView(this, 16, 6));
+                c.addView(new ShimmerView(this, 12, 6));
+                content.addView(c);
+            }
+        } else if (list == null || list.isEmpty()) {
+            String[] def = LIVE_FILTERS[0];
+            for (String[] x : LIVE_FILTERS) if (x[0].equals(livesFilter)) def = x;
+            final String q = def[2], sp = def[3];
+            LinearLayout e = Ui.card(this);
+            e.addView(Ui.text(this, list == null ? "Não foi possível listar os vídeos agora" : "Nenhum vídeo encontrado agora", 14, Ui.TEXT, true));
+            e.addView(Ui.text(this, (list == null ? "A lista depende da página pública do YouTube e pode falhar sem internet ou se o formato mudar" + (livesErr.isEmpty() ? "" : " (" + livesErr + ")") + ". " : "") + "Você ainda pode abrir a busca direto no YouTube.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 10));
+            TextView open = Ui.text(this, "Abrir busca no YouTube ↗", 13, Ui.INK, true);
+            open.setGravity(Gravity.CENTER);
+            open.setBackground(Ui.accent(12));
+            open.setOnClickListener(v -> openUrl(Youtube.searchUrl(q, sp)));
+            e.addView(open, Ui.lp(-1, Ui.dp(44)));
+            content.addView(e);
+        } else {
+            for (Youtube.Video v : list) content.addView(videoCard(v));
+            content.addView(Ui.text(this, "Vídeos e transmissões pertencem aos respectivos canais. O app apenas lista resultados públicos de busca do YouTube e abre o vídeo no app/navegador; não opina nem garante o conteúdo.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 4, 2, 0));
+        }
+    }
+
+    private View channelButton(final String name) {
+        LinearLayout b = Ui.row(this);
+        b.setBackground(Ui.cardBg(14));
+        b.setPadding(Ui.dp(12), Ui.dp(12), Ui.dp(12), Ui.dp(12));
+        TextView ic = Ui.text(this, "📺", 16, Ui.TEXT, false);
+        ic.setGravity(Gravity.CENTER);
+        ic.setBackground(Ui.fill(0xFF113052, 11, 0));
+        b.addView(ic, Ui.margins(Ui.lp(Ui.dp(36), Ui.dp(36)), 0, 0, 10, 0));
+        LinearLayout t = Ui.col(this);
+        TextView nm = Ui.text(this, name, 13, Ui.TEXT, true);
+        nm.setSingleLine();
+        nm.setEllipsize(TextUtils.TruncateAt.END);
+        t.addView(nm);
+        TextView live = Ui.text(this, "● ao vivo ↗", 10, 0xFFFF6B6B, true);
+        t.addView(live, Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        b.addView(t, Ui.lp(0, -2, 1f));
+        b.setOnClickListener(v -> openUrl(Youtube.searchUrl(name + " ao vivo", Youtube.LIVE)));
+        return b;
+    }
+
+    private View videoCard(final Youtube.Video v) {
+        LinearLayout c = Ui.card(this);
+        c.setPadding(Ui.dp(10), Ui.dp(10), Ui.dp(10), Ui.dp(12));
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        FrameLayout fl = new FrameLayout(this);
+        ThumbView th = new ThumbView(this, 14);
+        fl.addView(th, new FrameLayout.LayoutParams(-1, -2));
+        Photos.load(v.thumb(), th, 1);
+        if (v.live) {
+            TextView b = Ui.text(this, "● AO VIVO", 10, Color.WHITE, true);
+            b.setPadding(Ui.dp(8), Ui.dp(3), Ui.dp(8), Ui.dp(3));
+            b.setBackground(Ui.fill(0xFFE5243B, 7, 0));
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2);
+            lp.setMargins(Ui.dp(8), Ui.dp(8), 0, 0);
+            fl.addView(b, lp);
+        } else if (!v.length.isEmpty()) {
+            TextView b = Ui.text(this, v.length, 10, Color.WHITE, true);
+            b.setPadding(Ui.dp(6), Ui.dp(2), Ui.dp(6), Ui.dp(3));
+            b.setBackground(Ui.fill(0xCC020914, 6, 0));
+            FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2, Gravity.END | Gravity.BOTTOM);
+            lp.setMargins(0, 0, Ui.dp(8), Ui.dp(8));
+            fl.addView(b, lp);
+        }
+        c.addView(fl, Ui.lp(-1, -2));
+        TextView title = Ui.text(this, v.title, 14, Ui.TEXT, true);
+        title.setMaxLines(2);
+        title.setEllipsize(TextUtils.TruncateAt.END);
+        c.addView(title, Ui.margins(Ui.lp(-2, -2), 2, 10, 2, 0));
+        String meta = v.channel + (v.views.isEmpty() ? "" : " • " + v.views) + (v.published.isEmpty() ? "" : " • " + v.published);
+        TextView m = Ui.text(this, meta, 11, Ui.MUTED, false);
+        m.setMaxLines(2);
+        m.setEllipsize(TextUtils.TruncateAt.END);
+        c.addView(m, Ui.margins(Ui.lp(-2, -2), 2, 4, 2, 0));
+        c.setOnClickListener(x -> openUrl(v.url()));
+        return c;
+    }
+
+    // ---------------------------------------------------------------- estúdio de imagens para status
+    private StatusCard.Data statusData() {
+        StatusCard.Data d = new StatusCard.Data();
+        d.type = studioType;
+        d.format = studioFormat;
+        d.turn = turn;
+        d.pres = snap().pres;
+        d.states = new HashMap<>(snap().states);
+        d.ufCode = studioUf;
+        d.ufName = ufName(studioUf);
+        d.ufRes = snap().states.get(studioUf);
+        d.at = lastPoll == 0 ? System.currentTimeMillis() : lastPoll;
+        return d;
+    }
+
+    /** Gera a imagem em segundo plano (baixa antes as fotos do top 3 para saírem no card). */
+    private void generateStatus(final java.util.function.Consumer<Bitmap> done, final StatusCard.Data d) {
+        bg.execute(() -> {
+            Bitmap b = null;
+            try {
+                Model.Result r = d.type == StatusCard.UF ? d.ufRes : d.pres;
+                if (r != null) for (int i = 0; i < Math.min(3, r.cands.size()); i++)
+                    if (!r.photoBase.isEmpty() && !r.cands.get(i).sq.isEmpty()) Photos.fetch(r.photoBase + r.cands.get(i).sq + ".jpeg", 2);
+                b = StatusCard.render(d);
+            } catch (Throwable t) { lastError = "imagem: " + t; }
+            final Bitmap fb = b;
+            ui.post(() -> done.accept(fb));
+        });
+    }
+
+    private void showStatusStudio() {
+        if (sheetDialog != null) sheetDialog.dismiss();
+        studioHolder = Ui.col(this);
+        studioPreview = null;
+        studioBmp = null;
+        buildStudio();
+        sheetDialog = showSheet(studioHolder);
+        regenStudio();
+    }
+
+    private void regenStudio() {
+        studioBusy = true;
+        buildStudio();
+        generateStatus(b -> { studioBmp = b; studioBusy = false; buildStudio(); }, statusData());
+    }
+
+    private void buildStudio() {
+        if (studioHolder == null) return;
+        studioHolder.removeAllViews();
+        studioHolder.addView(Ui.text(this, "📸 Imagem para status", 20, Ui.TEXT, true));
+        studioHolder.addView(Ui.text(this, "Card pronto com resultado oficial, fonte e horário — para WhatsApp, Instagram e redes.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 12));
+        FlowLayout types = new FlowLayout(this, 7);
+        String[] tn = {"Placar", "Mapa", "Estado"};
+        for (int i = 0; i < 3; i++) {
+            final int ti = i;
+            types.addView(optChip(tn[i], studioType == i, v -> { studioType = ti; regenStudio(); }));
+        }
+        studioHolder.addView(types, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
+        FlowLayout fmts = new FlowLayout(this, 7);
+        fmts.addView(optChip("Story 9:16", studioFormat == StatusCard.STORY, v -> { studioFormat = StatusCard.STORY; regenStudio(); }));
+        fmts.addView(optChip("Post 1:1", studioFormat == StatusCard.POST, v -> { studioFormat = StatusCard.POST; regenStudio(); }));
+        studioHolder.addView(fmts, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
+        if (studioType == StatusCard.UF) {
+            Spinner sp = ufSpinnerFor(studioUf, uf -> { studioUf = uf; regenStudio(); });
+            studioHolder.addView(sp, Ui.margins(Ui.lp(Ui.dp(130), Ui.dp(42)), 0, 0, 0, 8));
+        }
+        FrameLayout pf = new FrameLayout(this);
+        pf.setBackground(Ui.fill(0xFF050C17, 16, Ui.LINE));
+        pf.setPadding(Ui.dp(8), Ui.dp(8), Ui.dp(8), Ui.dp(8));
+        int ph = (int) (getResources().getDisplayMetrics().heightPixels * 0.46f);
+        if (studioBmp != null && !studioBusy) {
+            ImageView iv = new ImageView(this);
+            iv.setImageBitmap(studioBmp);
+            iv.setAdjustViewBounds(true);
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            iv.setMaxHeight(ph);
+            pf.addView(iv, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
+            studioPreview = iv;
+        } else {
+            pf.addView(new ShimmerView(this, studioFormat == StatusCard.STORY ? 300 : 220, 14), new FrameLayout.LayoutParams(-1, -2));
+            TextView w = Ui.text(this, "Gerando imagem…", 12, Ui.MUTED, true);
+            pf.addView(w, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
+        }
+        studioHolder.addView(pf, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 12));
+        LinearLayout btns = Ui.row(this);
+        TextView share = Ui.text(this, "Compartilhar", 14, Ui.INK, true);
+        share.setGravity(Gravity.CENTER);
+        share.setBackground(Ui.accent(13));
+        share.setOnClickListener(v -> shareStatusImage());
+        TextView save = Ui.text(this, "Salvar na galeria", 14, Ui.TEXT, true);
+        save.setGravity(Gravity.CENTER);
+        save.setBackground(Ui.fill(0xFF0E2138, 13, Ui.LINE));
+        save.setOnClickListener(v -> saveStatusImage());
+        btns.addView(share, Ui.margins(Ui.lp(0, Ui.dp(48), 1f), 0, 0, 4, 0));
+        btns.addView(save, Ui.margins(Ui.lp(0, Ui.dp(48), 1f), 4, 0, 0, 0));
+        studioHolder.addView(btns);
+        studioHolder.addView(Ui.text(this, "As imagens usam apenas dados oficiais do TSE e não contêm projeção nem opinião.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 10, 2, 0));
+    }
+
+    private View optChip(String label, boolean on, View.OnClickListener l) {
+        TextView t = Ui.text(this, label, 13, on ? Ui.INK : Ui.MUTED, true);
+        t.setPadding(Ui.dp(15), Ui.dp(9), Ui.dp(15), Ui.dp(9));
+        t.setBackground(on ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+        t.setOnClickListener(l);
+        return t;
+    }
+
+    private Spinner ufSpinnerFor(String current, final java.util.function.Consumer<String> cb) {
+        Spinner s = new Spinner(this);
+        List<String> items = new ArrayList<>();
+        int pos = 0;
+        for (int i = 0; i < UFS.length; i++) { items.add(UFS[i][0] + " · " + UFS[i][1]); if (UFS[i][0].equals(current)) pos = i; }
+        s.setAdapter(new ArrayAdapter<String>(this, android.R.layout.simple_spinner_dropdown_item, items) {
+            @Override public View getView(int p, View cv, ViewGroup parent) {
+                TextView t = (TextView) super.getView(p, cv, parent);
+                t.setText(UFS[p][0] + " ▾");
+                t.setTextSize(15);
+                t.setTypeface(Ui.MEDIUM, android.graphics.Typeface.BOLD);
+                return t;
+            }
+        });
+        s.setSelection(pos);
+        s.setBackground(Ui.fill(0xFF08182A, 11, Ui.LINE));
+        s.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            boolean init = true;
+            @Override public void onItemSelected(AdapterView<?> p, View v, int i, long id) { if (init) { init = false; return; } cb.accept(UFS[i][0]); }
+            @Override public void onNothingSelected(AdapterView<?> p) { }
+        });
+        return s;
+    }
+
+    private String statusCaption() {
+        Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : snap().pres;
+        StringBuilder b = new StringBuilder("Eleições 2026 • " + turn + "º turno • " + (studioType == StatusCard.UF ? ufName(studioUf) : "Brasil") + "\n");
+        if (r != null) {
+            for (int i = 0; i < Math.min(3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
+            b.append("Apuração: ").append(pc(r.progress)).append(" das seções\n");
+        }
+        return b.append("Fonte: TSE (dados oficiais, sem projeção)").toString();
+    }
+
+    private java.io.File writeShareFile(Bitmap b) throws Exception {
+        java.io.File dir = new java.io.File(getCacheDir(), "share");
+        dir.mkdirs();
+        java.io.File[] old = dir.listFiles();
+        if (old != null && old.length > 12) for (java.io.File f : old) if (f.getName().startsWith("central_status_")) f.delete();
+        java.io.File f = new java.io.File(dir, "central_status_" + System.currentTimeMillis() + ".png");
+        java.io.FileOutputStream o = new java.io.FileOutputStream(f);
+        b.compress(Bitmap.CompressFormat.PNG, 100, o);
+        o.close();
+        return f;
+    }
+
+    private void shareStatusImage() {
+        if (studioBmp == null) { Toast.makeText(this, "A imagem ainda está sendo gerada", Toast.LENGTH_SHORT).show(); return; }
+        try {
+            java.io.File f = writeShareFile(studioBmp);
+            Uri uri = new Uri.Builder().scheme("content").authority(StatusProvider.AUTHORITY).appendPath(f.getName()).build();
+            Intent i = new Intent(Intent.ACTION_SEND);
+            i.setType("image/png");
+            i.putExtra(Intent.EXTRA_STREAM, uri);
+            i.putExtra(Intent.EXTRA_TEXT, statusCaption());
+            i.setClipData(ClipData.newRawUri("imagem", uri));
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(Intent.createChooser(i, "Compartilhar imagem"));
+        } catch (Throwable t) { lastError = "compartilhar: " + t; Toast.makeText(this, "Não foi possível compartilhar a imagem", Toast.LENGTH_SHORT).show(); }
+    }
+
+    private void saveStatusImage() {
+        if (studioBmp == null) { Toast.makeText(this, "A imagem ainda está sendo gerada", Toast.LENGTH_SHORT).show(); return; }
+        if (Build.VERSION.SDK_INT < 29) { Toast.makeText(this, "Neste Android use Compartilhar → Salvar", Toast.LENGTH_LONG).show(); return; }
+        try {
+            ContentValues cv = new ContentValues();
+            cv.put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, "Eleicoes2026_" + new SimpleDateFormat("yyyyMMdd_HHmmss", BR).format(new Date()) + ".png");
+            cv.put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/png");
+            cv.put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, "Pictures/CentralEleicoes");
+            cv.put(android.provider.MediaStore.Images.Media.IS_PENDING, 1);
+            Uri u = getContentResolver().insert(android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI, cv);
+            if (u == null) throw new IllegalStateException("sem destino");
+            java.io.OutputStream o = getContentResolver().openOutputStream(u);
+            studioBmp.compress(Bitmap.CompressFormat.PNG, 100, o);
+            o.close();
+            ContentValues done = new ContentValues();
+            done.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0);
+            getContentResolver().update(u, done, null, null);
+            Toast.makeText(this, "Salvo em Imagens/CentralEleicoes", Toast.LENGTH_LONG).show();
+        } catch (Throwable t) { lastError = "salvar: " + t; Toast.makeText(this, "Não foi possível salvar a imagem", Toast.LENGTH_SHORT).show(); }
+    }
+
+    /** Automação (teste no emulador): grava as 6 variantes em cache/share/test-*.png para conferência. */
+    private void genAllStatusForTest() {
+        for (int ty = 0; ty < 3; ty++) for (int fm = 0; fm < 2; fm++) {
+            final StatusCard.Data d = statusData();
+            d.type = ty; d.format = fm;
+            final int fty = ty, ffm = fm;
+            generateStatus(b -> {
+                if (b == null) return;
+                try {
+                    java.io.File dir = new java.io.File(getCacheDir(), "share");
+                    dir.mkdirs();
+                    java.io.FileOutputStream o = new java.io.FileOutputStream(new java.io.File(dir, "test-" + fty + "-" + ffm + ".png"));
+                    b.compress(Bitmap.CompressFormat.PNG, 90, o);
+                    o.close();
+                } catch (Throwable ignored) { }
+            }, d);
+        }
     }
 
     // ============================================================ boletim / compartilhar / jogo
@@ -1185,6 +1637,7 @@ public class MainActivity extends Activity {
         turn = t;
         prefs.edit().putInt("turn", t).apply();
         delayMs = intervalMs;
+        animateNext = true;
         render();
         refresh();
     }
@@ -1327,6 +1780,7 @@ public class MainActivity extends Activity {
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
         }
         if (failures == 0 || pres != null || !s.isEmpty()) saveCache(t);
+        if (genStatusPending && snap().pres != null) { genStatusPending = false; genAllStatusForTest(); }
     }
 
     // ============================================================ cache do último snapshot válido

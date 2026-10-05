@@ -10,12 +10,14 @@ import android.graphics.Shader;
 import android.view.View;
 
 /** Avatar circular: foto do candidato (TSE) ou iniciais com anel na cor do candidato. */
-final class AvatarView extends View {
+final class AvatarView extends View implements Photos.Target {
     private final Paint bg = new Paint(Paint.ANTI_ALIAS_FLAG), ring = new Paint(Paint.ANTI_ALIAS_FLAG),
             txt = new Paint(Paint.ANTI_ALIAS_FLAG), img = new Paint(Paint.ANTI_ALIAS_FLAG);
     private Bitmap bmp;
     private String initials = "?";
-    String tag = "";
+    private String tag = "";
+    @Override public String tag() { return tag; }
+    @Override public void setTag(String t) { tag = t; }
 
     AvatarView(Context c, int sizeDp) {
         super(c);
@@ -35,7 +37,7 @@ final class AvatarView extends View {
         return this;
     }
 
-    void setBitmap(Bitmap b) { bmp = b; img.setShader(null); invalidate(); }
+    @Override public void setBitmap(Bitmap b) { bmp = b; img.setShader(null); invalidate(); }
 
     @Override
     protected void onDraw(Canvas c) {

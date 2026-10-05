@@ -26,12 +26,81 @@ final class BrazilMapView extends View {
 
     private static final int DEFAULT = 0xFF17304F;
     private static final float INSET_X = 62f, INSET_Y = 566f, INSET_R = 19f;
-    private final Map<String, Path> paths = new LinkedHashMap<>();
+    private static Map<String, Path> PATHS;
+
+    static synchronized Map<String, Path> allPaths() {
+        if (PATHS == null) {
+            PATHS = new LinkedHashMap<>();
+            for (String[] p : MapData.PATHS) PATHS.put(p[0], parse(p[1]));
+        }
+        return PATHS;
+    }
+
+    /** Canetas de desenho do mapa (compartilhadas entre a View e a geração de imagens de status). */
+    static final class Pens {
+        final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG),
+                text = new Paint(Paint.ANTI_ALIAS_FLAG), textStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
+        Pens() {
+            stroke.setStyle(Paint.Style.STROKE);
+            stroke.setStrokeJoin(Paint.Join.ROUND);
+            text.setColor(Color.WHITE);
+            text.setTextAlign(Paint.Align.CENTER);
+            text.setTypeface(Ui.BLACK);
+            textStroke.setColor(0xCC020914);
+            textStroke.setTextAlign(Paint.Align.CENTER);
+            textStroke.setTypeface(Ui.BLACK);
+            textStroke.setStyle(Paint.Style.STROKE);
+            textStroke.setStrokeJoin(Paint.Join.ROUND);
+        }
+    }
+
+    /** Desenha o mapa em coordenadas do SVG (613x639); o chamador aplica a escala/translação no Canvas. */
+    static void drawMap(Canvas c, Map<String, Integer> colors, String selected, Pens pn, boolean withLabels) {
+        Map<String, Path> paths = allPaths();
+        pn.stroke.setStrokeWidth(0.9f);
+        pn.stroke.setColor(0xFFCFE3F7);
+        for (Map.Entry<String, Path> e : paths.entrySet()) {
+            Integer col = colors.get(e.getKey());
+            pn.fill.setStyle(Paint.Style.FILL);
+            pn.fill.setColor(col == null ? DEFAULT : col);
+            c.drawPath(e.getValue(), pn.fill);
+            c.drawPath(e.getValue(), pn.stroke);
+        }
+        Path sel = selected == null ? null : paths.get(selected);
+        if (sel != null) { pn.stroke.setColor(Color.WHITE); pn.stroke.setStrokeWidth(2.6f); c.drawPath(sel, pn.stroke); }
+        if (withLabels) for (Object[] l : MapData.LABELS) {
+            float r = (Float) l[3];
+            if (r < 6.5f) continue;
+            float size = Math.max(7f, Math.min(15f, r * 1.05f));
+            pn.text.setTextSize(size);
+            pn.textStroke.setTextSize(size);
+            pn.textStroke.setStrokeWidth(size * 0.22f);
+            float y = (Float) l[2] + size * 0.35f;
+            c.drawText((String) l[0], (Float) l[1], y, pn.textStroke);
+            c.drawText((String) l[0], (Float) l[1], y, pn.text);
+        }
+        Integer dfc = colors.get("DF");
+        pn.fill.setStyle(Paint.Style.FILL);
+        pn.fill.setColor(dfc == null ? DEFAULT : dfc);
+        c.drawCircle(INSET_X, INSET_Y, INSET_R, pn.fill);
+        pn.stroke.setColor("DF".equals(selected) ? Color.WHITE : 0xFFCFE3F7);
+        pn.stroke.setStrokeWidth("DF".equals(selected) ? 2.6f : 1.4f);
+        c.drawCircle(INSET_X, INSET_Y, INSET_R, pn.stroke);
+        pn.text.setTextSize(13f);
+        pn.textStroke.setTextSize(13f);
+        pn.textStroke.setStrokeWidth(3f);
+        c.drawText("DF", INSET_X, INSET_Y + 4.5f, pn.textStroke);
+        c.drawText("DF", INSET_X, INSET_Y + 4.5f, pn.text);
+        pn.text.setTextSize(8.5f);
+        pn.text.setColor(0xFF93A9C2);
+        c.drawText("Distrito Federal", INSET_X, INSET_Y + INSET_R + 12f, pn.text);
+        pn.text.setColor(Color.WHITE);
+    }
+
+    private final Pens pens = new Pens();
     private final Map<String, Region> regions = new HashMap<>();
     private final Map<String, Integer> shown = new HashMap<>(), from = new HashMap<>(), to = new HashMap<>();
     private final Set<String> flashing = new HashSet<>();
-    private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG),
-            text = new Paint(Paint.ANTI_ALIAS_FLAG), textStroke = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Matrix m = new Matrix(), inv = new Matrix();
     private final ArgbEvaluator ev = new ArgbEvaluator();
     private String selected = "DF";
@@ -42,23 +111,11 @@ final class BrazilMapView extends View {
 
     BrazilMapView(Context c) {
         super(c);
-        stroke.setStyle(Paint.Style.STROKE);
-        stroke.setStrokeJoin(Paint.Join.ROUND);
-        text.setColor(Color.WHITE);
-        text.setTextAlign(Paint.Align.CENTER);
-        text.setTypeface(Ui.BLACK);
-        textStroke.setColor(0xCC020914);
-        textStroke.setTextAlign(Paint.Align.CENTER);
-        textStroke.setTypeface(Ui.BLACK);
-        textStroke.setStyle(Paint.Style.STROKE);
-        textStroke.setStrokeJoin(Paint.Join.ROUND);
         Region clip = new Region(0, 0, (int) MapData.VIEW_W + 2, (int) MapData.VIEW_H + 2);
-        for (String[] p : MapData.PATHS) {
-            Path path = parse(p[1]);
-            paths.put(p[0], path);
+        for (Map.Entry<String, Path> e : allPaths().entrySet()) {
             Region r = new Region();
-            r.setPath(path, clip);
-            regions.put(p[0], r);
+            r.setPath(e.getValue(), clip);
+            regions.put(e.getKey(), r);
         }
         setContentDescription("Mapa do Brasil por UF");
     }
@@ -150,49 +207,17 @@ final class BrazilMapView extends View {
     protected void onDraw(Canvas c) {
         c.save();
         c.concat(m);
-        stroke.setStrokeWidth(0.9f);
-        stroke.setColor(0xFFCFE3F7);
-        for (Map.Entry<String, Path> e : paths.entrySet()) {
-            fill.setStyle(Paint.Style.FILL);
-            fill.setColor(colorOf(e.getKey()));
-            c.drawPath(e.getValue(), fill);
-            c.drawPath(e.getValue(), stroke);
-        }
+        Map<String, Integer> colors = new HashMap<>();
+        for (String[] p : MapData.PATHS) colors.put(p[0], colorOf(p[0]));
+        drawMap(c, colors, selected, pens, true);
+        Map<String, Path> paths = allPaths();
         for (String uf : flashing) {
             Path p = paths.get(uf);
             if (p == null) continue;
-            fill.setColor(Color.argb((int) (150 * flash), 255, 255, 255));
-            c.drawPath(p, fill);
+            pens.fill.setStyle(Paint.Style.FILL);
+            pens.fill.setColor(Color.argb((int) (150 * flash), 255, 255, 255));
+            c.drawPath(p, pens.fill);
         }
-        Path sel = paths.get(selected);
-        if (sel != null) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(2.6f); c.drawPath(sel, stroke); }
-        for (Object[] l : MapData.LABELS) {
-            float r = (Float) l[3];
-            if (r < 6.5f) continue;
-            float size = Math.max(7f, Math.min(15f, r * 1.05f));
-            text.setTextSize(size);
-            textStroke.setTextSize(size);
-            textStroke.setStrokeWidth(size * 0.22f);
-            float y = (Float) l[2] + size * 0.35f;
-            c.drawText((String) l[0], (Float) l[1], y, textStroke);
-            c.drawText((String) l[0], (Float) l[1], y, text);
-        }
-        // detalhe do DF (muito pequeno no mapa)
-        fill.setStyle(Paint.Style.FILL);
-        fill.setColor(colorOf("DF"));
-        c.drawCircle(INSET_X, INSET_Y, INSET_R, fill);
-        stroke.setColor("DF".equals(selected) ? Color.WHITE : 0xFFCFE3F7);
-        stroke.setStrokeWidth("DF".equals(selected) ? 2.6f : 1.4f);
-        c.drawCircle(INSET_X, INSET_Y, INSET_R, stroke);
-        text.setTextSize(13f);
-        textStroke.setTextSize(13f);
-        textStroke.setStrokeWidth(3f);
-        c.drawText("DF", INSET_X, INSET_Y + 4.5f, textStroke);
-        c.drawText("DF", INSET_X, INSET_Y + 4.5f, text);
-        text.setTextSize(8.5f);
-        text.setColor(0xFF93A9C2);
-        c.drawText("Distrito Federal", INSET_X, INSET_Y + INSET_R + 12f, text);
-        text.setColor(Color.WHITE);
         c.restore();
     }
 

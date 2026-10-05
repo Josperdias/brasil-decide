@@ -19,16 +19,21 @@ sleep 25; alive $W; shot webview-1
 crashes
 
 # --- Nativo: uma captura por aba
-for tab in mapa brasil ufs df news mais; do
+for tab in mapa brasil ufs df news lives mais; do
   adb logcat -c
   adb shell am start -S -W -n $N/.MainActivity --es tab $tab > /dev/null
-  sleep $([ "$tab" = news ] && echo 30 || echo 22)
+  sleep $([ "$tab" = news ] || [ "$tab" = lives ] && echo 30 || echo 22)
   alive $N; shot native-$tab
   crashes
 done
 # 2º turno e modo TV
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --ei turn 2 > /dev/null; sleep 20; alive $N; shot native-turno2
 adb shell am start -S -W -n $N/.MainActivity --ez tv true > /dev/null; sleep 20; alive $N; shot native-tv
+# painel de UF e estúdio de imagens
+adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es sel SP --es sheet SP > /dev/null; sleep 22; alive $N; shot native-sheet-sp
+adb shell am start -S -W -n $N/.MainActivity --es tab brasil --ez studio true --ez genstatus true > /dev/null; sleep 30; alive $N; shot native-studio
+# imagens de status geradas pelo app (6 variantes) — puxadas do cache do app (build debug)
+for t in 0 1 2; do for f in 0 1; do adb exec-out run-as $N cat cache/share/test-$t-$f.png > dist/status-$t-$f.png || true; done; done
 # --- Minijogo escondido
 adb logcat -c
 adb shell am start -S -W -n $N/.GameActivity > /dev/null; sleep 3; shot game-1-pronto
