@@ -1,0 +1,14 @@
+name: Sonda de fontes (diagnóstico)
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'eleicoes-2026/probe/**'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 eleicoes-2026/probe/probe.py
