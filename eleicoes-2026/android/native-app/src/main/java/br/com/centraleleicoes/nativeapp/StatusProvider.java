@@ -19,7 +19,10 @@ public class StatusProvider extends ContentProvider {
 
     @Override public boolean onCreate() { return true; }
 
-    @Override public String getType(Uri uri) { return "image/png"; }
+    @Override public String getType(Uri uri) {
+        String n = uri.getLastPathSegment();
+        return n != null && n.endsWith(".apk") ? "application/vnd.android.package-archive" : "image/png";
+    }
 
     private File resolve(Uri uri) throws FileNotFoundException {
         try {

@@ -32,21 +32,26 @@ jobs:
           cat html/part-*.html > central-eleicoes-2026.html
           python3 android/gen_mapdata.py central-eleicoes-2026.html android/native-app/src/main/java/br/com/centraleleicoes/nativeapp/MapData.java
           wc -c central-eleicoes-2026.html
-      - name: Build APKs (WebView + Nativo) — Gradle/AGP oficial, debug assinado pelo Gradle
-        run: gradle --no-daemon assembleDebug
-      - name: Verificar assinatura com apksigner
+      - name: Build APKs (WebView + Nativo) — Gradle/AGP oficial, assinados com a chave fixa do projeto
+        run: gradle --no-daemon assembleRelease assembleDebug
+      - name: Verificar assinatura com apksigner (e que é a chave fixa do projeto)
         run: |
           APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
-          for apk in webview-app/build/outputs/apk/debug/*.apk native-app/build/outputs/apk/debug/*.apk; do
-            echo "== $apk"; "$APKSIGNER" verify --verbose --print-certs "$apk" | head -8
+          EXPECTED="fdbff9e989017b9523315b4037813467d59d6b9b93d31957815827a40b9ceaaa"
+          for apk in webview-app/build/outputs/apk/release/*.apk native-app/build/outputs/apk/release/*.apk native-app/build/outputs/apk/debug/*.apk webview-app/build/outputs/apk/debug/*.apk; do
+            echo "== $apk"
+            "$APKSIGNER" verify --verbose --print-certs "$apk" | tee /tmp/sig.txt | head -6
+            grep -qi "SHA-256 digest: $EXPECTED" /tmp/sig.txt || { echo "ASSINATURA DIFERENTE DA CHAVE FIXA"; exit 1; }
           done
       - name: Conferir que o HTML final está empacotado no APK WebView
-        run: unzip -l webview-app/build/outputs/apk/debug/webview-app-debug.apk | grep -q 'assets/index.html'
+        run: unzip -l webview-app/build/outputs/apk/release/webview-app-release.apk | grep -q 'assets/index.html'
       - name: Renomear
         run: |
           mkdir -p ../dist
-          cp webview-app/build/outputs/apk/debug/webview-app-debug.apk ../dist/CentralEleicoes2026-WebView.apk
-          cp native-app/build/outputs/apk/debug/native-app-debug.apk ../dist/CentralEleicoes2026-Nativo.apk
+          cp webview-app/build/outputs/apk/release/webview-app-release.apk ../dist/CentralEleicoes2026-WebView.apk
+          cp native-app/build/outputs/apk/release/native-app-release.apk ../dist/CentralEleicoes2026-Nativo.apk
+          cp webview-app/build/outputs/apk/debug/webview-app-debug.apk ../dist/test-WebView-debug.apk
+          cp native-app/build/outputs/apk/debug/native-app-debug.apk ../dist/test-Nativo-debug.apk
           cp ../central-eleicoes-2026.html ../dist/
           ls -la ../dist
       - uses: actions/upload-artifact@v4
@@ -56,7 +61,7 @@ jobs:
       - name: Publicar APKs na branch apk-dist (download direto)
         run: |
           cd "$GITHUB_WORKSPACE"
-          rm -rf /tmp/apkdist && mkdir /tmp/apkdist && cp eleicoes-2026/dist/* /tmp/apkdist/
+          rm -rf /tmp/apkdist && mkdir /tmp/apkdist && cp eleicoes-2026/dist/CentralEleicoes2026-*.apk eleicoes-2026/dist/central-eleicoes-2026.html /tmp/apkdist/
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout --orphan apk-dist
@@ -126,7 +131,9 @@ jobs:
             "" \
             "**Instalar:** baixe \`CentralEleicoes2026.apk\`, abra o arquivo e, se o Android pedir, permita instalar de fontes desconhecidas." \
             "" \
-            "\`CentralEleicoes2026-WebView.apk\` é a versão WebView (idêntica ao site)." \
+            "\`CentralEleicoes2026-WebView.apk\` é a versão WebView (idêntica ao site; atualiza o conteúdo sozinha pela internet)." \
+            "" \
+            "Atualizações: o app avisa e atualiza com um toque. Todos os builds usam a mesma chave de assinatura, então instalam por cima." \
             "" \
             "Dados oficiais do TSE; sem projeção. Build ${{ github.run_number }} • commit ${GITHUB_SHA::7}." > notes.md
           if gh release view app-latest --repo "$REPO" > /dev/null 2>&1; then
@@ -134,4 +141,4 @@ jobs:
           else
             gh release create app-latest --repo "$REPO" --target "$GITHUB_SHA" --title "Eleições 2026 — app Android" --notes-file notes.md --latest
           fi
-          gh release upload app-latest dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk --repo "$REPO" --clobber
+          gh release upload app-latest dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk dist/central-eleicoes-2026.html --repo "$REPO" --clobber

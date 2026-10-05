@@ -18,3 +18,5 @@ Mapa: geometria de `@svg-maps/brazil` (CC BY 4.0).
 - O site (`central-eleicoes-2026.html`) mostra um banner "Baixar app" (escondido dentro do próprio app).
 - A página de divulgação `docs/app/index.html` fica em `https://<usuario>.github.io/concursos-df/app/` depois de mesclada na `main` (o GitHub Pages serve a pasta `docs`).
 - O CI publica/atualiza a release `app-latest` a cada build aprovado no emulador; o app consulta essa release e avisa quando há versão nova.
+- **Atualização sem rebaixar:** os APKs usam chave de assinatura fixa (`android/keystore/central-eleicoes.jks`, pública no repo — troque por GitHub Secret se quiser impedir APKs falsos assinados com a mesma chave). O app nativo baixa e instala a nova versão com um toque (permissão “instalar apps desconhecidos” na 1ª vez). O app WebView baixa sozinho o HTML novo (`central-eleicoes-2026.html` da release) ao abrir. Mudanças só no HTML não exigem novo APK no WebView; mudanças de código Java exigem APK novo (limitação do Android).
+- Instalações antigas (chaves aleatórias por build) precisam ser desinstaladas uma vez.

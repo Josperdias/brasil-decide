@@ -15,10 +15,24 @@ android {
         versionName "1.${System.getenv('GITHUB_RUN_NUMBER') ?: '0'}"
     }
 
+    // Chave FIXA (keystore/central-eleicoes.jks): todo build é assinado igual, então o Android aceita
+    // instalar a nova versão por cima da antiga (e o app pode se atualizar sozinho). Chave pública do projeto.
+    signingConfigs {
+        app {
+            storeFile file('../keystore/central-eleicoes.jks')
+            storeType 'pkcs12'
+            storePassword 'central2026'
+            keyAlias 'central'
+            keyPassword 'central2026'
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
-            // sem keystore configurado: use assembleDebug (assinado automaticamente pelo Gradle)
+            signingConfig signingConfigs.app
+        }
+        debug {
+            signingConfig signingConfigs.app
         }
     }
     compileOptions {

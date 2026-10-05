@@ -128,7 +128,8 @@ public class MainActivity extends Activity {
     private ImageView studioPreview;
     private LinearLayout studioHolder;
     private Dialog sheetDialog;
-    private boolean updateAvailable, updateChecked;
+    private boolean updateAvailable, updateChecked, updating;
+    private int updatePct;
     private int remoteVersion;
     private long delayMs = 10000, intervalMs = 10000, lastPoll;
     private int titleTaps;
@@ -787,13 +788,68 @@ public class MainActivity extends Activity {
         c.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
         c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
-        t.addView(Ui.text(this, "Nova versão do app disponível", 14, Ui.TEXT, true));
-        t.addView(Ui.text(this, "Toque para baixar a atualização e instalar por cima.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão do app disponível", 14, Ui.TEXT, true));
+        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar na tela do Android." : "Toque para atualizar aqui mesmo — sem abrir o navegador.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        if (updating) t.addView(new GradientBar(this, 6).colors(Ui.AMBER, Ui.MINT).value(updatePct), Ui.margins(Ui.lp(-1, Ui.dp(6)), 0, 8, 0, 0));
         c.addView(t, Ui.lp(0, -2, 1f));
-        c.addView(Ui.text(this, "Baixar ›", 13, Ui.AMBER, true));
-        c.setOnClickListener(v -> openUrl(DL_URL));
+        if (!updating) c.addView(Ui.text(this, "Atualizar ›", 13, Ui.AMBER, true));
+        c.setOnClickListener(v -> startUpdate());
         c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
         return c;
+    }
+
+    /** Baixa o APK novo para o cache do app e abre o instalador do Android (uma confirmação do usuário). */
+    private void startUpdate() {
+        if (updating) return;
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            Toast.makeText(this, "Permita instalar atualizações por este app e volte para tocar de novo", Toast.LENGTH_LONG).show();
+            try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); }
+            catch (Throwable t) { openUrl(DL_URL); }
+            return;
+        }
+        updating = true;
+        updatePct = 0;
+        render();
+        bg.execute(() -> {
+            java.io.File out = new java.io.File(new java.io.File(getCacheDir(), "share"), "update.apk");
+            try {
+                out.getParentFile().mkdirs();
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(DL_URL).openConnection();
+                c.setConnectTimeout(12000);
+                c.setReadTimeout(20000);
+                c.setRequestProperty("User-Agent", "CentralEleicoes2026-Nativo");
+                if (c.getResponseCode() != 200) throw new IllegalStateException("HTTP " + c.getResponseCode());
+                long total = c.getContentLengthLong(), got = 0;
+                java.io.InputStream in = c.getInputStream();
+                java.io.FileOutputStream fo = new java.io.FileOutputStream(out);
+                byte[] buf = new byte[32768];
+                int n, last = -1;
+                while ((n = in.read(buf)) > 0) {
+                    fo.write(buf, 0, n);
+                    got += n;
+                    final int pct = total > 0 ? (int) (got * 100 / total) : 0;
+                    if (pct != last) { last = pct; ui.post(() -> { updatePct = pct; if (!tv) render(); }); }
+                }
+                fo.close();
+                in.close();
+                if (out.length() < 100000) throw new IllegalStateException("arquivo incompleto");
+                ui.post(() -> { updating = false; render(); installApk(); });
+            } catch (Throwable t) {
+                lastError = "atualização: " + t;
+                out.delete();
+                ui.post(() -> { updating = false; render(); Toast.makeText(this, "Não foi possível baixar a atualização. Tente de novo ou use o link de download.", Toast.LENGTH_LONG).show(); });
+            }
+        });
+    }
+
+    private void installApk() {
+        try {
+            Uri uri = new Uri.Builder().scheme("content").authority(StatusProvider.AUTHORITY).appendPath("update.apk").build();
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Throwable t) { lastError = "instalar: " + t; openUrl(DL_URL); }
     }
 
     private View promoStatus() {
