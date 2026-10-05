@@ -40,6 +40,9 @@ final class PanoramaUi {
 
     private static String n(long v) { return INT.format(v); }
 
+    /** "45-PSDB/23-CIDADANIA" -> "PSDB + CIDADANIA". */
+    private static String pretty(String comp) { return comp.replaceAll("\\d+-", "").replace("/", " + "); }
+
     private static double womenPct(Panorama.Party p) { return p.tot == 0 ? 0 : 100.0 * p.mul / p.tot; }
 
     private double value(Panorama.Party p) {
@@ -135,7 +138,7 @@ final class PanoramaUi {
         kv(c, b, "Senado Federal", n(p.sen) + " de " + n(data.totSen));
         if (!p.federacao.isEmpty()) {
             String[] f = data.federations.get(p.federacao);
-            kv(c, b, "Federação 2026", p.federacao + (f == null || f[1].isEmpty() ? "" : " (" + f[1] + ")"));
+            kv(c, b, "Federação 2026", f == null || f[0].isEmpty() ? pretty(p.federacao) : f[0] + " (" + pretty(f[1]) + ")");
         }
         v.addView(b, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
         v.addView(Ui.text(c, "Fonte: TSE, Câmara dos Deputados e Senado Federal. Contagens oficiais; o app não classifica partidos nem projeta resultados.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 12, 2, 4));
@@ -149,9 +152,9 @@ final class PanoramaUi {
         v.addView(Ui.text(c, "Partidos que concorrem juntos como um só bloco, com a mesma atuação em todo o país por, no mínimo, quatro anos.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 8));
         for (Map.Entry<String, String[]> e : data.federations.entrySet()) {
             LinearLayout card = Ui.card(c);
-            card.addView(Ui.text(c, e.getKey(), 14, Ui.TEXT, true));
-            if (!e.getValue()[1].isEmpty()) card.addView(Ui.text(c, e.getValue()[1], 11, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
-            if (!e.getValue()[0].isEmpty()) card.addView(Ui.text(c, e.getValue()[0], 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+            String nome = e.getValue()[0].isEmpty() ? pretty(e.getKey()) : e.getValue()[0];
+            card.addView(Ui.text(c, nome, 14, Ui.TEXT, true));
+            card.addView(Ui.text(c, pretty(e.getValue()[1].isEmpty() ? e.getKey() : e.getValue()[1]), 11, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
             v.addView(card, Ui.margins(Ui.lp(-1, -2), 0, 8, 0, 0));
         }
         return v;

@@ -66,7 +66,7 @@ final class Panorama {
                 JSONObject c = j.optJSONObject("cand");
                 if (c != null) for (String[] cg : CARGOS) if (c.has(cg[0])) p.cand.put(cg[0], c.optInt(cg[0]));
                 for (Map.Entry<String, String[]> e : d.federations.entrySet()) {
-                    for (String s : e.getValue()[1].split("[/,;+ ]+")) if (s.trim().equalsIgnoreCase(k)) p.federacao = e.getKey();
+                    for (String s : e.getValue()[1].split("[/,;+ ]+")) if (s.replaceFirst("^\\d+-", "").trim().equalsIgnoreCase(k)) p.federacao = e.getKey();
                 }
                 d.parties.add(p);
             }
