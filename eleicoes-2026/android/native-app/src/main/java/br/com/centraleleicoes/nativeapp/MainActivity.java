@@ -129,6 +129,13 @@ public class MainActivity extends Activity {
     private boolean exBusy;
     private long exAt;
     private final ExecutorService exPool = Executors.newSingleThreadExecutor();
+    // Replay da apuração (registros do coletor)
+    private ReplayUi rpUi;
+    private final Replay.Series[] rpSeries = new Replay.Series[2];
+    private boolean rpBusy;
+    private long rpAt;
+    private String rpDirOverride;
+    private int rpPresetMode, rpPresetPct = -1;
     private String ctxUe = "BR", ctxRole = "candidato à presidência";
     private boolean roundShowElected;
     private long roundGovAt;
@@ -183,6 +190,9 @@ public class MainActivity extends Activity {
             if (in.getStringExtra("tab") != null) goTab(in.getStringExtra("tab"));
             if (in.getStringExtra("sel") != null) sel = in.getStringExtra("sel");
             if (in.getStringExtra("msub") != null) mapaSub = in.getStringExtra("msub");
+            if (in.getStringExtra("rdir") != null) rpDirOverride = in.getStringExtra("rdir");
+            rpPresetMode = in.getIntExtra("rmode", 0);
+            rpPresetPct = in.getIntExtra("rpct", -1);
             if (in.getStringExtra("luf") != null) { localUf = in.getStringExtra("luf").toUpperCase(Locale.ROOT); studioUf = localUf; }
             if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
             if (in.getIntExtra("turn", 0) == 2) turn = 2;
@@ -338,6 +348,7 @@ public class MainActivity extends Activity {
     // ============================================================ render
     private void render() {
         try {
+            if (rpUi != null && !(tab.equals("mapa") && mapaSub.equals("replay"))) rpUi.stop();
             int keep = scroll.getScrollY();
             content.removeAllViews();
             if (mapView.getParent() != null) ((ViewGroup) mapView.getParent()).removeView(mapView);
@@ -350,8 +361,8 @@ public class MainActivity extends Activity {
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
                 case "mapa":
-                    content.addView(subTabs(new String[]{"mapa", "ufs", "mundo"}, new String[]{"Mapa", "Estados", "🌍 Mundo"}, mapaSub, x -> mapaSub = x));
-                    if (mapaSub.equals("ufs")) renderUfs(); else if (mapaSub.equals("mundo")) renderMundo(); else renderMap();
+                    content.addView(subTabs(new String[]{"mapa", "ufs", "mundo", "replay"}, new String[]{"Mapa", "Estados", "🌍 Mundo", "▶ Replay"}, mapaSub, x -> mapaSub = x));
+                    if (mapaSub.equals("ufs")) renderUfs(); else if (mapaSub.equals("mundo")) renderMundo(); else if (mapaSub.equals("replay")) renderReplay(); else renderMap();
                     break;
                 case "brasil": renderBrasil(); break;
                 case "df": renderDf(); break;
@@ -1474,6 +1485,40 @@ public class MainActivity extends Activity {
         return d;
     }
 
+    // ============================================================ replay da apuração
+    private void renderReplay() {
+        if (rpUi == null) rpUi = new ReplayUi(new ReplayUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public Handler ui() { return ui; }
+            @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
+            @Override public int turn() { return turn; }
+            @Override public void reload() { render(); }
+        });
+        if (rpPresetPct >= 0 || rpPresetMode > 0) { rpUi.preset(rpPresetMode, rpPresetPct); rpPresetMode = 0; rpPresetPct = -1; }
+        rpUi.setSeries(rpSeries[turn - 1], rpBusy && rpSeries[turn - 1] == null);
+        content.addView(rpUi.build());
+        loadReplay(false);
+    }
+
+    private void loadReplay(boolean force) {
+        final int t = turn;
+        if (rpBusy || (!force && rpSeries[t - 1] != null && System.currentTimeMillis() - rpAt < 60 * 1000L)) return;
+        rpBusy = true;
+        final String dir = rpDirOverride != null ? rpDirOverride : "t" + t;
+        exPool.execute(() -> {
+            Replay.Series s = null;
+            try { s = Replay.load(t, dir); } catch (Throwable th) { lastError = "replay: " + th; }
+            final Replay.Series fs = s;
+            ui.post(() -> {
+                rpBusy = false;
+                rpAt = System.currentTimeMillis();
+                boolean fresh = rpSeries[t - 1] == null || (fs != null && fs.snaps.size() != rpSeries[t - 1].snaps.size());
+                if (fs != null) rpSeries[t - 1] = fs;
+                if (fresh && tab.equals("mapa") && mapaSub.equals("replay") && turn == t && (!tv || resumed)) render();
+            });
+        });
+    }
+
     // ============================================================ voto no exterior
     private ExteriorUi ex() {
         if (exUi == null) exUi = new ExteriorUi(new ExteriorUi.Host() {
@@ -2271,6 +2316,7 @@ public class MainActivity extends Activity {
     }
 
     private void refresh() {
+        if (tab.equals("mapa") && mapaSub.equals("replay")) loadReplay(false);
         if (busy) return;
         busy = true;
         final int t = turn;
