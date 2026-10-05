@@ -41,7 +41,8 @@ final class Youtube {
         try {
             c.setConnectTimeout(10000);
             c.setReadTimeout(15000);
-            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Mobile Safari/537.36");
+            // UA de desktop: com UA mobile o YouTube redireciona para m.youtube.com, que usa outro formato (sem videoRenderer)
+            c.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36");
             c.setRequestProperty("Accept-Language", "pt-BR,pt;q=0.9");
             c.setRequestProperty("Cookie", "CONSENT=YES+1; SOCS=CAI");
             c.setRequestProperty("Accept-Encoding", "gzip");
@@ -116,13 +117,22 @@ final class Youtube {
             JSONObject t = ov.optJSONObject(i) == null ? null : ov.optJSONObject(i).optJSONObject("thumbnailOverlayTimeStatusRenderer");
             if (t != null && "LIVE".equals(t.optString("style"))) v.live = true;
         }
-        if (v.length.isEmpty() && v.published.isEmpty()) v.live = v.live || v.views.toLowerCase().contains("assistindo");
+        if (v.views.toLowerCase().contains("assistindo")) v.live = true;
         return v.title.isEmpty() ? null : v;
     }
 
+    private static final Pattern RELEVANT = Pattern.compile("elei[cç]|apura[cç]|candidat|debate|presiden|governador|senad|deputad|turno|urna|voto|lula|fl[aá]vio|tse|brasil", Pattern.CASE_INSENSITIVE);
+
+    /** Busca, tira resultados sem relação com a eleição (se sobrar pouco, mantém tudo) e põe as lives na frente. */
     static List<Video> search(String query, String sp) throws Exception {
+        List<Video> all = new ArrayList<>();
+        collect(initialData(get(searchUrl(query, sp))), all, 0);
+        List<Video> rel = new ArrayList<>();
+        for (Video v : all) if (RELEVANT.matcher(v.title + " " + v.channel).find()) rel.add(v);
+        List<Video> base = rel.size() >= 4 ? rel : all;
         List<Video> out = new ArrayList<>();
-        collect(initialData(get(searchUrl(query, sp))), out, 0);
+        for (Video v : base) if (v.live) out.add(v);
+        for (Video v : base) if (!v.live) out.add(v);
         return out;
     }
 }

@@ -118,6 +118,7 @@ public class MainActivity extends Activity {
     private final Map<String, Long> livesAt = new HashMap<>();
     private int studioType = StatusCard.PLACAR, studioFormat = StatusCard.STORY;
     private String studioUf = "DF";
+    private int studioCargo = 2;
     private Bitmap studioBmp;
     private boolean studioBusy;
     private ImageView studioPreview;
@@ -284,7 +285,7 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
-            if (tab.equals("mapa") || tab.equals("brasil") || tab.equals("ufs")) renderHero();
+            if (tab.equals("brasil") || tab.equals("ufs")) renderHero();
             switch (tab) {
                 case "mapa": renderMap(); break;
                 case "brasil": renderBrasil(); break;
@@ -335,53 +336,43 @@ public class MainActivity extends Activity {
 
     private void renderHeader() {
         LinearLayout bar = Ui.row(this);
-        TextView logo = Ui.text(this, "✓", 20, Ui.INK, true);
+        TextView logo = Ui.text(this, "✓", 19, Ui.INK, true);
         logo.setGravity(Gravity.CENTER);
         logo.setBackground(Ui.accent(99));
-        bar.addView(logo, Ui.margins(Ui.lp(Ui.dp(42), Ui.dp(42)), 0, 0, 12, 0));
+        bar.addView(logo, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
-        TextView kicker = Ui.text(this, "ELEIÇÕES 2026 • CENTRAL AO VIVO", 9, Ui.MINT, true);
-        kicker.setLetterSpacing(0.14f);
-        t.addView(kicker);
-        TextView title = Ui.big(this, "Brasil decide", 24);
-        title.setPadding(0, Ui.dp(3), 0, 0);
+        TextView title = Ui.big(this, "Brasil decide", 22);
         title.setOnClickListener(v -> easterEgg());
         t.addView(title);
-        bar.addView(t, Ui.lp(0, -2, 1f));
-        TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
-        rb.setGravity(Gravity.CENTER);
-        rb.setBackground(Ui.fill(0xFF0E2138, 13, Ui.LINE));
-        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
-        bar.addView(rb, Ui.lp(Ui.dp(42), Ui.dp(42)));
-        content.addView(bar, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
-
-        // status ao vivo (uma linha)
-        LinearLayout live = Ui.row(this);
-        live.setBackground(Ui.fill(0xE00A1728, 12, Ui.LINE));
-        live.setPadding(Ui.dp(12), Ui.dp(8), Ui.dp(12), Ui.dp(8));
+        LinearLayout st = Ui.row(this);
         View dot = new View(this);
         boolean bad = statusText.contains("Sem conexão") || statusText.contains("parciais") || statusText.contains("aguardando");
         dot.setBackground(Ui.fill(bad ? Ui.AMBER : Ui.GREEN, 99, 0));
-        live.addView(dot, Ui.margins(Ui.lp(Ui.dp(8), Ui.dp(8)), 0, 0, 9, 0));
+        st.addView(dot, Ui.margins(Ui.lp(Ui.dp(7), Ui.dp(7)), 0, 0, 7, 0));
         ObjectAnimator a = ObjectAnimator.ofFloat(dot, "alpha", 1f, 0.25f);
         a.setDuration(900);
         a.setRepeatMode(ObjectAnimator.REVERSE);
         a.setRepeatCount(ObjectAnimator.INFINITE);
         a.start();
-        TextView st = Ui.text(this, statusText, 12, Ui.TEXT, true);
-        st.setSingleLine();
-        st.setEllipsize(TextUtils.TruncateAt.END);
-        live.addView(st, Ui.lp(0, -2, 1f));
-        live.addView(Ui.text(this, "  " + (delayMs / 1000) + " s", 11, Ui.MUTED, true));
-        content.addView(live, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
+        TextView stt = Ui.text(this, statusText + " • " + (delayMs / 1000) + " s", 11, Ui.MUTED, false);
+        stt.setSingleLine();
+        stt.setEllipsize(TextUtils.TruncateAt.END);
+        st.addView(stt, Ui.lp(0, -2, 1f));
+        t.addView(st, Ui.margins(Ui.lp(-1, -2), 0, 5, 0, 0));
+        bar.addView(t, Ui.lp(0, -2, 1f));
+        TextView rb = Ui.text(this, busy ? "…" : "↻", 20, Ui.TEXT, true);
+        rb.setGravity(Gravity.CENTER);
+        rb.setBackground(Ui.fill(0xFF0E2138, 13, Ui.LINE));
+        rb.setOnClickListener(v -> { delayMs = intervalMs; refresh(); });
+        bar.addView(rb, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 8, 0, 0, 0));
+        content.addView(bar, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
 
-        // seletor de turno
         LinearLayout seg = Ui.row(this);
         seg.setBackground(Ui.fill(0xE00A1728, 13, Ui.LINE));
         seg.setPadding(Ui.dp(3), Ui.dp(3), Ui.dp(3), Ui.dp(3));
-        seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(38), 1f));
-        seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(38), 1f));
-        content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(34), 1f));
+        seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(34), 1f));
+        content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
     }
 
     private TextView turnBtn(int t) {
@@ -489,24 +480,21 @@ public class MainActivity extends Activity {
         TextView ic = Ui.text(this, icon, 18, Ui.TEXT, false);
         ic.setGravity(Gravity.CENTER);
         ic.setBackground(Ui.fill(0xFF113052, 13, 0));
-        head.addView(ic, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 0, 0, 10, 0));
+        head.addView(ic, Ui.margins(Ui.lp(Ui.dp(40), Ui.dp(40)), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
-        t.addView(Ui.text(this, title, 15, Ui.TEXT, true));
+        t.addView(Ui.text(this, title, 16, Ui.TEXT, true));
         t.addView(Ui.text(this, sub + (r != null && r.fin ? " • totalização final" : ""), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         head.addView(t, Ui.lp(0, -2, 1f));
-        if (r != null) {
-            LinearLayout pr = Ui.col(this);
-            pr.setGravity(Gravity.END);
-            TextView pp = Ui.text(this, pc(r.progress), 13, Ui.TEXT, true);
-            pp.setGravity(Gravity.END);
-            pr.addView(pp);
-            TextView ss = Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 10, Ui.MUTED, false);
-            ss.setGravity(Gravity.END);
-            pr.addView(ss, Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
-            pr.addView(new GradientBar(this, 6).value(r.progress), Ui.margins(Ui.lp(Ui.dp(96), Ui.dp(6)), 0, 6, 0, 0));
-            head.addView(pr, Ui.margins(Ui.lp(-2, -2), 8, 0, 0, 0));
-        }
         c.addView(head);
+        if (r != null) {
+            LinearLayout pr = Ui.row(this);
+            pr.setPadding(0, Ui.dp(12), 0, 0);
+            pr.addView(Ui.big(this, pc(r.progress), 20));
+            pr.addView(Ui.text(this, "  das seções", 11, Ui.MUTED, false), Ui.lp(0, -2, 1f));
+            pr.addView(Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal), 11, Ui.SOFT, true));
+            c.addView(pr);
+            c.addView(new GradientBar(this, 7).value(r.progress));
+        }
         if (r == null) {
             c.addView(Ui.space(this, 12));
             for (int i = 0; i < 3; i++) c.addView(new ShimmerView(this, i == 0 ? 54 : 44, 12));
@@ -546,8 +534,9 @@ public class MainActivity extends Activity {
         LinearLayout s = Ui.col(this);
         s.setGravity(gravity);
         TextView w = Ui.text(this, who, 11, Ui.MUTED, false);
-        w.setSingleLine();
+        w.setMaxLines(2);
         w.setEllipsize(TextUtils.TruncateAt.END);
+        w.setGravity(gravity);
         s.addView(w);
         TextView p = Ui.big(this, pct, 19);
         p.setTextColor(color);
@@ -566,13 +555,11 @@ public class MainActivity extends Activity {
 
     // ============================================================ abas
     private void renderMap() {
-        content.addView(sectionHead("Mapa eleitoral", "Cada UF assume a cor de quem lidera ali. Toque em um estado para ver os detalhes."));
         LinearLayout modes = Ui.row(this);
         modes.setBackground(Ui.fill(0xFF09182A, 12, Ui.LINE));
         modes.setPadding(Ui.dp(3), Ui.dp(3), Ui.dp(3), Ui.dp(3));
-        modes.addView(modeBtn("Presidente", !govMode, false), Ui.lp(0, Ui.dp(38), 1f));
-        modes.addView(modeBtn("Governador", govMode, true), Ui.lp(0, Ui.dp(38), 1f));
-        content.addView(modes, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
+        modes.addView(modeBtn("Presidente", !govMode, false), Ui.lp(0, Ui.dp(34), 1f));
+        modes.addView(modeBtn("Governador", govMode, true), Ui.lp(0, Ui.dp(34), 1f));
 
         Map<String, Model.Result> data = govMode ? snap().gov : snap().states;
         Map<String, Integer> fills = new HashMap<>();
@@ -589,11 +576,13 @@ public class MainActivity extends Activity {
         LinearLayout c = Ui.card(this);
         LinearLayout top = Ui.row(this);
         LinearLayout tt = Ui.col(this);
-        tt.addView(Ui.text(this, (govMode ? "Governador" : "Presidente") + " — liderança por UF", 15, Ui.TEXT, true));
-        tt.addView(Ui.text(this, loaded == 0 ? "Aguardando dados do TSE • " + turn + "º turno" : turn + "º turno • " + loaded + " UFs coloridas" + (absent > 0 ? " • " + absent + " sem disputa" : ""), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        tt.addView(Ui.text(this, "Mapa eleitoral • " + (govMode ? "Governador" : "Presidente"), 15, Ui.TEXT, true));
+        Model.Result pr0 = snap().pres;
+        tt.addView(Ui.text(this, loaded == 0 ? "Aguardando dados do TSE • " + turn + "º turno" : turn + "º turno" + (!govMode && pr0 != null ? " • apuração " + pc(pr0.progress) : "") + (absent > 0 ? " • " + absent + " sem disputa" : ""), 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         top.addView(tt, Ui.lp(0, -2, 1f));
         top.addView(Ui.chip(this, loaded + "/27 UFs", Ui.MUTED));
         c.addView(top);
+        c.addView(modes, Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 4));
         c.addView(mapView, Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 6));
         FlowLayout legend = new FlowLayout(this, 6);
         List<Map.Entry<String, Integer>> es = new ArrayList<>(counts.entrySet());
@@ -978,11 +967,8 @@ public class MainActivity extends Activity {
         sp.addView(ufSpinner(cmpA, true), Ui.margins(Ui.lp(0, Ui.dp(44), 1f), 0, 0, 4, 0));
         sp.addView(ufSpinner(cmpB, false), Ui.margins(Ui.lp(0, Ui.dp(44), 1f), 4, 0, 0, 0));
         cmp.addView(sp);
-        LinearLayout both = Ui.row(this);
-        both.setBaselineAligned(false);
-        both.addView(cmpSide(cmpA), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
-        both.addView(cmpSide(cmpB), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
-        cmp.addView(both);
+        cmp.addView(cmpSide(cmpA), Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
+        cmp.addView(cmpSide(cmpB), Ui.margins(Ui.lp(-1, -2), 0, 8, 0, 0));
         content.addView(cmp);
 
         // ações
@@ -1284,15 +1270,12 @@ public class MainActivity extends Activity {
 
         // canais de TV (atalhos que sempre funcionam: abrem a transmissão ao vivo do canal)
         content.addView(Ui.text(this, "📺  CANAIS DE TV AO VIVO", 11, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 0, 0, 8));
-        for (int i = 0; i < CHANNELS.length; i += 2) {
-            LinearLayout row = Ui.row(this);
-            row.setBaselineAligned(false);
-            for (int k = 0; k < 2; k++) {
-                if (i + k < CHANNELS.length) row.addView(channelButton(CHANNELS[i + k]), Ui.margins(Ui.lp(0, -2, 1f), k == 0 ? 0 : 5, 0, k == 0 ? 5 : 0, 10));
-                else row.addView(new View(this), Ui.lp(0, 1, 1f));
-            }
-            content.addView(row, Ui.lp(-1, -2));
-        }
+        HorizontalScrollView chs = new HorizontalScrollView(this);
+        chs.setHorizontalScrollBarEnabled(false);
+        LinearLayout chRow = Ui.row(this);
+        for (String ch : CHANNELS) chRow.addView(channelButton(ch), Ui.margins(Ui.lp(-2, -2), 0, 0, 8, 0));
+        chs.addView(chRow);
+        content.addView(chs, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 14));
 
         content.addView(Ui.text(this, "🎬  VÍDEOS E TRANSMISSÕES", 11, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 8, 0, 8));
         HorizontalScrollView hs = new HorizontalScrollView(this);
@@ -1338,21 +1321,16 @@ public class MainActivity extends Activity {
     }
 
     private View channelButton(final String name) {
-        LinearLayout b = Ui.row(this);
-        b.setBackground(Ui.cardBg(14));
-        b.setPadding(Ui.dp(12), Ui.dp(12), Ui.dp(12), Ui.dp(12));
-        TextView ic = Ui.text(this, "📺", 16, Ui.TEXT, false);
-        ic.setGravity(Gravity.CENTER);
-        ic.setBackground(Ui.fill(0xFF113052, 11, 0));
-        b.addView(ic, Ui.margins(Ui.lp(Ui.dp(36), Ui.dp(36)), 0, 0, 10, 0));
-        LinearLayout t = Ui.col(this);
+        LinearLayout b = Ui.col(this);
+        b.setBackground(Ui.cardBg(16));
+        b.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        b.addView(Ui.text(this, "📺", 20, Ui.TEXT, false));
         TextView nm = Ui.text(this, name, 13, Ui.TEXT, true);
         nm.setSingleLine();
-        nm.setEllipsize(TextUtils.TruncateAt.END);
-        t.addView(nm);
+        nm.setPadding(0, Ui.dp(8), 0, 0);
+        b.addView(nm);
         TextView live = Ui.text(this, "● ao vivo ↗", 10, 0xFFFF6B6B, true);
-        t.addView(live, Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
-        b.addView(t, Ui.lp(0, -2, 1f));
+        b.addView(live, Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
         b.setOnClickListener(v -> openUrl(Youtube.searchUrl(name + " ao vivo", Youtube.LIVE)));
         return b;
     }
@@ -1405,6 +1383,8 @@ public class MainActivity extends Activity {
         d.ufCode = studioUf;
         d.ufName = ufName(studioUf);
         d.ufRes = snap().states.get(studioUf);
+        d.df = new HashMap<>(snap().df);
+        d.dfCargo = studioCargo;
         d.at = lastPoll == 0 ? System.currentTimeMillis() : lastPoll;
         return d;
     }
@@ -1414,9 +1394,9 @@ public class MainActivity extends Activity {
         bg.execute(() -> {
             Bitmap b = null;
             try {
-                Model.Result r = d.type == StatusCard.UF ? d.ufRes : d.pres;
-                if (r != null) for (int i = 0; i < Math.min(3, r.cands.size()); i++)
-                    if (!r.photoBase.isEmpty() && !r.cands.get(i).sq.isEmpty()) Photos.fetch(r.photoBase + r.cands.get(i).sq + ".jpeg", 2);
+                Model.Result r = StatusCard.mainResult(d);
+                if (r != null) for (Model.Cand cd : StatusCard.shown(d))
+                    if (!r.photoBase.isEmpty() && !cd.sq.isEmpty()) Photos.fetch(r.photoBase + cd.sq + ".jpeg", 2);
                 b = StatusCard.render(d);
             } catch (Throwable t) { lastError = "imagem: " + t; }
             final Bitmap fb = b;
@@ -1446,8 +1426,8 @@ public class MainActivity extends Activity {
         studioHolder.addView(Ui.text(this, "📸 Imagem para status", 20, Ui.TEXT, true));
         studioHolder.addView(Ui.text(this, "Card pronto com resultado oficial, fonte e horário — para WhatsApp, Instagram e redes.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 12));
         FlowLayout types = new FlowLayout(this, 7);
-        String[] tn = {"Placar", "Mapa", "Estado"};
-        for (int i = 0; i < 3; i++) {
+        String[] tn = {"Placar", "Mapa", "Estado", "DF"};
+        for (int i = 0; i < 4; i++) {
             final int ti = i;
             types.addView(optChip(tn[i], studioType == i, v -> { studioType = ti; regenStudio(); }));
         }
@@ -1456,6 +1436,15 @@ public class MainActivity extends Activity {
         fmts.addView(optChip("Story 9:16", studioFormat == StatusCard.STORY, v -> { studioFormat = StatusCard.STORY; regenStudio(); }));
         fmts.addView(optChip("Post 1:1", studioFormat == StatusCard.POST, v -> { studioFormat = StatusCard.POST; regenStudio(); }));
         studioHolder.addView(fmts, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
+        if (studioType == StatusCard.DFC) {
+            studioHolder.addView(Ui.text(this, "CARGO NO DISTRITO FEDERAL", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 2, 2, 0, 6));
+            FlowLayout cg = new FlowLayout(this, 7);
+            for (int i = 0; i < StatusCard.DF_LABELS.length; i++) {
+                final int ci = i;
+                cg.addView(optChip(StatusCard.DF_LABELS[i], studioCargo == i, v -> { studioCargo = ci; regenStudio(); }));
+            }
+            studioHolder.addView(cg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 8));
+        }
         if (studioType == StatusCard.UF) {
             Spinner sp = ufSpinnerFor(studioUf, uf -> { studioUf = uf; regenStudio(); });
             studioHolder.addView(sp, Ui.margins(Ui.lp(Ui.dp(130), Ui.dp(42)), 0, 0, 0, 8));
@@ -1463,7 +1452,7 @@ public class MainActivity extends Activity {
         FrameLayout pf = new FrameLayout(this);
         pf.setBackground(Ui.fill(0xFF050C17, 16, Ui.LINE));
         pf.setPadding(Ui.dp(8), Ui.dp(8), Ui.dp(8), Ui.dp(8));
-        int ph = (int) (getResources().getDisplayMetrics().heightPixels * 0.46f);
+        int ph = (int) (getResources().getDisplayMetrics().heightPixels * 0.33f);
         if (studioBmp != null && !studioBusy) {
             ImageView iv = new ImageView(this);
             iv.setImageBitmap(studioBmp);
@@ -1526,10 +1515,11 @@ public class MainActivity extends Activity {
     }
 
     private String statusCaption() {
-        Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : snap().pres;
-        StringBuilder b = new StringBuilder("Eleições 2026 • " + turn + "º turno • " + (studioType == StatusCard.UF ? ufName(studioUf) : "Brasil") + "\n");
+        Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : studioType == StatusCard.DFC ? snap().df.get(StatusCard.DF_KEYS[studioCargo]) : snap().pres;
+        String where = studioType == StatusCard.UF ? ufName(studioUf) : studioType == StatusCard.DFC ? "DF • " + StatusCard.DF_LABELS[studioCargo] : "Brasil";
+        StringBuilder b = new StringBuilder("Eleições 2026 • " + turn + "º turno • " + where + "\n");
         if (r != null) {
-            for (int i = 0; i < Math.min(3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
+            for (int i = 0; i < Math.min(studioType == StatusCard.DFC && studioCargo >= 2 ? (studioCargo == 2 ? 2 : 4) : 3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
             b.append("Apuração: ").append(pc(r.progress)).append(" das seções\n");
         }
         return b.append("Fonte: TSE (dados oficiais, sem projeção)").toString();
@@ -1585,10 +1575,11 @@ public class MainActivity extends Activity {
 
     /** Automação (teste no emulador): grava as 6 variantes em cache/share/test-*.png para conferência. */
     private void genAllStatusForTest() {
-        for (int ty = 0; ty < 3; ty++) for (int fm = 0; fm < 2; fm++) {
+        for (int k = 0; k < 16; k++) {
+            final int ty = k < 6 ? k / 2 : 3, fm = k < 6 ? k % 2 : (k - 6) % 2, cg = k < 6 ? 0 : 1 + (k - 6) / 2;
             final StatusCard.Data d = statusData();
-            d.type = ty; d.format = fm;
-            final int fty = ty, ffm = fm;
+            d.type = ty; d.format = fm; d.dfCargo = ty == 3 ? cg - 1 : 0;
+            final int fty = ty == 3 ? 10 + d.dfCargo : ty, ffm = fm;
             generateStatus(b -> {
                 if (b == null) return;
                 try {
