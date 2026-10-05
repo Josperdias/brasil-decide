@@ -60,7 +60,11 @@ import java.util.concurrent.Future;
  * Abre offline com o último snapshot, polling pausa em background, falhas de rede nunca derrubam a Activity.
  */
 public class MainActivity extends Activity {
-    static final String VERSION = "2026.10.05-nativo-v2";
+    static final String VERSION = "2026.10.05-nativo";
+    /** Link direto do APK (release "app-latest", atualizada pelo CI) e página de divulgação. */
+    static final String DL_URL = "https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk";
+    static final String PAGE_URL = "https://github.com/Josperdias/concursos-df/releases/latest";
+    private static final String RELEASE_API = "https://api.github.com/repos/Josperdias/concursos-df/releases/tags/app-latest";
     private static final Locale BR = new Locale("pt", "BR");
     private static final NumberFormat INT = NumberFormat.getIntegerInstance(BR);
 
@@ -80,8 +84,8 @@ public class MainActivity extends Activity {
             {"pres", "Presidente da República", "🇧🇷", 1, true}, {"gov", "Governador do Distrito Federal", "🏢", 3, false},
             {"sen", "Senador pelo Distrito Federal", "🏛️", 5, false}, {"depf", "Deputado Federal — DF", "🗳️", 6, false},
             {"depd", "Deputado Distrital — DF", "📜", 8, false}};
-    private static final String[][] TABS = {{"mapa", "🗺️", "Mapa"}, {"brasil", "🇧🇷", "Brasil"}, {"ufs", "📍", "UFs"},
-            {"df", "🏛️", "DF"}, {"news", "🌍", "Notícias"}, {"lives", "📺", "Lives"}, {"mais", "🧪", "Mais"}};
+    private static final String[][] TABS = {{"brasil", "", "Brasil"}, {"mapa", "", "Mapa"}, {"df", "", "DF"}, {"midia", "", "Mídia"}, {"mais", "", "Mais"}};
+    private static final int[] TAB_ICON = {NavIconView.BRASIL, NavIconView.MAPA, NavIconView.DF, NavIconView.MIDIA, NavIconView.MAIS};
     // chave, rótulo, consulta, filtro do YouTube
     private static final String[][] LIVE_FILTERS = {{"live", "🔴 Ao vivo", "eleições 2026 ao vivo", Youtube.LIVE}, {"apuracao", "📊 Apuração", "apuração eleições 2026", Youtube.BY_DATE},
             {"debates", "🎙️ Debates", "debate eleições 2026", Youtube.BY_DATE}, {"analises", "💬 Análises", "análise eleições 2026", Youtube.BY_DATE}};
@@ -111,7 +115,7 @@ public class MainActivity extends Activity {
     private String[][] codes = {Tse.DEFAULT_CODES[0].clone(), Tse.DEFAULT_CODES[1].clone()};
     private boolean codesFromConfig;
     private int turn = 1;
-    private String tab = "mapa", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
+    private String tab = "brasil", mapaSub = "mapa", midiaSub = "news", sel = "DF", newsFilter = "brasil", cmpA = "DF", cmpB = "SP";
     private boolean govMode, busy, resumed, waiting, newsBusy, tv, livesBusy, animateNext = true, genStatusPending;
     private String livesFilter = "live", livesErr = "";
     private final Map<String, List<Youtube.Video>> livesCache = new HashMap<>();
@@ -124,6 +128,8 @@ public class MainActivity extends Activity {
     private ImageView studioPreview;
     private LinearLayout studioHolder;
     private Dialog sheetDialog;
+    private boolean updateAvailable, updateChecked;
+    private int remoteVersion;
     private long delayMs = 10000, intervalMs = 10000, lastPoll;
     private int titleTaps;
     private long firstTap;
@@ -157,7 +163,7 @@ public class MainActivity extends Activity {
         loadCache();
         Intent in = getIntent();
         if (in != null) { // atalhos de teste/automação: --es tab news --es sel SP --ez tv true
-            if (in.getStringExtra("tab") != null) tab = in.getStringExtra("tab");
+            if (in.getStringExtra("tab") != null) goTab(in.getStringExtra("tab"));
             if (in.getStringExtra("sel") != null) sel = in.getStringExtra("sel");
             if (in.getStringExtra("filter") != null) newsFilter = in.getStringExtra("filter");
             if (in.getIntExtra("turn", 0) == 2) turn = 2;
@@ -171,6 +177,7 @@ public class MainActivity extends Activity {
         setupEdgeToEdge();
         if (tv) setTv(true);
         render();
+        checkUpdate();
     }
 
     @Override protected void onResume() {
@@ -261,6 +268,37 @@ public class MainActivity extends Activity {
         }
     }
 
+    private int localVersion() {
+        try { return getPackageManager().getPackageInfo(getPackageName(), 0).versionCode; } catch (Throwable t) { return 0; }
+    }
+
+    /** Pergunta ao GitHub se há versão mais nova do app (release app-latest; "versionCode=N" nas notas). Falha em silêncio. */
+    private void checkUpdate() {
+        if (updateChecked) return;
+        updateChecked = true;
+        bg.execute(() -> {
+            try {
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(RELEASE_API).openConnection();
+                c.setConnectTimeout(8000);
+                c.setReadTimeout(10000);
+                c.setRequestProperty("Accept", "application/vnd.github+json");
+                c.setRequestProperty("User-Agent", "CentralEleicoes2026-Nativo");
+                if (c.getResponseCode() != 200) return;
+                java.io.InputStream in = c.getInputStream();
+                java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                byte[] buf = new byte[8192];
+                int n;
+                while ((n = in.read(buf)) > 0 && out.size() < 600000) out.write(buf, 0, n);
+                in.close();
+                String body = new JSONObject(out.toString("UTF-8")).optString("body", "");
+                java.util.regex.Matcher m = java.util.regex.Pattern.compile("versionCode=(\\d+)").matcher(body);
+                if (!m.find()) return;
+                final int remote = Integer.parseInt(m.group(1));
+                if (remote > localVersion() && localVersion() > 0) ui.post(() -> { updateAvailable = true; remoteVersion = remote; render(); });
+            } catch (Throwable ignored) { }
+        });
+    }
+
     private Snap snap() { return snaps[turn - 1]; }
 
     private static String n(long v) { return INT.format(v); }
@@ -285,24 +323,55 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
-            if (tab.equals("brasil") || tab.equals("ufs")) renderHero();
+            if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
             switch (tab) {
-                case "mapa": renderMap(); break;
+                case "mapa":
+                    content.addView(subTabs(new String[]{"mapa", "ufs"}, new String[]{"Mapa", "Estados"}, mapaSub, x -> mapaSub = x));
+                    if (mapaSub.equals("ufs")) renderUfs(); else renderMap();
+                    break;
                 case "brasil": renderBrasil(); break;
-                case "ufs": renderUfs(); break;
                 case "df": renderDf(); break;
-                case "news": renderNews(); break;
-                case "lives": renderLives(); break;
+                case "midia":
+                    content.addView(subTabs(new String[]{"news", "lives"}, new String[]{"Notícias", "Lives e vídeos"}, midiaSub, x -> midiaSub = x));
+                    if (midiaSub.equals("lives")) renderLives(); else renderNews();
+                    break;
                 default: renderMais();
             }
             renderNav();
-            if (tab.equals("news") && needNews() && !newsBusy) loadNews(false);
-            if (tab.equals("lives") && needLives() && !livesBusy) loadLives(false);
+            if (tab.equals("midia") && midiaSub.equals("news") && needNews() && !newsBusy) loadNews(false);
+            if (tab.equals("midia") && midiaSub.equals("lives") && needLives() && !livesBusy) loadLives(false);
             if (animateNext) { animateNext = false; animateIn(); }
             scroll.post(() -> scroll.scrollTo(0, keep));
         } catch (Throwable t) {
             lastError = "render: " + t;
         }
+    }
+
+    /** Aceita ids antigos (ufs/news/lives) e abre a aba/sub-aba certa. */
+    private void goTab(String t) {
+        switch (t) {
+            case "ufs": tab = "mapa"; mapaSub = "ufs"; break;
+            case "news": tab = "midia"; midiaSub = "news"; break;
+            case "lives": tab = "midia"; midiaSub = "lives"; break;
+            default: tab = t;
+        }
+    }
+
+    private View subTabs(String[] ids, String[] labels, String current, final java.util.function.Consumer<String> cb) {
+        LinearLayout seg = Ui.row(this);
+        seg.setBackground(Ui.fill(0xE00A1728, 13, Ui.LINE));
+        seg.setPadding(Ui.dp(3), Ui.dp(3), Ui.dp(3), Ui.dp(3));
+        for (int i = 0; i < ids.length; i++) {
+            final String id = ids[i];
+            boolean on = id.equals(current);
+            TextView b = Ui.text(this, labels[i], 13, on ? Ui.INK : Ui.MUTED, true);
+            b.setGravity(Gravity.CENTER);
+            if (on) b.setBackground(Ui.accent(10));
+            b.setOnClickListener(v -> { cb.accept(id); animateNext = true; render(); scroll.scrollTo(0, 0); });
+            seg.addView(b, Ui.lp(0, Ui.dp(36), 1f));
+        }
+        seg.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        return seg;
     }
 
     private void animateIn() {
@@ -317,19 +386,21 @@ public class MainActivity extends Activity {
 
     private void renderNav() {
         nav.removeAllViews();
-        for (String[] t : TABS) {
+        for (int i = 0; i < TABS.length; i++) {
+            final String[] t = TABS[i];
             boolean on = tab.equals(t[0]);
             LinearLayout b = Ui.col(this);
             b.setGravity(Gravity.CENTER);
-            b.setPadding(0, Ui.dp(6), 0, Ui.dp(6));
-            if (on) b.setBackground(Ui.accent(14));
-            b.addView(Ui.text(this, t[1], 16, Ui.TEXT, false));
-            TextView l = Ui.text(this, t[2], 9, on ? Ui.INK : Ui.MUTED, true);
-            l.setPadding(0, Ui.dp(2), 0, 0);
+            b.setPadding(0, Ui.dp(7), 0, Ui.dp(7));
+            if (on) b.setBackground(Ui.accent(16));
+            b.addView(new NavIconView(this, TAB_ICON[i]).state(on, on ? Ui.INK : Ui.MUTED));
+            TextView l = Ui.text(this, t[2], 11, on ? Ui.INK : Ui.MUTED, true);
+            l.setPadding(0, Ui.dp(3), 0, 0);
+            l.setSingleLine();
             b.addView(l);
             b.setOnClickListener(v -> { tab = t[0]; animateNext = true; render(); scroll.scrollTo(0, 0); });
             LinearLayout.LayoutParams lp = Ui.lp(0, -2, 1f);
-            lp.setMargins(Ui.dp(2), 0, Ui.dp(2), 0);
+            lp.setMargins(Ui.dp(3), 0, Ui.dp(3), 0);
             nav.addView(b, lp);
         }
     }
@@ -626,6 +697,7 @@ public class MainActivity extends Activity {
     }
 
     private void renderBrasil() {
+        if (updateAvailable) content.addView(updateBanner());
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
@@ -707,6 +779,21 @@ public class MainActivity extends Activity {
             }
             content.addView(c);
         }
+    }
+
+    private View updateBanner() {
+        LinearLayout c = Ui.row(this);
+        c.setBackground(Ui.gradient(0x44FFC966, 0x22FFC966, 16, 0x99FFC966, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        c.setPadding(Ui.dp(14), Ui.dp(12), Ui.dp(14), Ui.dp(12));
+        c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, "Nova versão do app disponível", 14, Ui.TEXT, true));
+        t.addView(Ui.text(this, "Toque para baixar a atualização e instalar por cima.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        c.addView(t, Ui.lp(0, -2, 1f));
+        c.addView(Ui.text(this, "Baixar ›", 13, Ui.AMBER, true));
+        c.setOnClickListener(v -> openUrl(DL_URL));
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        return c;
     }
 
     private View promoStatus() {
@@ -983,8 +1070,8 @@ public class MainActivity extends Activity {
         r2.addView(actionBtn("🧹 Zerar histórico", "Recomeça o gráfico deste turno", v -> { snap().hist.clear(); saveCache(turn); Toast.makeText(this, "Histórico zerado", Toast.LENGTH_SHORT).show(); render(); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
         act.addView(r2);
         LinearLayout r3 = Ui.row(this);
-        r3.addView(actionBtn("🌍 Radar global", "Ir para as notícias", v -> { tab = "news"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
-        r3.addView(actionBtn("📺 Lives de TV", "Canais e vídeos ao vivo", v -> { tab = "lives"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
+        r3.addView(actionBtn("🌍 Radar global", "Ir para as notícias", v -> { tab = "midia"; midiaSub = "news"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 0, 8, 4, 0));
+        r3.addView(actionBtn("📺 Lives de TV", "Canais e vídeos ao vivo", v -> { tab = "midia"; midiaSub = "lives"; animateNext = true; render(); scroll.scrollTo(0, 0); }), Ui.margins(Ui.lp(0, -2, 1f), 4, 8, 0, 0));
         act.addView(r3);
         content.addView(act);
 
@@ -1003,6 +1090,16 @@ public class MainActivity extends Activity {
         }
         iv.addView(fl);
         content.addView(iv);
+
+        // divulgação
+        LinearLayout inv = Ui.card(this);
+        inv.addView(Ui.text(this, "📲 Divulgue o app", 15, Ui.TEXT, true));
+        inv.addView(Ui.text(this, "Convide amigos e familiares: o app é gratuito, funciona em Android 8 ou mais novo e mostra a apuração oficial do TSE.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 8));
+        LinearLayout ir = Ui.row(this);
+        ir.addView(actionBtn("📤 Convidar amigos", "Compartilha o link de download", v -> share(inviteText())), Ui.margins(Ui.lp(0, -2, 1f), 0, 4, 4, 0));
+        ir.addView(actionBtn("🔗 Copiar link", "Link direto do APK", v -> copyLink()), Ui.margins(Ui.lp(0, -2, 1f), 4, 4, 0, 0));
+        inv.addView(ir);
+        content.addView(inv);
 
         // diagnóstico
         content.addView(diagCard());
@@ -1066,7 +1163,7 @@ public class MainActivity extends Activity {
         c.addView(Ui.text(this, "🛠️ Diagnóstico", 15, Ui.TEXT, true));
         SimpleDateFormat f = new SimpleDateFormat("dd/MM HH:mm:ss", BR);
         String[][] rows = {
-                {"Versão", VERSION},
+                {"Versão", VERSION + " (build " + localVersion() + ")" + (updateAvailable ? " • nova versão " + remoteVersion : "")},
                 {"Rede", networkStatus()},
                 {"Endpoint", Tse.BASE + "/" + Tse.CICLO + "/…"},
                 {"Turno / códigos", turn + "º • " + codes[turn - 1][0] + " / " + codes[turn - 1][1] + (codesFromConfig ? " (ele-c.json)" : " (padrão)")},
@@ -1522,7 +1619,7 @@ public class MainActivity extends Activity {
             for (int i = 0; i < Math.min(studioType == StatusCard.DFC && studioCargo >= 2 ? (studioCargo == 2 ? 2 : 4) : 3, r.cands.size()); i++) b.append(i + 1).append("º ").append(r.cands.get(i).nome).append(" ").append(pc(r.cands.get(i).pct)).append("\n");
             b.append("Apuração: ").append(pc(r.progress)).append(" das seções\n");
         }
-        return b.append("Fonte: TSE (dados oficiais, sem projeção)").toString();
+        return b.append("Fonte: TSE (dados oficiais, sem projeção)\n📲 Baixe o app grátis: ").append(PAGE_URL).toString();
     }
 
     private java.io.File writeShareFile(Bitmap b) throws Exception {
@@ -1594,13 +1691,24 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================ boletim / compartilhar / jogo
+    private String inviteText() {
+        return "📊 Acompanhe as eleições 2026 em tempo real com dados oficiais do TSE: mapa por estado, resultado do DF, notícias e lives de TV.\n\n📲 Baixe o app grátis (Android):\n" + PAGE_URL;
+    }
+
+    private void copyLink() {
+        try {
+            ((android.content.ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Link do app", PAGE_URL));
+            Toast.makeText(this, "Link copiado", Toast.LENGTH_SHORT).show();
+        } catch (Throwable t) { Toast.makeText(this, "Não foi possível copiar", Toast.LENGTH_SHORT).show(); }
+    }
+
     private String snapshotText() {
         Model.Result d = snap().pres;
         if (d == null) return "Central Eleições 2026 — dados ainda não carregados.";
         StringBuilder s = new StringBuilder("Central Eleições 2026 — " + new SimpleDateFormat("dd/MM/yyyy HH:mm", BR).format(new Date()) + "\n" + turn + "º turno • Brasil: " + pc(d.progress) + " das seções totalizadas.\n");
         for (int i = 0; i < Math.min(3, d.cands.size()); i++) { Model.Cand c = d.cands.get(i); s.append(i + 1).append("º ").append(c.nome).append(" (").append(c.partido).append("): ").append(pc(c.pct)).append(" — ").append(n(c.votos)).append(" votos.\n"); }
         if (d.cands.size() > 1) s.append("Diferença 1º–2º: ").append(n(d.cands.get(0).votos - d.cands.get(1).votos)).append(" votos.\n");
-        s.append("Fonte: TSE. Sem projeção.");
+        s.append("Fonte: TSE. Sem projeção.\nApp: ").append(PAGE_URL);
         return s.toString();
     }
 

@@ -404,14 +404,12 @@ final class StatusCard {
     }
 
     private static void footer(Canvas c, Data d, int H) {
-        float ly = H - 156;
+        float ly = H - 164;
         Paint line = new Paint();
         line.setColor(0xFF1D3858);
         c.drawRect(M, ly, W - M, ly + 2, line);
-        c.drawText("Fonte: TSE (dados oficiais) • sem projeção", M, ly + 50, paint(Ui.MUTED, 26, false, Paint.Align.LEFT));
-        float ry = ly + 108;
-        c.drawText("Atualizado em " + new SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", BR).format(new Date(d.at)), M, ry, paint(Ui.MUTED, 26, false, Paint.Align.LEFT));
-        float cx = W - M - 26, cy = ry - 9;
+        c.drawText("Fonte: TSE • dados oficiais • sem projeção", M, ly + 50, paint(Ui.MUTED, 25, false, Paint.Align.LEFT));
+        float cx = W - M - 26, cy = ly + 41;
         Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
         dot.setShader(new LinearGradient(cx - 26, cy - 26, cx + 26, cy + 26, Ui.CYAN, Ui.MINT, Shader.TileMode.CLAMP));
         c.drawCircle(cx, cy, 26, dot);
@@ -427,5 +425,8 @@ final class StatusCard {
         p.lineTo(cx + 13, cy - 10);
         c.drawPath(p, ck);
         c.drawText("Central Eleições 2026", cx - 42, cy + 10, paint(Ui.TEXT, 28, true, Paint.Align.RIGHT));
+        float ry = ly + 108;
+        c.drawText("Atualizado em " + new SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", BR).format(new Date(d.at)), M, ry, paint(Ui.MUTED, 25, false, Paint.Align.LEFT));
+        fitText(c, "Baixe o app grátis: " + MainActivity.PAGE_URL.replace("https://", ""), W - M, ry, W - 2 * M - 480, 23, 15, Ui.MINT, true, Paint.Align.RIGHT);
     }
 }

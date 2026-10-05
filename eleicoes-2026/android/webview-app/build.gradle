@@ -10,8 +10,9 @@ android {
         applicationId 'br.com.centraleleicoes.webview'
         minSdk 26
         targetSdk 35
-        versionCode 1
-        versionName '2026.10.05'
+        // versionCode vem do número do build no CI (sobe a cada release); o app compara com a release publicada
+        versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName "1.${System.getenv('GITHUB_RUN_NUMBER') ?: '0'}"
     }
 
     buildTypes {

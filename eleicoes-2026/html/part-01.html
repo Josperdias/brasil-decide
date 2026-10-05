@@ -54,6 +54,14 @@ e!important}.tv-exit{display:none;position:fixed;top:calc(8px + env(safe-area-in
 @media(max-width:900px){.mapa-layout{grid-template-columns:1fr}.map-side-desktop{display:none}}
 @media(max-width:430px){.turn-btn{padding:9px 12px}.mdet-stats{grid-template-columns:1fr 1fr}}
 #sec-mapa .section-head{flex-wrap:wrap}#sec-mapa .section-head .right{text-align:left}
+
+/* ===== banner de download do app Android ===== */
+.dl-banner{display:grid;grid-template-columns:auto 1fr auto;gap:10px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border-radius:18px;border:1px solid rgba(80,213,255,.45);background:linear-gradient(120deg,rgba(80,213,255,.16),rgba(100,245,203,.12))}
+.dl-ico{font-size:1.6rem;line-height:1}.dl-txt b{display:block;font-size:.92rem}.dl-txt span{display:block;color:var(--soft);font-size:.7rem;margin-top:2px;line-height:1.35}
+.dl-btn{background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;font-weight:950;text-decoration:none;border-radius:13px;padding:11px 15px;font-size:.78rem;white-space:nowrap}
+.dl-how{grid-column:1/-1;font-size:.7rem;color:var(--soft)}.dl-how summary{cursor:pointer;color:var(--mint);font-weight:800}.dl-how ol{margin:8px 0 0;padding-left:18px;line-height:1.55}
+.tv-mode .dl-banner{display:none}
+@media(max-width:430px){.dl-banner{grid-template-columns:auto 1fr}.dl-btn{grid-column:1/-1;text-align:center}}
 </style>
 </head>
 <body>
@@ -72,7 +80,7 @@ e!important}.tv-exit{display:none;position:fixed;top:calc(8px + env(safe-area-in
   <select id="intervalSelect" class="mini-control" aria-label="Intervalo"><option value="5000">5 s</option><option value="10000" selected>10 s</option><option value="15000">15 s</option><option value="30000">30 s</option><option value="60000">60 s</option></select>
   <button id="refreshBtn" class="mini-control refresh-text">↻ Atualizar</button>
 </div>
-<div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
+<aside id="dlApp" class="dl-banner"><div class="dl-ico">📲</div><div class="dl-txt"><b>Baixe o app para Android</b><span>Grátis • mapa por estado, resultado do DF, notícias, lives de TV e imagens para status</span></div><a class="dl-btn" href="https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener">Baixar APK</a><details class="dl-how"><summary>Como instalar</summary><ol><li>Toque em <b>Baixar APK</b> e abra o arquivo baixado.</li><li>Se o Android avisar, permita <b>instalar apps desta fonte</b> (fontes desconhecidas) para o navegador.</li><li>Instale e abra o app <b>Eleições 2026</b>. Atualizações: o app avisa quando houver versão nova.</li></ol></details></aside><div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
 <div class="hero-grid">
   <div class="hero-card primary"><div class="label" id="heroLabel">Apuração presidencial</div><div class="value" id="brProgress">—</div><div class="bigprog"><i id="brProgBar"></i></div><div class="sub" id="brSections">Brasil • carregando seções</div></div>
   <div class="hero-card"><div class="label">Último dado novo</div><div class="value" id="lastDataChange">—</div><div class="sub" id="pollInfo">consulta em —</div></div>
@@ -144,17 +152,4 @@ e!important}.tv-exit{display:none;position:fixed;top:calc(8px + env(safe-area-in
     <article class="card radar-panel">
       <div class="radar-metrics"><div class="radar-metric"><div class="k">matérias</div><div class="v" id="newsCount">—</div></div><div class="radar-metric"><div class="k">fontes</div><div class="v" id="newsSources">—</div></div><div class="radar-metric"><div class="k">países</div><div class="v" id="newsCountries">—</div></div><div class="radar-metric"><div class="k">idiomas</div><div class="v" id="newsLanguages">—</div></div></div>
       <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Temas nas manchetes</h2></div></div><div id="topicCloud" class="topic-cloud"></div>
-      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Origem da cobertura</h2></div></div><div id="countryBars" class="country-bars"></div>
-      <div id="newsStatus" class="news-status">Aguardando atualização…</div>
-      <div class="news-disclaimer">As opiniões aparecem atribuídas às respectivas fontes. O app não transforma manchetes ou colunas em fatos e não faz avaliação política própria.</div>
-    </article>
-    <div id="newsList" class="news-list"><div class="card loading">Buscando cobertura internacional…</div></div>
-  </div>
-</section>
-
-<section id="sec-lab" class="section">
-  <div class="section-head"><div><h2>Laboratório da apuração</h2><p>Ferramentas que transformam o painel em uma central de acompanhamento.</p></div></div>
-  <div class="lab-grid">
-    <article class="card tool-card"><h3>🔬 Comparador de UFs</h3><p>Coloque dois estados lado a lado e compare o top 3 e o andamento das seções.</p><div class="compare-controls"><select id="compareA"></select><select id="compareB"></select></div><div id="compareView" class="compare-view"></div></article>
-    <article class="card tool-card"><h3>🎯 Marcos da totalização</h3><p>O app marca automaticamente os percentuais nacionais já alcançados.</p><div id="milestones" class="milestones"></div></article>
-    <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto
+      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Origem da cobertura</h2></div></div><div id="

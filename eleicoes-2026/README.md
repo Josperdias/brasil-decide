@@ -10,3 +10,11 @@ Compilar localmente (JDK 17 + Android SDK 35 + Gradle 8.14): `cat html/part-*.ht
 APKs: `webview-app/build/outputs/apk/debug/` e `native-app/build/outputs/apk/debug/`.
 
 Mapa: geometria de `@svg-maps/brazil` (CC BY 4.0).
+
+## Divulgação / download
+
+- **Link direto do APK** (sempre a última versão testada): https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk
+- **Página da release** (para compartilhar): https://github.com/Josperdias/concursos-df/releases/latest
+- O site (`central-eleicoes-2026.html`) mostra um banner "Baixar app" (escondido dentro do próprio app).
+- A página de divulgação `docs/app/index.html` fica em `https://<usuario>.github.io/concursos-df/app/` depois de mesclada na `main` (o GitHub Pages serve a pasta `docs`).
+- O CI publica/atualiza a release `app-latest` a cada build aprovado no emulador; o app consulta essa release e avisa quando há versão nova.

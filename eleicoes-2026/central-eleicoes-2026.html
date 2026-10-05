@@ -95,6 +95,14 @@ button,select,input{font:inherit}.app{max-width:1500px;margin:auto;padding:0 14p
 @media(max-width:900px){.mapa-layout{grid-template-columns:1fr}.map-side-desktop{display:none}}
 @media(max-width:430px){.turn-btn{padding:9px 12px}.mdet-stats{grid-template-columns:1fr 1fr}}
 #sec-mapa .section-head{flex-wrap:wrap}#sec-mapa .section-head .right{text-align:left}
+
+/* ===== banner de download do app Android ===== */
+.dl-banner{display:grid;grid-template-columns:auto 1fr auto;gap:10px 12px;align-items:center;margin:0 0 12px;padding:12px 14px;border-radius:18px;border:1px solid rgba(80,213,255,.45);background:linear-gradient(120deg,rgba(80,213,255,.16),rgba(100,245,203,.12))}
+.dl-ico{font-size:1.6rem;line-height:1}.dl-txt b{display:block;font-size:.92rem}.dl-txt span{display:block;color:var(--soft);font-size:.7rem;margin-top:2px;line-height:1.35}
+.dl-btn{background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;font-weight:950;text-decoration:none;border-radius:13px;padding:11px 15px;font-size:.78rem;white-space:nowrap}
+.dl-how{grid-column:1/-1;font-size:.7rem;color:var(--soft)}.dl-how summary{cursor:pointer;color:var(--mint);font-weight:800}.dl-how ol{margin:8px 0 0;padding-left:18px;line-height:1.55}
+.tv-mode .dl-banner{display:none}
+@media(max-width:430px){.dl-banner{grid-template-columns:auto 1fr}.dl-btn{grid-column:1/-1;text-align:center}}
 </style>
 </head>
 <body>
@@ -113,7 +121,7 @@ button,select,input{font:inherit}.app{max-width:1500px;margin:auto;padding:0 14p
   <select id="intervalSelect" class="mini-control" aria-label="Intervalo"><option value="5000">5 s</option><option value="10000" selected>10 s</option><option value="15000">15 s</option><option value="30000">30 s</option><option value="60000">60 s</option></select>
   <button id="refreshBtn" class="mini-control refresh-text">↻ Atualizar</button>
 </div>
-<div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
+<aside id="dlApp" class="dl-banner"><div class="dl-ico">📲</div><div class="dl-txt"><b>Baixe o app para Android</b><span>Grátis • mapa por estado, resultado do DF, notícias, lives de TV e imagens para status</span></div><a class="dl-btn" href="https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener">Baixar APK</a><details class="dl-how"><summary>Como instalar</summary><ol><li>Toque em <b>Baixar APK</b> e abra o arquivo baixado.</li><li>Se o Android avisar, permita <b>instalar apps desta fonte</b> (fontes desconhecidas) para o navegador.</li><li>Instale e abra o app <b>Eleições 2026</b>. Atualizações: o app avisa quando houver versão nova.</li></ol></details></aside><div class="turnbar"><div class="turn-box" role="group" aria-label="Turno da eleição"><button class="turn-btn active" data-turn="1">1º turno</button><button class="turn-btn" data-turn="2">2º turno</button></div><div id="turnCaption" class="turn-caption">TSE 6257 / 6259</div></div>
 <div class="hero-grid">
   <div class="hero-card primary"><div class="label" id="heroLabel">Apuração presidencial</div><div class="value" id="brProgress">—</div><div class="bigprog"><i id="brProgBar"></i></div><div class="sub" id="brSections">Brasil • carregando seções</div></div>
   <div class="hero-card"><div class="label">Último dado novo</div><div class="value" id="lastDataChange">—</div><div class="sub" id="pollInfo">consulta em —</div></div>
@@ -477,6 +485,7 @@ function refreshSheet(){if(st.sheetKind==='map'&&$('sheet').classList.contains('
 window.photoErr=img=>{const alt=img.dataset.alt;if(alt&&!img.dataset.tried&&img.getAttribute('src')!==alt){img.dataset.tried='1';img.src=alt;return}img.outerHTML=`<div class="avatar-fallback">${esc(img.dataset.i||'?')}</div>`};
 function renderDiag(){const el=$('diagBox');if(!el)return;const cd=codesFor(st.turn),h=(st.news.feeds[st.newsFeed]||{}).health||[];el.innerHTML=`<dl class="diag-grid"><dt>Versão</dt><dd>${esc(APP_VERSION)}</dd><dt>Rede</dt><dd>${NATIVE?'ponte nativa (Android)':'navegador (fetch)'} • ${navigator.onLine===false?'sem conexão':'online'}</dd><dt>Endpoint TSE</dt><dd>${esc(BASE)}/${CICLO}/…</dd><dt>Turno / códigos</dt><dd>${st.turn}º • ${esc(cd.fed)} / ${esc(cd.est)}${st.cfg?' (ele-c.json)':' (padrão)'}</dd><dt>Última consulta</dt><dd>${st.lastPoll?esc(st.lastPoll.toLocaleString('pt-BR')):'—'}</dd><dt>Último erro</dt><dd>${esc(st.lastError||'nenhum')}</dd><dt>Notícias</dt><dd>${h.length?h.filter(x=>x.ok).length+'/'+h.length+' fontes':'—'}</dd></dl>`}
 if(!st.news.feeds)st.news={feeds:{}};
+if(NATIVE){const e=$('dlApp');if(e)e.remove()}
 $('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
 document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
 $('newsList').addEventListener('click',e=>{const c=e.target.closest('.news-card');if(c)openArticle(Number(c.dataset.i))});

@@ -104,3 +104,34 @@ jobs:
           git add -A
           git commit -q -m "prints do emulador ${GITHUB_SHA::7}" || exit 0
           git push -f origin smoke-shots
+
+  release:
+    needs: smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: central-eleicoes-2026
+          path: dist
+      - name: Publicar/atualizar a release app-latest (link fixo de download)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          cp dist/CentralEleicoes2026-Nativo.apk dist/CentralEleicoes2026.apk
+          printf '%s\n' \
+            "versionCode=${{ github.run_number }}" \
+            "" \
+            "App Android **Eleições 2026** (versão nativa), compilado automaticamente e testado em emulador Android 15." \
+            "" \
+            "**Instalar:** baixe \`CentralEleicoes2026.apk\`, abra o arquivo e, se o Android pedir, permita instalar de fontes desconhecidas." \
+            "" \
+            "\`CentralEleicoes2026-WebView.apk\` é a versão WebView (idêntica ao site)." \
+            "" \
+            "Dados oficiais do TSE; sem projeção. Build ${{ github.run_number }} • commit ${GITHUB_SHA::7}." > notes.md
+          if gh release view app-latest --repo "$REPO" > /dev/null 2>&1; then
+            gh release edit app-latest --repo "$REPO" --notes-file notes.md --latest
+          else
+            gh release create app-latest --repo "$REPO" --target "$GITHUB_SHA" --title "Eleições 2026 — app Android" --notes-file notes.md --latest
+          fi
+          gh release upload app-latest dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk --repo "$REPO" --clobber
