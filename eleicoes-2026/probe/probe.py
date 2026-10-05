@@ -68,10 +68,30 @@ def rss(name, url):
     except Exception as ex:
         print(f"RSS {name}: ERRO {ex}")
 
-yt("eleições 2026 ao vivo", "EgJAAQ%3D%3D")
-yt("GloboNews ao vivo", "EgJAAQ%3D%3D")
-yt("apuração eleições 2026", "CAI%3D")
-yt("debate eleições 2026", "CAI%3D")
+DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+def yt2(label, q, sp, ua, extra=""):
+    url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote(q) + ("&sp=" + sp if sp else "") + extra
+    print("\n== YT", label, "|", q, sp, extra)
+    try:
+        st, final, html = get(url, {"User-Agent": ua})
+        print("status", st, "final", final[:80], "len", len(html))
+        print("markers: ytInitialData=", len(re.findall(r"ytInitialData\s*=", html)), "| videoRenderer", html.count("videoRenderer"), "| videoWithContextRenderer", html.count("videoWithContextRenderer"), "| compactVideoRenderer", html.count("compactVideoRenderer"), "| 'ytInitialData'", html.count("ytInitialData"))
+        data = initial_data(html)
+        out = []
+        if data: collect(data, out)
+        print("videos:", len(out))
+        for v in out[:5]:
+            live = any("LIVE" in json.dumps(b) for b in v.get("badges", [])) or any(o.get("thumbnailOverlayTimeStatusRenderer", {}).get("style") == "LIVE" for o in v.get("thumbnailOverlays", []))
+            print(" -", v.get("videoId"), "|", txt(v.get("title"))[:60], "|", txt(v.get("ownerText"))[:25], "|", txt(v.get("viewCountText"))[:25], "|", txt(v.get("publishedTimeText")), "| LIVE" if live else "")
+    except Exception as ex:
+        print("ERRO", ex)
+
+yt2("desktop-live", "eleições 2026 ao vivo", "EgJAAQ%3D%3D", DESKTOP)
+yt2("desktop-live-hlgl", "eleições 2026 ao vivo", "EgJAAQ%3D%3D", DESKTOP, "&hl=pt-BR&gl=BR")
+yt2("desktop-globonews", "GloboNews ao vivo", "EgJAAQ%3D%3D", DESKTOP)
+yt2("desktop-apuracao", "apuração eleições 2026", "CAI%3D", DESKTOP)
+yt2("desktop-debate", "debate eleições 2026", "CAI%3D", DESKTOP)
+yt2("mobile-live", "eleições 2026 ao vivo", "EgJAAQ%3D%3D", UA)
 
 print("\n== NOTICIAS")
 q = urllib.parse.quote("eleições 2026 presidente when:2d")

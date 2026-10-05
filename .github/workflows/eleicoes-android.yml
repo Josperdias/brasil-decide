@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'eleicoes-2026/**'
+      - '!eleicoes-2026/probe/**'
       - '.github/workflows/eleicoes-android.yml'
 
 permissions:
