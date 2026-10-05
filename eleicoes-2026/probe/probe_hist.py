@@ -22,6 +22,8 @@ cfg = jget(BASE + "/comum/config/ele-c.json")
 cycles = {}
 for p in cfg["pl"]:
     es = [(e.get("cd"), e.get("cdt2"), e.get("t"), e.get("tp"), e.get("nm")) for e in p["e"] if e.get("tp") in ("1", "2", "8", "9")]
+    if p["c"] in cycles and p["c"] != "ele2026":
+        cycles[p["c"]]["e"].extend(p["e"]); continue
     print("CICLO", p["c"], p["dt"], "| eleições (cd, cdt2, turno, tipo, nome):")
     for x in es[:8]: print("    ", x)
     cycles[p["c"]] = p
@@ -47,8 +49,6 @@ def summary(j, label):
     print("   campos do 1º cand:", sorted(c0.keys()))
 
 # 2026: deputado federal em SP
-for ele, nm in (("6259", "estadual-2026")):
-    pass
 j = jget(f"{BASE}/ele2026/6259/dados/sp/sp-c0006-e006259-u.json")
 if j: summary(j, "2026 SP dep. federal")
 j = jget(f"{BASE}/ele2026/6259/dados/sp/sp-c0005-e006259-u.json")
@@ -74,4 +74,5 @@ else:
     print("ciclo ele2022 NÃO listado no config")
 for c in ("ele2018", "ele2020", "ele2024"):
     print(c, "listado:", c in cycles)
+print("ciclos no config:", sorted(cycles.keys()))
 print("FIM")
