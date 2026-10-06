@@ -1,0 +1,53 @@
+plugins { id 'com.android.application' }
+
+def signingPath = System.getenv('ANDROID_KEYSTORE_PATH')
+def signingStorePassword = System.getenv('ANDROID_KEYSTORE_PASSWORD')
+def signingAlias = System.getenv('ANDROID_KEY_ALIAS')
+def signingKeyPassword = System.getenv('ANDROID_KEY_PASSWORD') ?: signingStorePassword
+def secureReleaseSigning = signingPath && signingStorePassword && signingAlias
+
+android {
+    namespace 'br.com.centraleleicoes.nativeapp'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId 'br.com.centraleleicoes.nativeapp'
+        minSdk 26
+        targetSdk 35
+        versionCode Integer.parseInt(System.getenv('GITHUB_RUN_NUMBER') ?: '1')
+        versionName "1.${System.getenv('GITHUB_RUN_NUMBER') ?: '0'}"
+    }
+
+    signingConfigs {
+        if (secureReleaseSigning) {
+            secureRelease {
+                storeFile file(signingPath)
+                storeType 'pkcs12'
+                storePassword signingStorePassword
+                keyAlias signingAlias
+                keyPassword signingKeyPassword
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (secureReleaseSigning) signingConfig signingConfigs.secureRelease
+        }
+        debug {}
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { abortOnError false }
+}
+
+gradle.taskGraph.whenReady { graph ->
+    boolean wantsRelease = graph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (wantsRelease && !secureReleaseSigning) {
+        throw new GradleException('Release bloqueado: configure os Secrets de assinatura.')
+    }
+}

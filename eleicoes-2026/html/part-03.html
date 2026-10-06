@@ -1,0 +1,125 @@
+TSE…</div></div><span class="badge" id="mapLoaded">0/27 UFs</span></div>
+      <div id="brMap"></div>
+      <div id="mapLegend" class="map-legend"></div>
+      <div class="map-note">As cores identificam candidatos no mapa; não representam avaliação política nem projeção. Geometria: @svg-maps/brazil (CC BY 4.0).</div>
+    </article>
+    <div class="mapa-side map-side-desktop"><article class="card" id="mapDetail"><div class="empty">Toque em um estado no mapa.</div></article></div>
+  </div>
+  <article class="card round2-card" id="round2Card" aria-label="Quem disputa o 2º turno"><div class="loading">Carregando…</div></article>
+</section>
+
+<section id="sec-map" class="section">
+  <div class="section-head"><div><h2>Mosaico das 27 UFs</h2><p>Toque em uma UF para abrir o top 3 presidencial sem sair da tela.</p></div><div class="right" id="mosaicHint">líder + apuração</div></div>
+  <div id="ufMosaic" class="uf-mosaic"></div>
+  <div class="section-head"><div><h2>Regiões</h2><p>Soma real dos votos dos estados; apuração ponderada pelas seções.</p></div></div>
+  <div id="regionsGrid" class="region-grid"></div>
+  <div class="ne-spot"><div class="section-head" style="margin-top:0"><div><h2>☀️ Nordeste em 9 telas</h2><p>AL, BA, CE, MA, PB, PE, PI, RN e SE.</p></div><div class="right" id="neLoaded">0/9 UFs</div></div><div id="northeastStates" class="ne-grid"></div></div>
+  <div class="section-head"><div><h2>Todos os estados</h2><p>Top 3 e percentual de seções totalizadas.</p></div><div class="state-tools"><input id="stateSearch" placeholder="Buscar UF…"></div></div>
+  <div id="statesContainer" class="state-groups"></div>
+</section>
+
+<section id="sec-df" class="section">
+  <div class="section-head"><div><h2 id="dfTitle">Distrito Federal</h2><p id="dfSub">Presidente no DF, Governo, Senado, Câmara e CLDF.</p></div><div class="right"><select id="dfUf" class="mini-control df-uf" aria-label="Estado" autocomplete="off"><option value="DF" selected>DF — Distrito Federal</option></select></div></div>
+  <div class="grid">
+    <article class="card" id="card-pres-df"><div class="loading">Carregando Presidente…</div></article>
+    <article class="card" id="card-gov"><div class="loading">Governador…</div></article>
+    <article class="card" id="card-sen"><div class="loading">Senado…</div></article>
+    <article class="card" id="card-depf"><div class="loading">Deputado Federal…</div></article>
+    <article class="card wide" id="card-depd"><div class="loading">Deputado Distrital…</div></article>
+  </div>
+</section>
+
+<section id="sec-news" class="section">
+  <div class="section-head"><div><h2>Radar mundial de notícias</h2><p>Várias fontes (Google News em PT/EN/ES, veículos por RSS e GDELT como radar). Toque numa matéria para ler o trecho dentro do app.</p></div><div class="right"><button id="newsRefresh" class="mini-control">↻ Notícias</button></div></div>
+  <div class="news-toolbar" id="newsToolbar">
+    <button class="news-filter active" data-feed="world">🌍 Mundo</button>
+    <button class="news-filter" data-feed="brasil">🇧🇷 Brasil</button>
+    <button class="news-filter" data-feed="markets">📈 Mercados</button>
+    <button class="news-filter" data-feed="opinions">💬 Análises & opiniões</button>
+  </div>
+  <div class="news-radar">
+    <article class="card radar-panel">
+      <div class="radar-metrics"><div class="radar-metric"><div class="k">matérias</div><div class="v" id="newsCount">—</div></div><div class="radar-metric"><div class="k">fontes</div><div class="v" id="newsSources">—</div></div><div class="radar-metric"><div class="k">países</div><div class="v" id="newsCountries">—</div></div><div class="radar-metric"><div class="k">idiomas</div><div class="v" id="newsLanguages">—</div></div></div>
+      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Temas nas manchetes</h2></div></div><div id="topicCloud" class="topic-cloud"></div>
+      <div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Origem da cobertura</h2></div></div><div id="countryBars" class="country-bars"></div>
+      <div id="newsStatus" class="news-status">Aguardando atualização…</div>
+      <div class="news-disclaimer">As opiniões aparecem atribuídas às respectivas fontes. O app não transforma manchetes ou colunas em fatos e não faz avaliação política própria.</div>
+    </article>
+    <div id="newsList" class="news-list"><div class="card loading">Buscando cobertura internacional…</div></div>
+  </div>
+</section>
+
+<section id="sec-lab" class="section">
+  <div class="section-head"><div><h2>Laboratório da apuração</h2><p>Ferramentas que transformam o painel em uma central de acompanhamento.</p></div></div>
+  <div class="lab-grid">
+    <article class="card tool-card"><h3>🔬 Comparador de UFs</h3><p>Coloque dois estados lado a lado e compare o top 3 e o andamento das seções.</p><div class="compare-controls"><select id="compareA"></select><select id="compareB"></select></div><div id="compareView" class="compare-view"></div></article>
+    <article class="card tool-card"><h3>🎯 Marcos da totalização</h3><p>O app marca automaticamente os percentuais nacionais já alcançados.</p><div id="milestones" class="milestones"></div></article>
+    <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="shareSite" class="action-btn"><b>📤 Compartilhar o site</b><span>Envie o link para amigos</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto para notícias internacionais</span></button></div></article>
+    <article class="card tool-card"><h3>🛠️ Diagnóstico</h3><p>Versão, rede, endpoint, último erro e saúde das fontes.</p><div id="diagBox"></div></article>
+    <article class="card tool-card"><h3>🧠 Como ler o painel</h3><p>“Movimento” significa apenas mudança entre dois arquivos oficiais. Ritmo de votos, diferença e variação de posições são descritivos — não são projeções de resultado.</p><div class="mini-stats" id="labStats"></div></article>
+  </div>
+</section>
+
+<div class="source-note">Resultados: arquivos JSON oficiais do Tribunal Superior Eleitoral, eleições 2026. Notícias: Google News RSS (PT/EN/ES), RSS de veículos e GDELT DOC 2.0 como radar; trechos vêm dos próprios feeds, sem resumo inventado. Agregados regionais são calculados localmente pela soma dos votos oficiais das UFs. O aplicativo não projeta vencedores nem recomenda escolhas políticas.</div>
+</div>
+
+<nav class="bottom-nav" id="bottomNav">
+ <button class="nav-btn active" data-tab="live"><i>◉</i>Ao vivo</button>
+ <button class="nav-btn" data-tab="pulse"><i>⚡</i>Pulso</button>
+ <button class="nav-btn" data-tab="mapa"><i>🗺️</i>Mapa</button>
+ <button class="nav-btn" data-tab="map"><i>🇧🇷</i>Brasil</button>
+ <button class="nav-btn" data-tab="df"><i>🏛️</i><span id="navDfLbl">DF</span></button>
+ <button class="nav-btn" data-tab="news"><i>🌍</i>Notícias</button>
+ <button class="nav-btn" data-tab="lab"><i>🧪</i>Labs</button>
+</nav>
+<div id="sheet" class="sheet"><div class="sheet-card"><div class="sheet-handle"></div><button id="sheetClose" class="sheet-close">✕</button><div id="sheetContent"></div></div></div>
+<div id="toast" class="toast"></div>
+
+<script>
+(()=>{'use strict';
+const BASE='https://resultados.tse.jus.br/oficial',CICLO='ele2026';
+const DEFAULT_CODES={1:{fed:'6257',est:'6259'},2:{fed:'6258',est:'6260'}};
+let ELE_FED='6257',ELE_EST='6259';
+const UFS={AC:['Acre','Norte'],AL:['Alagoas','Nordeste'],AP:['Amapá','Norte'],AM:['Amazonas','Norte'],BA:['Bahia','Nordeste'],CE:['Ceará','Nordeste'],DF:['Distrito Federal','Centro-Oeste'],ES:['Espírito Santo','Sudeste'],GO:['Goiás','Centro-Oeste'],MA:['Maranhão','Nordeste'],MT:['Mato Grosso','Centro-Oeste'],MS:['Mato Grosso do Sul','Centro-Oeste'],MG:['Minas Gerais','Sudeste'],PA:['Pará','Norte'],PB:['Paraíba','Nordeste'],PR:['Paraná','Sul'],PE:['Pernambuco','Nordeste'],PI:['Piauí','Nordeste'],RJ:['Rio de Janeiro','Sudeste'],RN:['Rio Grande do Norte','Nordeste'],RS:['Rio Grande do Sul','Sul'],RO:['Rondônia','Norte'],RR:['Roraima','Norte'],SC:['Santa Catarina','Sul'],SP:['São Paulo','Sudeste'],SE:['Sergipe','Nordeste'],TO:['Tocantins','Norte']};
+const REGION_ORDER=['Norte','Nordeste','Centro-Oeste','Sudeste','Sul'];
+const REGION_ICON={'Norte':'🌳','Nordeste':'☀️','Centro-Oeste':'🌾','Sudeste':'🏙️','Sul':'🧉'};
+const VAGAS_DF={AC:8,AL:9,AP:8,AM:8,BA:39,CE:22,DF:8,ES:10,GO:17,MA:18,MT:8,MS:8,MG:53,PA:17,PB:12,PR:30,PE:25,PI:10,RJ:46,RN:8,RS:31,RO:8,RR:8,SC:16,SP:70,SE:8,TO:8};
+const vagasDE=uf=>{const n=VAGAS_DF[uf]||8;return n<=12?3*n:n+24};
+function dfSources(uf){const u=uf.toLowerCase(),nm=UFS[uf][0],isDF=uf==='DF',n=VAGAS_DF[uf]||8;return{presDF:{title:'Presidente da República',subtitle:isDF?'Votação no Distrito Federal':'Votação em '+nm,icon:'🇧🇷',e:ELE_FED,abr:u,cargo:1,photoAbr:'br'},gov:{title:isDF?'Governador do Distrito Federal':'Governador — '+nm,subtitle:'1 vaga',icon:'🏢',e:ELE_EST,abr:u,cargo:3,photoAbr:u},sen:{title:isDF?'Senador pelo Distrito Federal':'Senador — '+nm,subtitle:'2 vagas',icon:'🏛️',e:ELE_EST,abr:u,cargo:5,photoAbr:u},depf:{title:'Deputado Federal — '+uf,subtitle:`${n} vagas • Câmara dos Deputados`,icon:'🗳️',e:ELE_EST,abr:u,cargo:6,photoAbr:u},depd:{title:isDF?'Deputado Distrital — DF':'Deputado Estadual — '+uf,subtitle:`${vagasDE(uf)} vagas • ${isDF?'Câmara Legislativa do DF':'Assembleia Legislativa'}`,icon:'📜',e:ELE_EST,abr:u,cargo:isDF?8:7,photoAbr:u}}}
+const NEWS_FEEDS={world:'"Brazil election"',brasil:'("Brazil election" OR "eleições 2026") sourcecountry:BR',markets:'"Brazil election" (market OR economy OR fiscal OR currency OR stocks)',opinions:'"Brazil election" (opinion OR analysis OR editorial OR commentary OR column)'};
+const TURN0=localStorage.getItem('eleTurn')==='2'?2:1,histKey=t=>t===2?'eleHistoryUltra_t2':'eleHistoryUltra';
+const st={interval:Number(localStorage.getItem('eleIntervalUltra')||10000),nextAt:Date.now()+10000,busy:false,presBR:null,states:{},df:{},dfUf:'DF',waiting:false,signatures:{},previous:{},deltas:{},lastDataChange:null,lastPoll:null,lastPollMs:0,events:loadJSON('eleEventsUltra',[]),history:loadJSON(histKey(TURN0),[]),startedAt:Date.now(),stateDeltas:[],news:loadJSON('eleNewsV2',{feeds:{}}),newsBusy:false,newsFeed:'world',turn:TURN0,gov:{},govAbsent:{},dfAbsent:{},ufHist:loadJSON('eleUfHistV1',{}),mapMode:'pres',mapSel:'DF',leaders:{},absent:{},buckets:{},cfg:null,cfgTry:0,codes:null,lastError:'',newsHealth:null,sheetKind:'',roundGov:{},roundGovAbs:{},roundPres:null,r2Open:false,round:{due:0,busy:false,presBusy:false,presAt:0,fail:0,at:0}};
+const $=id=>document.getElementById(id),pad=(v,n)=>String(v).padStart(n,'0');
+const fmtInt=n=>Number(n||0).toLocaleString('pt-BR');
+const fmtPct=n=>Number(n||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%';
+const intv=v=>{const n=parseInt(String(v??'').replace(/\D/g,''),10);return Number.isFinite(n)?n:0};
+const dec=v=>{const s=String(v??'').trim();if(!s)return 0;const n=parseFloat(s.includes(',')?s.replace(/\./g,'').replace(',','.') : s);return Number.isFinite(n)?n:0};
+const esc=s=>String(s??'').replace(/[&<>'"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[m]));
+const initials=n=>String(n||'?').trim().split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
+function loadJSON(k,f){try{return JSON.parse(localStorage.getItem(k))||f}catch(e){return f}}
+function saveJSON(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
+const resultURL=(e,abr,cargo)=>`${BASE}/${CICLO}/${e}/dados/${abr}/${abr}-c${pad(cargo,4)}-e${pad(e,6)}-u.json`;
+const photoURL=(e,abr,sq)=>`${BASE}/${CICLO}/${e}/fotos/${abr}/${sq}.jpeg`;
+const APP_VERSION='2026.10.05-v2';
+const NATIVE=!!(window.CentralNative&&typeof window.CentralNative.httpGet==='function');
+const nativeWait=new Map();let nativeSeq=0;
+window.__nativeHttpDone=id=>{const w=nativeWait.get(id);if(!w)return;nativeWait.delete(id);clearTimeout(w.t);try{w.resolve(JSON.parse(window.CentralNative.result(id)))}catch(e){w.reject(e)}};
+class HttpError extends Error{constructor(status,msg){super(msg||('HTTP '+status));this.status=status}}
+function nativeGet(url,timeout){return new Promise((resolve,reject)=>{const id='n'+(++nativeSeq),t=setTimeout(()=>{nativeWait.delete(id);reject(new HttpError(0,'tempo esgotado'))},timeout);nativeWait.set(id,{resolve,reject,t});try{window.CentralNative.httpGet(id,url)}catch(e){clearTimeout(t);nativeWait.delete(id);reject(new HttpError(0,String(e&&e.message||e)))}})}
+async function httpText(url,{timeout=20000,accept='*/*'}={}){
+  if(NATIVE){const r=await nativeGet(url,timeout+5000);if(r.status===0)throw new HttpError(0,r.err||'sem rede');if(r.status<200||r.status>=300)throw new HttpError(r.status);return r.body||''}
+  const ctl=typeof AbortController!=='undefined'?new AbortController():null,tm=ctl?setTimeout(()=>ctl.abort(),timeout):null;
+  try{const r=await fetch(url,{cache:'no-store',headers:{Accept:accept},signal:ctl?ctl.signal:undefined});if(!r.ok)throw new HttpError(r.status);return await r.text()}
+  catch(e){if(e instanceof HttpError)throw e;throw new HttpError(0,e&&e.name==='AbortError'?'tempo esgotado':'falha de rede/CORS')}
+  finally{if(tm)clearTimeout(tm)}
+}
+async function fetchJson(url){return JSON.parse((await httpText(url,{accept:'application/json'})).replace(/^﻿/,''))}
+function sit(c){const s=String(c.st||'').trim();if(s)return s;const e=String(c.e||'').toLowerCase();if(e==='s')return'Eleito';if(e==='2')return'2º turno';return''}
+function normalize(raw,meta={}){const cargo=(raw.carg&&raw.carg[0])||{},cands=[];for(const agr of(cargo.agr||[]))for(const par of(agr.par||[]))for(const c of(par.cand||[]))cands.push({numero:String(c.n||''),sq:String(c.sqcand||''),nome:c.nmu||c.nm||'Candidato',partido:par.sg||'',votos:intv(c.vap),pct:dec(c.pvap),seq:intv(c.seq),sit:sit(c),vice:(c.vs||[]).map(v=>v.nmu||v.nm).filter(Boolean).join(' / ')});cands.sort((a,b)=>b.votos-a.votos||a.seq-b.seq||a.nome.localeCompare(b.nome,'pt-BR'));return{...meta,cands,progress:dec(raw.s?.pst),sections:intv(raw.s?.st),sectionsTotal:intv(raw.s?.ts),electorate:intv(raw.e?.te),turnout:intv(raw.e?.c),abst:intv(raw.e?.a),abstPct:dec(raw.e?.pa),valid:intv(raw.v?.vv??raw.v?.vvc),blank:intv(raw.v?.vb),nullVotes:intv(raw.v?.tvn),final:String(raw.tf||raw.and||'').toLowerCase()==='f'||String(raw.tf||'').toLowerCase()==='s',date:raw.dg||raw.dt||'',time:raw.hg||raw.ht||'',idg:raw.idg||''}}
+function signature(d){if(!d)return'';return[d.idg,d.date,d.time,d.progress,d.sections,d.valid,...d.cands.slice(0,5).map(c=>`${c.numero}:${c.votos}`)].join('|')}
+function mark(key,d){const old=st.previous[key];if(old){const om=new Map((old.cands||[]).map(c=>[c.numero||c.nome,c.votos]));for(const c of d.cands||[]){const k=c.numero||c.nome;st.deltas[key+'|'+k]=Math.max(0,c.votos-(om.get(k)||0))}}const sig=signature(d);if(st.signatures[key]&&st.signatures[key]!==sig)st.lastDataChange=new Date();st.signatures[key]=sig;st.previous[key]=JSON.parse(JSON.stringify(d))}
+function statusTag(c,d,idx){if(c.sit){const t=c.sit.toLowerCase(),cl=/eleit|2º turno|segundo/.test(t)?'good':'';return`<span class="tag ${cl}">${esc(c.sit)}</span>`}if(!d.final&&d.cargo===5&&idx<2)return`<span class="tag good">${idx+1}ª posição</span>`;return''}
+function candRow(c,d,idx,withPhoto=true){const img=withPhoto&&c.sq?`<img class="avatar" src="${photoURL(d.e||ELE_FED,d.photoAbr||'br',c.sq)}" data-i="${esc(initials(c.nome))}" data-alt="${esc(photoURL(DEFAULT_CODES[1][d.cargo===1?'fed':'est'],d.photoAbr||'br',c.sq))}" alt="" loading="lazy" onerror="photoErr(this)">`:withPhoto?`<div class="avatar-fallback">${esc(initials(c.nome))}</div>`:'';const delta=st.deltas[(d._key||'')+'|'+(c.numero||c.nome)]||0;return`<div class="cand ${idx===0?'lead':''}">${img}<div><div class="cname"><span class="rank">${idx+1}º</span>${esc(c.nome)}</div><div class="cmeta"><span>${esc(c.partido)}${c.numero?' · nº '+esc(c.numero):''}</span>${statusTag(c,d,idx)}</div></div><div class="votes"><div class="pct">${fmtPct(c.pct)}</div><div class="num">${fmtInt(c.votos)} votos</div>${delta>0?`<div class="delta">+${fmtInt(delta)} agora</div>`:''}</div><div class="candbar"><i style="width:${Math.max(0,Math.min(100,c.pct||0))}%"></i></div></div>`}
+function foot(d,compact=false){return`<div class="foot"><div><b>${fmtInt(d.valid)}</b><span>válidos</span></div><div><b>${fmtInt(d.sections)}/${fmtInt(d.sectionsTotal)}</b><span>seções</span></div>${compact?'':`<div><b>${fmtInt(d.blank)}</b><span>brancos</span></div><div><b>${fmtPct(d.abstPct)}</b><span>abstenção</span></div>`}</div>`}
+function card(d,key,{top=3,photo=true,compact=false,title,subtitle,icon}={}){if(!d)return'<div class="loading">Carregando dados oficiais…</div>';d._key=key;const p=Math.max(0,Math.min(100,d.progress||0));return`<div class="card-head"><div class="head-left"><div class="icon">${icon||d.icon||'🗳️'}</div><div><h3>${esc(title||d.title||'Resultado')}</h3><div class="sub">${esc(subtitle||d.subtitle||'')}${d.final?' • totalização final':''}</div></div></div><div class="progbox"><b>${fmtPct(p)}</b><small>${fmtInt(d.sections)}/${fmtInt(d.sectionsTotal)} seções</small><div class="progress"><div class="bar" style="width:${p}%"></div></div></div></div><div class="body">${d.cands.slice(0,top).map((c,i)=>candRow(c,d,i,photo)).join('')||'<div class="empty">Sem votos disponíveis ainda.</div>'}</div>${foot(d,compact)}<div class="last-change">Arquivo TSE: ${esc([d.date,d.time].filter(Boolean).join(' •
