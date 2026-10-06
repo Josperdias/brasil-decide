@@ -1,4 +1,4 @@
-# Robô de Concursos DF 🤖
+# Brasil Decide 🤖
 
 Um site que **se atualiza sozinho todo dia**, de graça, mostrando as novidades de concursos do Distrito Federal. Ele roda no GitHub (sem servidor, sem cartão, sem chave de API) e publica uma página que atualiza automaticamente.
 
@@ -17,7 +17,7 @@ Acesse https://github.com e crie uma conta gratuita (se ainda não tiver).
 
 ### 2. Crie um repositório
 - Clique em **New repository**.
-- Nome: por exemplo `concursos-df`.
+- Nome: por exemplo `brasil-decide`.
 - Marque **Public** (recomendado: deixa o GitHub Actions e o Pages ilimitados e grátis).
 - Clique em **Create repository**.
 
@@ -42,7 +42,7 @@ Depois clique em **Commit changes**.
 - Em **Source**, escolha **Deploy from a branch**.
 - Em **Branch**, escolha **main** e a pasta **/docs**. Salve.
 - Em alguns minutos aparece o endereço do seu site, algo como:
-  `https://SEU-USUARIO.github.io/concursos-df/`
+  `https://SEU-USUARIO.github.io/brasil-decide/`
   Guarde esse link — é o seu site que se atualiza sozinho.
 
 ### 6. Rode a primeira coleta
