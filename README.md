@@ -1,4 +1,4 @@
-# Robô de Concursos DF 🤖
+# Brasil Decide 🇧🇷
 
 Um site que **se atualiza sozinho todo dia**, de graça, mostrando as novidades de concursos do Distrito Federal. Ele roda no GitHub (sem servidor, sem cartão, sem chave de API) e publica uma página que atualiza automaticamente.
 
@@ -48,7 +48,7 @@ Depois clique em **Commit changes**.
 ### 6. Rode a primeira coleta
 - Vá na aba **Actions**.
 - Se aparecer um aviso pedindo para habilitar workflows, clique em **I understand... enable**.
-- Abra **Atualizar concursos DF** → **Run workflow** → **Run workflow**.
+- Abra **Atualizar Brasil Decide** → **Run workflow** → **Run workflow**.
 - Em ~1 minuto ele coleta as novidades e atualiza a página.
 
 Pronto! Daqui pra frente ele roda **sozinho todo dia por volta das 6h** (horário de Brasília). Você também pode clicar em **Run workflow** quando quiser forçar uma atualização.
