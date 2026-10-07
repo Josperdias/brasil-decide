@@ -34,7 +34,7 @@ STATUS = [("inscri", "Inscrições abertas"), ("edital publicado", "Edital publi
 
 
 def fetch(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (concursos-df-bot)"})
+    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0 (brasil-decide-bot)"})
     with urllib.request.urlopen(req, timeout=30) as r:
         return r.read()
 
