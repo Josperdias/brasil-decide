@@ -348,8 +348,26 @@ async function mapLimit(items,limit,fn){
 }
 function setNotice(msg){$('notice').textContent=msg;$('notice').classList.toggle('show',!!msg)}
 const cacheKey=t=>t===2?'eleCacheUltra_t2':'eleCacheUltra';
-function saveCache(){saveJSON(cacheKey(st.turn),{at:Date.now(),presBR:st.presBR,states:st.states,gov:st.gov,df:dfSlim(),dfv:2,lastDataChange:st.lastDataChange?st.lastDataChange.toISOString():null})}
-function loadCache(){const c=loadJSON(cacheKey(st.turn),null);if(!c||!c.at||Date.now()-c.at>48*60*60*1000)return false;st.presBR=c.presBR||null;st.states=c.states||{};st.gov=c.gov||{};st.df=dfMigrate(c.df);st.lastDataChange=c.lastDataChange?new Date(c.lastDataChange):null;renderAll();setNotice(`Exibindo o último resultado salvo (${new Date(c.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}). Atualizando…`);return true}
+/* ---------- histórico permanente do 1º turno (sem TTL; separado do cache ao vivo de 48 h) ---------- */
+const PRES1_FINAL_KEY='elePres1Final2026_v1';
+const resultVotes=d=>d&&d.cands?d.cands.reduce((a,c)=>a+Math.max(0,Number(c.votos)||0),0):0;
+const usefulResult=d=>!!d&&Array.isArray(d.cands)&&d.cands.length>0&&resultVotes(d)>0;
+const finalResult=d=>usefulResult(d)&&(!!d.final||(d.progress||0)>=99.99||(d.sectionsTotal>0&&d.sections>=d.sectionsTotal));
+/* true = resposta vazia/zerada/regressiva demais para sobrescrever um resultado final útil (correções pequenas do TSE passam) */
+function rejectRegression(current,incoming){
+ if(!usefulResult(current))return false;
+ if(!usefulResult(incoming))return true;
+ if(finalResult(current)){const o=resultVotes(current),n=resultVotes(incoming);
+  if(o>0&&n<o/2)return true;
+  if(current.sections>0&&!(incoming.sections>0))return true;
+  if(current.valid>0&&!(incoming.valid>0))return true}
+ return false}
+function loadPres1Final(){try{const d=JSON.parse(localStorage.getItem(PRES1_FINAL_KEY));return finalResult(d)?d:null}catch(e){return null}}
+function savePres1Final(d){if(!finalResult(d))return false;const old=loadPres1Final();if(rejectRegression(old,d))return false;try{localStorage.setItem(PRES1_FINAL_KEY,JSON.stringify(d));return true}catch(e){return false}}
+/* restaura o arquivo histórico quando o 1º turno atual está ausente, zerado, não finalizado ou regredido */
+function restorePres1(){if(st.turn!==1)return false;const a=loadPres1Final();if(!a)return false;if(!usefulResult(st.presBR)||!finalResult(st.presBR)||rejectRegression(a,st.presBR)){st.presBR=a;return true}return false}
+function saveCache(){if(st.turn===1)savePres1Final(st.presBR);saveJSON(cacheKey(st.turn),{at:Date.now(),presBR:st.presBR,states:st.states,gov:st.gov,df:dfSlim(),dfv:2,lastDataChange:st.lastDataChange?st.lastDataChange.toISOString():null})}
+function loadCache(){const c=loadJSON(cacheKey(st.turn),null);if(!c||!c.at||Date.now()-c.at>48*60*60*1000){if(restorePres1()){renderAll();setNotice('Exibindo o resultado final do 1º turno salvo neste aparelho. Atualizando…');return true}return false}st.presBR=c.presBR||null;st.states=c.states||{};st.gov=c.gov||{};st.df=dfMigrate(c.df);st.lastDataChange=c.lastDataChange?new Date(c.lastDataChange):null;restorePres1();renderAll();setNotice(`Exibindo o último resultado salvo (${new Date(c.at).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}). Atualizando…`);return true}
 /* ---------- 2º turno: códigos, buckets por turno, consulta ---------- */
 const clone=o=>o==null?o:JSON.parse(JSON.stringify(o));
 const codesFor=t=>(st.codes&&st.codes[t])||DEFAULT_CODES[t];
@@ -361,7 +379,7 @@ async function getResult(url,meta,ttl=ABSENT_TTL){const a=st.absent[url];if(a&&D
 function emptyBucket(t){return{presBR:null,states:{},gov:{},df:{},signatures:{},previous:{},deltas:{},lastDataChange:null,history:loadJSON(histKey(t),[]),stateDeltas:[],govAbsent:{},dfAbsent:{}}}
 function saveBucket(){st.buckets[st.turn]={presBR:st.presBR,states:st.states,gov:st.gov,df:st.df,signatures:st.signatures,previous:st.previous,deltas:st.deltas,lastDataChange:st.lastDataChange,history:st.history,stateDeltas:st.stateDeltas,govAbsent:st.govAbsent,dfAbsent:st.dfAbsent}}
 function updateTurnUI(){const cd=codesFor(st.turn);document.querySelectorAll('.turn-btn').forEach(b=>b.classList.toggle('active',Number(b.dataset.turn)===st.turn));$('turnCaption').textContent=`${st.turn}º turno • TSE ${cd.fed} (federal) / ${cd.est} (estadual)`}
-async function setTurn(t){t=t===2?2:1;if(t===st.turn)return;saveBucket();st.turn=t;try{localStorage.setItem('eleTurn',String(t))}catch(e){}Object.assign(st,st.buckets[t]||emptyBucket(t));if(!st.presBR)loadCache();updateTurnUI();renderAll();st.nextAt=Date.now();refresh()}
+async function setTurn(t){t=t===2?2:1;if(t===st.turn)return;saveBucket();st.turn=t;try{localStorage.setItem('eleTurn',String(t))}catch(e){}Object.assign(st,st.buckets[t]||emptyBucket(t));if(!usefulResult(st.presBR))loadCache();else restorePres1();updateTurnUI();renderAll();st.nextAt=Date.now();refresh()}
 
 /* ---------- consulta ao TSE (por turno) ---------- */
 function fillAbsent(R,key,uf){R[key][uf]=true}
@@ -379,7 +397,7 @@ async function refresh(){if(st.busy)return;st.busy=true;await loadElectionConfig
   }
  }catch(e){failures.push('rede');st.lastError=String(e&&e.message||e)}
  if(turn!==st.turn){st.busy=false;st.nextAt=Date.now();$('refreshBtn').disabled=false;return}
- if(R.presBR){mark('presBR',R.presBR);st.presBR=R.presBR}
+ if(R.presBR){const ref=usefulResult(st.presBR)?st.presBR:(turn===1?loadPres1Final():null);if(rejectRegression(ref,R.presBR)){R.presBR=null;st.lastError='proteção de histórico: resposta presidencial regressiva ignorada'}else{mark('presBR',R.presBR);st.presBR=R.presBR;if(turn===1&&finalResult(R.presBR))savePres1Final(R.presBR)}}
  for(const[uf,d]of Object.entries(R.states)){mark('uf-'+uf,d);st.states[uf]=d;recordHist('pres',uf,d)}
  for(const[uf,d]of Object.entries(R.gov)){mark('gov-'+uf,d);st.gov[uf]=d;recordHist('gov',uf,d)}
  Object.assign(st.govAbsent,R.govAbsent);for(const uf of Object.keys(R.gov))delete st.govAbsent[uf];
@@ -398,15 +416,15 @@ function renderRoundBar(){const el=$('round2Bar');if(!el)return;const[y,m,d]=ROU
  if(!(left>=0)&&!(left<0))h=head;else if(left<0){h=`🗳️ <b>2º turno realizado</b> em ${br}`;cls+=' done'}else if(left===0){h=`${head} <span class="r2b-cnt">• é hoje!</span>`;cls+=' today'}else h=`${head} <span class="r2b-cnt">• ${left===1?'falta 1 dia':'faltam '+left+' dias'}</span>`;
  if(el.className!==cls)el.className=cls;if(el.innerHTML!==h)el.innerHTML=h}
 /* classificação de um resultado de 1º turno: r2 = vai a 2º turno | win = eleito no 1º | wait = em apuração/sem dados */
-function roundClass(d){const cs=d&&d.cands;if(!cs||!cs.length)return'wait';if(cs.some(c=>R2RE.test(c.sit||'')))return'r2';if(cs.some(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||'')))return'win';const t=cs[0];if(!(t.votos>0))return'wait';const p=d.progress||0;if(t.pct>50)return p>=99||d.final?'win':'wait';return p>=99?'r2':'wait'}
+function roundClass(d){const cs=d&&d.cands;if(!cs||!cs.length)return'wait';if(cs.some(c=>R2RE.test(c.sit||'')))return'r2';if(cs.some(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||'')))return'win';const t=cs[0];if(!(t.votos>0))return'wait';const p=d.progress||0;if(t.pct>50)return p>=99||d.final?'win':'wait';return p>=99||finalResult(d)?'r2':'wait'}
 function r2Pick(d){const cs=d.cands||[];return cs.filter(c=>R2RE.test(c.sit||'')).concat(cs.filter(c=>!R2RE.test(c.sit||''))).slice(0,2)}
 const r2c=c=>`<div class="r2c"><i style="background:${candColor(c.nome)}"></i><span class="r2n">${esc(c.nome)}<small>${esc(c.partido)}</small></span><b>${fmtPct(c.pct)}</b></div>`;
-const roundPresData=()=>st.turn===1?st.presBR:(st.roundPres||(st.buckets[1]&&st.buckets[1].presBR)||null);
+const roundPresData=()=>{const c=st.turn===1?[st.presBR]:[st.roundPres,st.buckets[1]&&st.buckets[1].presBR];c.push(loadPres1Final());return c.find(finalResult)||c.find(usefulResult)||null};
 const roundGovData=uf=>st.roundGov[uf]||(st.turn===1?st.gov[uf]:(st.buckets[1]&&st.buckets[1].gov&&st.buckets[1].gov[uf]))||null;
 function r2PresHTML(){const d=roundPresData(),k=roundClass(d);let b;
  if(k==='r2')b=`<div class="r2cs">${r2Pick(d).map(r2c).join('')}</div><div class="r2s">Resultado do 1º turno • ${fmtPct(d.progress)} apurado</div>`;
  else if(k==='win'){const w=d.cands.find(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||''))||d.cands[0];b=`<div class="r2ok">Definido no 1º turno</div><div class="r2cs">${r2c(w)}</div>`}
- else b=`<div class="r2ok wait">Aguardando apuração${d?' • '+fmtPct(d.progress)+' apurado':''}</div>`;
+ else b=usefulResult(d)?`<div class="r2ok wait">Aguardando apuração • ${fmtPct(d.progress)} apurado</div>`:'<div class="r2ok wait">Recuperando resultado final do 1º turno…</div>';
  return`<h4>🇧🇷 Presidente</h4>${b}`}
 function r2GovHTML(){const g={r2:[],win:[],wait:[]},R=st.round;let have=0;
  for(const uf of Object.keys(UFS).sort()){const d=roundGovData(uf);if(d)have++;g[roundClass(d)].push({uf,d})}
@@ -419,7 +437,7 @@ function r2GovHTML(){const g={r2:[],win:[],wait:[]},R=st.round;let have=0;
  return`<h4>🏢 Governadores</h4><div class="r2cnt"><b>${n}</b> ${n===1?'estado vai':'estados vão'} a 2º turno</div><div class="r2s">${sub}${R.fail?` • ${R.fail} UF${R.fail>1?'s':''} sem resposta`:''}</div>${n?`<div class="r2list">${g.r2.map(uh).join('')}</div>`:'<div class="empty" style="margin-top:8px">Nenhum estado confirmado para 2º turno até agora.</div>'}${more}`}
 let r2Last='';
 function renderRound2(){const el=$('round2Card');if(!el)return;const h=`<div class="card-head" style="padding:0"><div class="head-left"><div class="icon">🗳️</div><div><h3>Quem disputa o 2º turno</h3><div class="sub">Com base no resultado do 1º turno • TSE</div></div></div></div>${r2PresHTML()}${r2GovHTML()}<div class="r2note">Senado e Câmara/Assembleias não têm 2º turno (turno único). Fonte: TSE.</div>`;if(h===r2Last)return;r2Last=h;el.innerHTML=h}
-async function loadRoundPres(){const R=st.round;if(R.presBusy)return;R.presBusy=true;R.presAt=Date.now();try{await loadElectionConfig();const cd=codesFor(1),r=await getResult(resultURL(cd.fed,'br',1),{cargo:1,e:cd.fed,abr:'br',photoAbr:'br'},60000);if(r.d)st.roundPres=r.d}catch(e){}finally{R.presBusy=false;renderRound2()}}
+async function loadRoundPres(){const R=st.round;if(R.presBusy)return;R.presBusy=true;R.presAt=Date.now();try{await loadElectionConfig();const cd=codesFor(1),r=await getResult(resultURL(cd.fed,'br',1),{cargo:1,e:cd.fed,abr:'br',photoAbr:'br'},60000);if(usefulResult(r.d)&&!rejectRegression(st.roundPres||loadPres1Final(),r.d)){st.roundPres=r.d;if(finalResult(r.d))savePres1Final(r.d)}}catch(e){}finally{R.presBusy=false;renderRound2()}}
 async function loadRound(){const R=st.round;if(R.busy)return;R.busy=true;R.due=Date.now()+R2_EVERY;renderRound2();
  try{await loadElectionConfig();const cd=codesFor(1),codes=Object.keys(UFS),gr=await mapLimit(codes,8,uf=>getResult(resultURL(cd.est,uf.toLowerCase(),3),{cargo:3,e:cd.est,abr:uf.toLowerCase(),photoAbr:uf.toLowerCase()}));let fail=0;
   gr.forEach((r,i)=>{const v=r.value,uf=codes[i];if(r.status!=='fulfilled'||v.error)fail++;else if(v.d){st.roundGov[uf]=v.d;delete st.roundGovAbs[uf]}else if(v.absent)st.roundGovAbs[uf]=true});
@@ -428,7 +446,7 @@ async function loadRound(){const R=st.round;if(R.busy)return;R.busy=true;R.due=D
  catch(e){st.lastError=String(e&&e.message||e);R.due=Date.now()+60000}
  finally{R.busy=false;renderRound2()}}
 /* carrega quando o card está visível (aba Mapa), 1x e a cada ~5 min; sem timers extras de rede */
-function roundTick(){const el=$('round2Card');if(!el||document.hidden||!el.getClientRects().length)return;const R=st.round;if(R.busy)return;if(Date.now()>=R.due)loadRound();else if(st.turn===2&&!roundPresData()&&!R.presBusy&&Date.now()-R.presAt>60000)loadRoundPres()}
+function roundTick(){const el=$('round2Card');if(!el||document.hidden||!el.getClientRects().length)return;const R=st.round;if(R.busy)return;if(Date.now()>=R.due)loadRound();else if(st.turn===2&&!finalResult(roundPresData())&&!R.presBusy&&Date.now()-R.presAt>60000)loadRoundPres()}
 function openRoundUF(uf){if(!UFS[uf])return;if(st.mapMode!=='gov')setMapMode('gov');selectUF(uf,true);if(!window.matchMedia('(max-width:900px)').matches)$('mapMode').scrollIntoView({behavior:'smooth',block:'start'})}
 function setupRound(){const c=$('round2Card');c.addEventListener('click',e=>{const b=e.target.closest('[data-uf]');if(b)openRoundUF(b.dataset.uf)});c.addEventListener('toggle',e=>{if(e.target.classList&&e.target.classList.contains('r2more'))st.r2Open=e.target.open},true);renderRoundBar();renderRound2();setInterval(renderRoundBar,60000);setInterval(roundTick,15000);document.addEventListener('visibilitychange',()=>{if(!document.hidden){renderRoundBar();roundTick()}})}
 function renderAll(){renderNational();renderEvents();renderPulseStats();renderHistory();renderStatePulse();renderMosaic();renderRegions();renderStates();renderDF();renderSummary();renderCompare();renderMap();renderRound2();renderDiag();refreshSheet()}
