@@ -39,6 +39,9 @@ jobs:
           cat html/part-*.html > central-eleicoes-2026.html
           python3 android/gen_mapdata.py central-eleicoes-2026.html android/native-app/src/main/java/br/com/centraleleicoes/nativeapp/MapData.java
           wc -c central-eleicoes-2026.html
+      - name: Teste funcional do histórico do 1º turno (WebView)
+        working-directory: eleicoes-2026
+        run: node tools/test_pres1.js central-eleicoes-2026.html
       - name: Verificar Secrets de assinatura
         id: signing
         shell: bash
@@ -114,6 +117,7 @@ jobs:
           name: central-eleicoes-2026
           path: eleicoes-2026/dist/*
       - name: Publicar APKs na branch apk-dist (download direto)
+        if: ${{ !startsWith(github.ref_name, 'codex/') }}  # branches de correção em revisão não publicam APKs
         run: |
           cd "$GITHUB_WORKSPACE"
           rm -rf /tmp/apkdist && mkdir /tmp/apkdist && cp eleicoes-2026/dist/*.apk eleicoes-2026/dist/central-eleicoes-2026.html /tmp/apkdist/
@@ -160,7 +164,7 @@ jobs:
           name: smoke-screenshots
           path: dist/*.png
       - name: Publicar prints na branch smoke-shots
-        if: always()
+        if: ${{ always() && !startsWith(github.ref_name, 'codex/') }}
         run: |
           mkdir -p /tmp/shots && cp dist/*.png /tmp/shots/ 2>/dev/null || true
           for e in pdf docx xlsx csv json; do cp dist/report.$e /tmp/shots/ 2>/dev/null || true; done
@@ -177,7 +181,7 @@ jobs:
   # só publica release quando os Secrets de assinatura estão configurados e o build foi assinado com eles
   release:
     needs: [build, smoke]
-    if: needs.build.outputs.signed == 'true'
+    if: needs.build.outputs.signed == 'true' && !startsWith(github.ref_name, 'codex/')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4

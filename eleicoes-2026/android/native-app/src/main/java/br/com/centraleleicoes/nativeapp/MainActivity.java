@@ -183,6 +183,8 @@ public class MainActivity extends Activity {
         intervalMs = delayMs = prefs.getInt("interval", 10) * 1000L;
         cmpA = prefs.getString("cmpA", "DF");
         cmpB = prefs.getString("cmpB", "SP");
+        String p1Test = isDebuggable() && getIntent() != null ? getIntent().getStringExtra("pres1test") : null;
+        if (p1Test != null) pres1TestPrepare(p1Test);
         loadCache();
         for (int ti = 1; ti <= 2; ti++) exSnaps[ti - 1] = Exterior.restore(getFilesDir(), ti);
         Intent in = getIntent();
@@ -204,6 +206,7 @@ public class MainActivity extends Activity {
             if (in.getBooleanExtra("genreport", false)) ui.postDelayed(this::genReportsForTest, 30000);
             if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
+        if (p1Test != null) pres1TestRun(p1Test);
         buildUi();
         setupEdgeToEdge();
         if (tv) setTv(true);
@@ -1671,6 +1674,7 @@ public class MainActivity extends Activity {
 
     /** Governadores do 1º turno de todas as UFs (para saber onde haverá 2º turno), sem depender do modo Governador do mapa. */
     private void loadRoundGov() {
+        restoreFirstRoundIfNeeded();
         if (roundGovBusy || System.currentTimeMillis() - roundGovAt < 5 * 60 * 1000L) return;
         roundGovBusy = true;
         final Model.Result[] pres1 = {null};
@@ -1687,7 +1691,7 @@ public class MainActivity extends Activity {
                     if (f.error != null) continue;
                     if (f.result != null) ok.put(id, f.result); else if (f.absent) ab.put(id, true);
                 }
-                if (snaps[0].pres == null) {
+                if (!usefulResult(snaps[0].pres) || !finalResult(snaps[0].pres)) {
                     List<Object[]> br = runAll(java.util.Collections.singletonList(task("br", Tse.url(codes[0][0], "br", 1), 60000, Tse.photoBase(codes[0][0], "br"))));
                     if (!br.isEmpty() && ((Tse.Fetch) br.get(0)[1]).result != null) pres1[0] = ((Tse.Fetch) br.get(0)[1]).result;
                 }
@@ -1695,7 +1699,11 @@ public class MainActivity extends Activity {
             ui.post(() -> {
                 roundGovBusy = false;
                 roundGovAt = System.currentTimeMillis();
-                if (pres1[0] != null && snaps[0].pres == null) snaps[0].pres = pres1[0];
+                if (usefulResult(pres1[0]) && !rejectRegression(snaps[0].pres, pres1[0])) {
+                    snaps[0].pres = pres1[0];
+                    snaps[0].presSig = pres1[0].sig;
+                    if (finalResult(pres1[0])) saveFirstRoundFinal(pres1[0]);
+                } else if (pres1[0] != null) lastError = "proteção de histórico: resposta do 1º turno inútil ou regressiva ignorada";
                 snaps[0].gov.putAll(ok);
                 snaps[0].govAbsent.putAll(ab);
                 if (!ok.isEmpty()) saveCache(1);
@@ -1713,6 +1721,12 @@ public class MainActivity extends Activity {
         Model.Result p1 = snaps[0].pres;
         List<Model.Cand> pair = new ArrayList<>();
         if (p1 != null) for (Model.Cand k : p1.cands) if (k.sit.toLowerCase(Locale.ROOT).contains("2º")) pair.add(k);
+        // reserva segura: resultado final, ninguém eleito e a situação textual não trouxe os dois — usa os dois primeiros colocados
+        if (pair.size() < 2 && finalResult(p1) && !electedFirst(p1) && p1.cands.size() >= 2) {
+            pair.clear();
+            pair.add(p1.cands.get(0));
+            pair.add(p1.cands.get(1));
+        }
         c.addView(Ui.text(this, "PRESIDENTE", 10, Ui.MUTED, true));
         if (pair.size() >= 2) {
             LinearLayout row = Ui.row(this);
@@ -1722,7 +1736,7 @@ public class MainActivity extends Activity {
             row.addView(side(pair.get(1).nome + " (" + pair.get(1).partido + ")", pc(pair.get(1).pct), Model.color(pair.get(1).nome), Gravity.END), Ui.lp(0, -2, 1f));
             c.addView(row);
         } else if (p1 != null && electedFirst(p1)) c.addView(Ui.text(this, "Definido no 1º turno.", 12, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 8));
-        else c.addView(Ui.text(this, p1 == null ? "Carregando…" : "Aguardando a totalização do 1º turno.", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 8));
+        else c.addView(Ui.text(this, !usefulResult(p1) ? "Recuperando resultado final do 1º turno…" : "Aguardando a totalização do 1º turno.", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 8));
         // governadores
         List<String> r2 = new ArrayList<>(), won = new ArrayList<>();
         int pending = 0, loaded = 0;
@@ -2402,6 +2416,7 @@ public class MainActivity extends Activity {
 
     private Callable<Object[]> task(final String key, final String url, final long ttl, final String photoBase) {
         return () -> {
+            if (testOffline) { Tse.Fetch off = new Tse.Fetch(); off.error = "teste: rede indisponivel (pres1test)"; return new Object[]{key, off}; }
             Long at;
             synchronized (absentAt) { at = absentAt.get(url); }
             if (at != null && System.currentTimeMillis() - at < ttl) { Tse.Fetch f = new Tse.Fetch(); f.absent = true; return new Object[]{key, f}; }
@@ -2490,27 +2505,37 @@ public class MainActivity extends Activity {
         String oldSig = sn.presSig;
         Model.Result oldPres = sn.pres;
         Map<String, Model.Result> oldStates = new HashMap<>(sn.states), oldGov = new HashMap<>(sn.gov);
-        if (pres != null) { sn.pres = pres; sn.presSig = pres.sig; }
+        // proteção de histórico: resposta vazia/zerada/regressiva não substitui um resultado final útil
+        Model.Result acceptedPres = pres;
+        if (pres != null && rejectRegression(sn.pres, pres)) {
+            acceptedPres = null;
+            lastError = "proteção de histórico: resposta presidencial regressiva ignorada";
+        }
+        if (acceptedPres != null) {
+            sn.pres = acceptedPres;
+            sn.presSig = acceptedPres.sig;
+            if (t == 1 && finalResult(acceptedPres)) saveFirstRoundFinal(acceptedPres);
+        }
         sn.states.putAll(s);
         sn.gov.putAll(g);
         sn.df.putAll(d);
         sn.govAbsent.putAll(gAbs);
         sn.dfAbsent.putAll(dAbs);
         lastPoll = System.currentTimeMillis();
-        boolean changed = pres != null && !pres.sig.equals(oldSig);
-        if (changed || sn.lastChange == 0 && pres != null) sn.lastChange = lastPoll;
+        boolean changed = acceptedPres != null && !acceptedPres.sig.equals(oldSig);
+        if (changed || sn.lastChange == 0 && acceptedPres != null) sn.lastChange = lastPoll;
         waiting = wait;
         if (changed) {
             if (oldPres != null) {
-                for (int i = 0; i < Math.min(3, pres.cands.size()); i++) {
-                    Model.Cand c = pres.cands.get(i);
+                for (int i = 0; i < Math.min(3, acceptedPres.cands.size()); i++) {
+                    Model.Cand c = acceptedPres.cands.get(i);
                     for (Model.Cand o : oldPres.cands) if (o.nome.equals(c.nome) && c.votos > o.votos) { addEvent("🗳️", c.nome + " recebeu +" + n(c.votos - o.votos) + " votos", "Brasil • " + pc(c.pct) + " dos válidos"); break; }
                 }
-                if (!oldPres.cands.isEmpty() && !pres.cands.isEmpty() && oldPres.cands.get(0).votos > 0 && !oldPres.cands.get(0).nome.equals(pres.cands.get(0).nome))
-                    addEvent("↕️", "Mudança de líder nacional", pres.cands.get(0).nome + " assumiu a 1ª posição");
+                if (!oldPres.cands.isEmpty() && !acceptedPres.cands.isEmpty() && oldPres.cands.get(0).votos > 0 && !oldPres.cands.get(0).nome.equals(acceptedPres.cands.get(0).nome))
+                    addEvent("↕️", "Mudança de líder nacional", acceptedPres.cands.get(0).nome + " assumiu a 1ª posição");
             }
             LinkedHashMap<String, Float> h = new LinkedHashMap<>();
-            for (int i = 0; i < Math.min(3, pres.cands.size()); i++) h.put(pres.cands.get(i).nome, (float) pres.cands.get(i).pct);
+            for (int i = 0; i < Math.min(3, acceptedPres.cands.size()); i++) h.put(acceptedPres.cands.get(i).nome, (float) acceptedPres.cands.get(i).pct);
             sn.hist.add(h);
             while (sn.hist.size() > 100) sn.hist.remove(0);
         }
@@ -2531,12 +2556,154 @@ public class MainActivity extends Activity {
             statusSub = "o cargo ainda não tem arquivo publicado";
         } else {
             delayMs = intervalMs;
-            boolean offline = pres == null && s.isEmpty() && failures > 0;
+            boolean offline = acceptedPres == null && s.isEmpty() && failures > 0;
             statusText = offline ? "Sem conexão • último resultado salvo" : failures > 0 ? "Online • dados parciais" : changed ? "Ao vivo • dados novos" : "Ao vivo • TSE sem mudança";
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
         }
-        if (failures == 0 || pres != null || !s.isEmpty()) saveCache(t);
+        if (failures == 0 || acceptedPres != null || !s.isEmpty()) saveCache(t);
         if (genStatusPending && snap().pres != null) { genStatusPending = false; genAllStatusForTest(); }
+    }
+
+    // ============================================================ histórico permanente do 1º turno
+    /** Resultado final do 1º turno: dado histórico, sem TTL, separado do cache ao vivo ("snap1"). */
+    private static final String PREF_PRES1_FINAL = "pres1_final_2026_v1";
+
+    private static long candidateVotes(Model.Result r) {
+        if (r == null) return 0;
+        long total = 0;
+        for (Model.Cand c : r.cands) total += Math.max(0, c.votos);
+        return total;
+    }
+
+    private static boolean usefulResult(Model.Result r) {
+        return r != null && !r.cands.isEmpty() && candidateVotes(r) > 0;
+    }
+
+    private static boolean finalResult(Model.Result r) {
+        if (!usefulResult(r)) return false;
+        return r.fin || r.progress >= 99.99 || (r.sectionsTotal > 0 && r.sections >= r.sectionsTotal);
+    }
+
+    /** true quando a resposta nova é vazia/zerada/regressiva demais para sobrescrever um resultado final útil. */
+    private static boolean rejectRegression(Model.Result current, Model.Result incoming) {
+        if (!usefulResult(current)) return false;
+        if (!usefulResult(incoming)) return true;
+        if (finalResult(current)) {
+            long oldVotes = candidateVotes(current), newVotes = candidateVotes(incoming);
+            if (oldVotes > 0 && newVotes < oldVotes / 2) return true;
+            if (current.sections > 0 && incoming.sections == 0) return true;
+            if (current.valid > 0 && incoming.valid == 0) return true;
+        }
+        return false;
+    }
+
+    private void saveFirstRoundFinal(Model.Result r) {
+        if (!finalResult(r) || prefs == null) return;
+        try {
+            Model.Result old = loadFirstRoundFinal();
+            if (rejectRegression(old, r)) return;
+            prefs.edit().putString(PREF_PRES1_FINAL, r.toJson().toString()).commit();
+        } catch (Throwable th) { lastError = "arquivo do 1º turno: " + th; }
+    }
+
+    private Model.Result loadFirstRoundFinal() {
+        try {
+            String s = prefs == null ? null : prefs.getString(PREF_PRES1_FINAL, null);
+            if (s == null) return null;
+            Model.Result r = Model.Result.fromJson(new JSONObject(s));
+            return finalResult(r) ? r : null;
+        } catch (Throwable th) { lastError = "arquivo do 1º turno ilegível: " + th; return null; }
+    }
+
+    /** Restaura o resultado final arquivado quando o do snapshot está ausente, zerado, não finalizado ou regredido. */
+    private void restoreFirstRoundIfNeeded() {
+        Model.Result arch = loadFirstRoundFinal();
+        if (arch == null) return;
+        Model.Result cur = snaps[0].pres;
+        if (!usefulResult(cur) || !finalResult(cur) || rejectRegression(arch, cur)) {
+            snaps[0].pres = arch;
+            snaps[0].presSig = arch.sig;
+        }
+    }
+
+    // ============================================================ suporte ao smoke test (somente build DEBUG)
+    private boolean testOffline;
+
+    private boolean isDebuggable() { return (getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0; }
+
+    /** SMOKE TEST (só DEBUG): antes de carregar o cache. "seed" parte do zero; "check" perde o cache ao vivo (como se expirado) e derruba a rede. */
+    private void pres1TestPrepare(String mode) {
+        testOffline = true;
+        if (mode.equals("seed")) prefs.edit().remove(PREF_PRES1_FINAL).remove("snap1").remove("snap2").commit();
+        else prefs.edit().remove("snap1").remove("snap2").commit();
+    }
+
+    /** SMOKE TEST (só DEBUG): dados SINTÉTICOS de teste — nunca existem em release. */
+    private static Model.Result testRound1(long a, long b, boolean fin, long sections) {
+        Model.Result r = new Model.Result();
+        String[][] c = {{"Candidato Teste A", "TSTA"}, {"Candidato Teste B", "TSTB"}};
+        long[] v = {a, b};
+        for (int i = 0; i < 2; i++) {
+            Model.Cand k = new Model.Cand();
+            k.nome = c[i][0]; k.partido = c[i][1]; k.numero = "9" + i; k.sit = "2º turno"; k.votos = v[i];
+            k.pct = (a + b) == 0 ? 0 : 100.0 * v[i] / (a + b);
+            r.cands.add(k);
+        }
+        r.valid = a + b; r.sections = sections; r.sectionsTotal = 100; r.progress = fin ? 100 : sections; r.fin = fin;
+        r.sig = "teste-" + a + "-" + b + "-" + sections;
+        return r;
+    }
+
+    private void pres1Log(StringBuilder out, String name, boolean ok) {
+        out.append(name).append(ok ? "=OK" : "=FALHA").append('\n');
+    }
+
+    private void pres1Commit(Model.Result pres) {
+        commit(1, pres, new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), new HashMap<>(), false, pres == null ? 1 : 0);
+    }
+
+    private void pres1Write(String mode, StringBuilder out) {
+        try {
+            java.io.File dir = new java.io.File(getCacheDir(), "share");
+            dir.mkdirs();
+            java.io.FileWriter w = new java.io.FileWriter(new java.io.File(dir, "test-pres1-" + mode + ".txt"));
+            w.write(out.toString());
+            w.close();
+        } catch (Throwable t) { android.util.Log.e("BD", "pres1test", t); }
+    }
+
+    /** SMOKE TEST (só DEBUG): "seed" arquiva um 1º turno final sintético e tenta corrompê-lo; "check" confere que sobreviveu à reinicialização sem rede. */
+    private void pres1TestRun(final String mode) {
+        final StringBuilder out = new StringBuilder();
+        if (mode.equals("seed")) {
+            Model.Result good = testRound1(60000, 40000, true, 100);
+            snaps[0].pres = null;
+            pres1Commit(good);
+            pres1Log(out, "PRES1_SEED_ARCHIVED", usefulResult(loadFirstRoundFinal()) && snaps[0].pres == good);
+            pres1Commit(testRound1(0, 0, false, 0));
+            pres1Log(out, "PRES1_ZERO_REJECTED", snaps[0].pres == good && candidateVotes(loadFirstRoundFinal()) == 100000);
+            pres1Commit(new Model.Result());
+            pres1Log(out, "PRES1_EMPTY_REJECTED", snaps[0].pres == good);
+            pres1Commit(testRound1(1000, 500, true, 100));
+            pres1Log(out, "PRES1_ABSURD_REGRESSION_REJECTED", snaps[0].pres == good);
+            pres1Commit(null);
+            pres1Log(out, "PRES1_NETWORK_FAILURE_KEPT", snaps[0].pres == good);
+            Model.Result fixed = testRound1(60500, 40100, true, 100);
+            pres1Commit(fixed);
+            pres1Log(out, "PRES1_SMALL_CORRECTION_ACCEPTED", snaps[0].pres == fixed && candidateVotes(loadFirstRoundFinal()) == 100600);
+            pres1Write(mode, out);
+        } else {
+            Model.Result p = snaps[0].pres;
+            pres1Log(out, "PRES1_RESTORED_AFTER_RESTART", finalResult(p) && candidateVotes(p) == 100600 && p.cands.get(0).nome.equals("Candidato Teste A"));
+            pres1Write(mode, out);
+            ui.postDelayed(() -> { // depois de o refresh ao vivo falhar (rede derrubada), o 1º turno continua presente
+                StringBuilder o2 = new StringBuilder();
+                Model.Result q = snaps[0].pres;
+                pres1Log(o2, "PRES1_KEPT_AFTER_LIVE_FAILURE", finalResult(q) && candidateVotes(q) == 100600);
+                pres1Log(o2, "PRES1_ARCHIVE_KEPT", candidateVotes(loadFirstRoundFinal()) == 100600);
+                pres1Write(mode + "-live", o2);
+            }, 12000);
+        }
     }
 
     // ============================================================ cache do último snapshot válido
@@ -2555,6 +2722,7 @@ public class MainActivity extends Activity {
                     .put("lc", sn.lastChange).put("sig", sn.presSig).put("at", System.currentTimeMillis());
             sn.at = System.currentTimeMillis();
             prefs.edit().putString("snap" + t, o.toString()).apply();
+            if (t == 1 && finalResult(sn.pres)) saveFirstRoundFinal(sn.pres);
         } catch (Throwable th) { lastError = "cache: " + th; }
     }
 
@@ -2596,6 +2764,7 @@ public class MainActivity extends Activity {
                 sn.at = o.optLong("at");
             } catch (Throwable th) { lastError = "cache ilegível: " + th; }
         }
+        restoreFirstRoundIfNeeded();
         if (snaps[turn - 1].at != 0) { statusText = "Último resultado salvo"; statusSub = "atualizando…"; }
     }
 }
