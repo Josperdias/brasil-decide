@@ -87,9 +87,14 @@ final class Tse {
         return f;
     }
 
-    /** Descobre/valida códigos 2026 em ele-c.json (melhor esforço; mantém padrões se algo não bater). Retorna null se não leu o arquivo. */
+    /**
+     * Descobre os códigos de 2026 em ele-c.json pelos campos estruturados do TSE (tp: 8 = federal/presidente, 1 = estadual/governador;
+     * t = turno), nunca pelo nome: desde 09/10 a configuração lista também "Eleição Ordinária Federal - 2026 2º Turno", e a busca por
+     * nome fazia o 1º turno ler os arquivos zerados do 2º. Mantém os padrões quando algo não bate. Retorna null se não leu o arquivo.
+     */
     static String[][] discoverCodes() {
-        String[][] codes = {DEFAULT_CODES[0].clone(), DEFAULT_CODES[1].clone()};
+        String[][] codes = {DEFAULT_CODES[0].clone(), DEFAULT_CODES[1].clone()}; // [turno-1]{federal, estadual}
+        boolean[][] seen = new boolean[2][2];
         try {
             int[] st = {0};
             String body = httpGet(configUrl(), st);
@@ -102,11 +107,10 @@ final class Tse {
                 for (int j = 0; es != null && j < es.length(); j++) {
                     JSONObject e = es.optJSONObject(j);
                     if (e == null) continue;
-                    String cd = e.optString("cd"), nm = e.optString("nm").toLowerCase(Locale.ROOT), t2 = e.optString("cdt2");
-                    boolean fed = cd.equals(DEFAULT_CODES[0][0]) || (nm.contains("federal") && nm.contains("2026") && !nm.contains("estadual"));
-                    boolean est = cd.equals(DEFAULT_CODES[0][1]) || (nm.contains("estadua") && nm.contains("2026"));
-                    if (fed && cd.matches("\\d{4}")) { codes[0][0] = cd; if (t2.matches("\\d{4}")) codes[1][0] = t2; }
-                    if (est && cd.matches("\\d{4}")) { codes[0][1] = cd; if (t2.matches("\\d{4}")) codes[1][1] = t2; }
+                    String cd = e.optString("cd"), t = e.optString("t"), tp = e.optString("tp");
+                    int ti = "1".equals(t) ? 0 : "2".equals(t) ? 1 : -1, ki = "8".equals(tp) ? 0 : "1".equals(tp) ? 1 : -1;
+                    if (!cd.matches("\\d{4}") || ti < 0 || ki < 0) continue;
+                    if (!seen[ti][ki] || cd.equals(DEFAULT_CODES[ti][ki])) { codes[ti][ki] = cd; seen[ti][ki] = true; }
                 }
             }
         } catch (Throwable ignored) { return null; }

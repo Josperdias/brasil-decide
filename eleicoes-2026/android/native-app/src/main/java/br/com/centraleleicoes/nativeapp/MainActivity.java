@@ -127,7 +127,7 @@ public class MainActivity extends Activity {
     private ExteriorUi exUi;
     private final Exterior.Snapshot[] exSnaps = new Exterior.Snapshot[2];
     private boolean exBusy;
-    private long exAt;
+    private final long[] exAtT = {0, 0};   // última tentativa de carregar o exterior, por turno
     private final ExecutorService exPool = Executors.newSingleThreadExecutor();
     /** Gravação do cache em segundo plano (montar o JSON de ~50 resultados no thread da tela travava a cada consulta). */
     private final ExecutorService io = Executors.newSingleThreadExecutor();
@@ -140,7 +140,7 @@ public class MainActivity extends Activity {
     private ReplayUi rpUi;
     private final Replay.Series[] rpSeries = new Replay.Series[2];
     private boolean rpBusy;
-    private long rpAt;
+    private final long[] rpAtT = {0, 0};   // última tentativa de carregar o replay, por turno
     private String rpDirOverride;
     private int rpPresetMode, rpPresetPct = -1;
     private String ctxUe = "BR", ctxRole = "candidato à presidência";
@@ -1597,7 +1597,9 @@ public class MainActivity extends Activity {
 
     private void loadReplay(boolean force) {
         final int t = turn;
-        if (rpBusy || (!force && rpSeries[t - 1] != null && System.currentTimeMillis() - rpAt < 60 * 1000L)) return;
+        // sem laço de recarga: mesmo sem dados (ex.: 2º turno antes da apuração) só tenta de novo depois de 60 s
+        if (rpBusy || (!force && rpAtT[t - 1] != 0 && System.currentTimeMillis() - rpAtT[t - 1] < 60 * 1000L)) return;
+        final boolean firstTry = rpAtT[t - 1] == 0;
         rpBusy = true;
         final String dir = rpDirOverride != null ? rpDirOverride : "t" + t;
         exPool.execute(() -> {
@@ -1606,8 +1608,8 @@ public class MainActivity extends Activity {
             final Replay.Series fs = s;
             ui.post(() -> {
                 rpBusy = false;
-                rpAt = System.currentTimeMillis();
-                boolean fresh = rpSeries[t - 1] == null || (fs != null && fs.snaps.size() != rpSeries[t - 1].snaps.size());
+                rpAtT[t - 1] = System.currentTimeMillis();
+                boolean fresh = firstTry || (fs != null && (rpSeries[t - 1] == null || fs.snaps.size() != rpSeries[t - 1].snaps.size()));
                 if (fs != null) rpSeries[t - 1] = fs;
                 if (fresh && tab.equals("mapa") && mapaSub.equals("replay") && turn == t && (!tv || resumed)) render();
             });
@@ -1637,10 +1639,15 @@ public class MainActivity extends Activity {
     private void loadExterior(boolean force) {
         final int t = turn;
         if (testOffline) return; // smoke test (só debug): sem rede
-        if (exBusy || (!force && exSnaps[t - 1] != null && !exSnaps[t - 1].fromCache && System.currentTimeMillis() - exAt < 5 * 60 * 1000L)) return;
+        if (exBusy) return;
+        final Exterior.Snapshot prev = exSnaps[t - 1];
+        // sem laço de recarga: com resultado do cache/reserva (fromCache) ou sem dados, só tenta de novo depois de 90 s
+        long wait = prev != null && !prev.fromCache ? 5 * 60 * 1000L : 90 * 1000L;
+        if (!force && exAtT[t - 1] != 0 && System.currentTimeMillis() - exAtT[t - 1] < wait) return;
         exBusy = true;
         final String fed = codes[t - 1][0];
-        final Exterior.Snapshot prev = exSnaps[t - 1];
+        final String prevErr = prev == null ? "" : prev.error;
+        final boolean prevCached = prev != null && prev.fromCache;
         exPool.execute(() -> {
             Exterior.Snapshot s = null;
             try { s = Exterior.load(fed, t, prev); } catch (Throwable th) { lastError = "exterior: " + th; }
@@ -1648,12 +1655,13 @@ public class MainActivity extends Activity {
             if (fs != null && fs.zz != null && !fs.fromCache) Exterior.save(getFilesDir(), fs);
             ui.post(() -> {
                 exBusy = false;
-                exAt = System.currentTimeMillis();
+                exAtT[t - 1] = System.currentTimeMillis();
                 boolean regress = fs != null && prev != null && fs != prev && rejectRegression(prev.zz, fs.zz); // exterior zerado/regressivo
                 if (regress) lastError = "proteção de histórico: resposta do exterior regressiva ignorada";
                 else if (fs != null && (fs.zz != null || exSnaps[t - 1] == null)) exSnaps[t - 1] = fs;
                 if (fs != null && !fs.error.isEmpty()) lastError = "exterior: " + fs.error;
-                if (tab.equals("mapa") && mapaSub.equals("mundo") && turn == t && (!tv || resumed)) render();
+                boolean changed = fs != prev || (fs != null && (!fs.error.equals(prevErr) || fs.fromCache != prevCached));
+                if (changed && tab.equals("mapa") && mapaSub.equals("mundo") && turn == t && (!tv || resumed)) render();
             });
         });
     }
@@ -2645,6 +2653,11 @@ public class MainActivity extends Activity {
             boolean offline = acceptedPres == null && s.isEmpty() && failures > 0;
             statusText = offline ? "Sem conexão • último resultado salvo" : failures > 0 ? "Online • dados parciais" : changed ? "Ao vivo • dados novos" : "Ao vivo • TSE sem mudança";
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
+            // 2º turno: o TSE já publica os dois candidatos com tudo zerado antes da votação
+            if (t == 2 && acceptedPres != null && acceptedPres.sections == 0 && candidateVotes(acceptedPres) == 0) {
+                statusText = "2º turno • aguardando o início da apuração";
+                statusSub = "candidatos já definidos pelo TSE • votação em 25/10/2026";
+            }
         }
         if (failures == 0 || acceptedPres != null || !s.isEmpty()) saveCache(t);
         if (genStatusPending && snap().pres != null) { genStatusPending = false; genAllStatusForTest(); genWorldStatusForTest(); }
