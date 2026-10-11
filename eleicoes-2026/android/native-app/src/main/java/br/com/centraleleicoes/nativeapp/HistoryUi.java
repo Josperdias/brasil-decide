@@ -88,7 +88,25 @@ final class HistoryUi {
             more.setOnClickListener(v -> { expanded = !expanded; host.rerender(); });
             card.addView(more, Ui.lp(-1, Ui.dp(40)));
         }
-        card.addView(Ui.text(c, "Fonte: TSE (dados abertos desde 1994; tabelas históricas e Biblioteca Digital do TSE antes disso). Em alguns anos antigos as fontes divergem; o app indica a fonte de cada número.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+        card.addView(Ui.text(c, "O selo ao lado de cada ano (Alta, Média, Parcial) indica a confiabilidade dos dados; toque no ano para ver a justificativa e como foi coletado. Fonte: TSE (dados abertos desde 1994; tabelas históricas antes disso).", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+        return card;
+    }
+
+    static int confColor(String conf) { return "Alta".equals(conf) ? Ui.GREEN : "Média".equals(conf) ? Ui.AMBER : Ui.RED; }
+
+    /** Cartão "Confiabilidade e método de coleta" do detalhe de um ano. */
+    private View trustCard(Context c, History.Election e) {
+        LinearLayout card = Ui.card(c);
+        LinearLayout head = Ui.row(c);
+        head.addView(Ui.text(c, "CONFIABILIDADE DOS DADOS", 10, Ui.MUTED, true), Ui.lp(0, -2, 1f));
+        if (!e.conf.isEmpty()) head.addView(Ui.chip(c, e.conf, confColor(e.conf)));
+        card.addView(head);
+        if (!e.just.isEmpty()) card.addView(Ui.text(c, e.just, 11, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+        if (!e.met.isEmpty()) {
+            card.addView(Ui.text(c, "COMO FOI COLETADO", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 10, 0, 0));
+            card.addView(Ui.text(c, e.met, 11, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 0));
+        }
+        card.addView(Ui.text(c, "Alta: fonte oficial primária do TSE, somada pelo app. Média: fonte oficial por intermediário ou com correção documentada. Parcial: só o vencedor, sem placar completo, ou fontes divergentes.", 9, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
         return card;
     }
 
@@ -109,6 +127,7 @@ final class HistoryUi {
         }
         if (sub.length() > 0) mid.addView(Ui.text(c, sub.toString(), 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
         r.addView(mid, Ui.lp(0, -2, 1f));
+        if (!s.conf.isEmpty()) r.addView(Ui.chip(c, s.conf, confColor(s.conf)), Ui.margins(Ui.lp(-2, -2), 6, 0, 6, 0));
         r.addView(Ui.text(c, "›", 18, Ui.MUTED, false));
         r.setOnClickListener(v -> openYear(s.ano));
         return r;
@@ -188,7 +207,8 @@ final class HistoryUi {
                 root.addView(turnoCard(c, e, t, l, ts.size() > 1), Ui.margins(Ui.lp(-1, -2), 0, 10, 0, 0));
             }
         }
-        if (!e.fonte.isEmpty()) root.addView(Ui.text(c, "Fonte: " + e.fonte, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 12, 2, 4));
+        root.addView(trustCard(c, e), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+        if (!e.fonte.isEmpty()) root.addView(Ui.text(c, "Fonte: " + e.fonte, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 2, 6, 2, 4));
     }
 
     private TextView chip(Context c, String label, boolean on, View.OnClickListener l) {

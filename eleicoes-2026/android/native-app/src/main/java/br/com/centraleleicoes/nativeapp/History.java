@@ -42,7 +42,7 @@ final class History {
 
     static final class Election {
         int ano;
-        String tipo = "direta", nota = "", fonte = "", vencedor = "", partido = "";
+        String tipo = "direta", nota = "", fonte = "", vencedor = "", partido = "", conf = "", just = "", met = "";
         double pctVencedor = -1;
         String turnoVencedor = "";
         /** cargo ("pres"/"gov") -> turno ("1"/"2") -> corrida. */
@@ -59,7 +59,7 @@ final class History {
     /** Linha do índice (linha do tempo de vencedores). */
     static final class Summary {
         int ano;
-        String tipo = "direta", vencedor = "", partido = "", turno = "", nota = "";
+        String tipo = "direta", vencedor = "", partido = "", turno = "", nota = "", conf = "";
         double pct = -1;
         long votos;
     }
@@ -88,6 +88,9 @@ final class History {
         e.tipo = o.optString("tipo", "direta");
         e.nota = o.optString("nota");
         e.fonte = o.optString("fonte");
+        e.conf = o.optString("conf");
+        e.just = o.optString("just");
+        e.met = o.optString("met");
         for (String cargo : new String[]{"pres", "gov"}) {
             JSONObject turnos = o.optJSONObject(cargo);
             if (turnos == null) continue;
@@ -116,6 +119,7 @@ final class History {
         s.ano = e.ano;
         s.tipo = e.tipo;
         s.nota = e.nota;
+        s.conf = e.conf;
         for (String t : new String[]{"2", "1"}) {
             Race r = e.race("pres", t);
             List<Cand> l = r == null ? null : r.byUf.get("BR");
@@ -205,6 +209,7 @@ final class History {
                 s.turno = j.optString("turno");
                 s.pct = j.optDouble("pct", -1);
                 s.votos = j.optLong("votos", 0);
+                s.conf = j.optString("conf");
                 out.add(s);
             }
         } catch (Throwable ignored) { }

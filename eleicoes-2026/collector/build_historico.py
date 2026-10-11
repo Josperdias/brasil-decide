@@ -49,6 +49,7 @@ def processar(ano):
     baixar(f"{CDN}/votacao_candidato_munzona_{ano}.zip", dest)
     z = zipfile.ZipFile(dest)
     nome = next(n for n in z.namelist() if n.upper().endswith("_BRASIL.CSV"))
+    geracao = ""
     votos = defaultdict(int)      # (cargo, turno, uf, nr, nome) -> votos
     info = {}                     # (cargo, turno, uf, nr, nome) -> (urna, partido, situação)
     with z.open(nome) as f:
@@ -62,6 +63,8 @@ def processar(ano):
         for row in rd:
             if len(row) < n:
                 continue
+            if not geracao and "DT_GERACAO" in ix:
+                geracao = row[ix["DT_GERACAO"]].strip()
             cargo = CARGOS.get(row[ic].strip().upper())
             if not cargo:
                 continue
@@ -75,11 +78,17 @@ def processar(ano):
                 urna = row[iur].strip()
                 info[k] = (urna if urna.upper() not in SEM_NOME else row[inm].strip(), row[ip].strip(), row[isit].strip().upper())
     os.remove(dest)
-    return votos, info
+    return votos, info, geracao
 
 
-def montar(ano, votos, info):
-    out = {"ano": ano, "tipo": "direta", "fonte": f"TSE — dados abertos, votação por candidato em {ano} (soma dos municípios/zonas; percentuais sobre a soma dos votos dos candidatos)", "nota": ""}
+MET = ("Arquivo oficial \"votacao_candidato_munzona\" do Portal de Dados Abertos do TSE (CSV por município e zona). "
+       "O gerador do app (GitHub Actions) baixa o arquivo, soma os votos nominais válidos de presidente e governador por UF e por turno, "
+       "e identifica o eleito pela situação \"ELEITO\" informada pelo próprio TSE. Percentuais = votos do candidato ÷ soma dos votos dos candidatos "
+       "(brancos e nulos ficam de fora). Nada é estimado ou projetado.")
+
+
+def montar(ano, votos, info, geracao=""):
+    out = {"ano": ano, "tipo": "direta", "fonte": f"TSE — dados abertos, votação por candidato em {ano}", "nota": "", "conf": "Alta", "met": MET}
     brasil = defaultdict(int)
     binfo = {}
     por = defaultdict(list)   # (cargo, turno, uf) -> [candidatos]
@@ -112,6 +121,18 @@ def montar(ano, votos, info):
     for (cargo, turno, uf), l in por.items():
         l.sort(key=lambda d: -d["v"])
         out.setdefault(cargo, {}).setdefault(turno, {})[uf] = l
+    # justificativa com os números conferidos nesta execução
+    partes = ["Fonte oficial primária (TSE)."]
+    for turno in sorted(out.get("pres", {})):
+        l = out["pres"][turno].get("BR", [])
+        tot = f"{sum(d['v'] for d in l):,}".replace(",", ".")
+        partes.append(f"Presidente, {turno}º turno: {len(l)} candidatos e {tot} votos somados em {len(out['pres'][turno]) - 1} UFs/exterior.")
+    if "gov" in out:
+        partes.append(f"Governador: {len(out['gov'])} turno(s), {len({uf for t in out['gov'].values() for uf in t})} UFs.")
+    if geracao:
+        partes.append(f"Arquivo gerado pelo TSE em {geracao}.")
+    partes.append("O eleito vem da situação informada pelo TSE e os totais são somas dos próprios candidatos; por isso os percentuais podem diferir dos divulgados sobre o total de votos (que incluem brancos e nulos).")
+    out["just"] = " ".join(partes)
     return out
 
 
@@ -123,7 +144,7 @@ def resumo(e):
         tot = sum(d["v"] for d in l)
         for d in l:
             if d.get("w"):
-                return {"ano": e["ano"], "vencedor": d["n"], "partido": d["p"], "turno": turno, "votos": d["v"], "pct": round(100 * d["v"] / tot, 2)}
+                return {"ano": e["ano"], "vencedor": d["n"], "partido": d["p"], "turno": turno, "votos": d["v"], "pct": round(100 * d["v"] / tot, 2), "conf": e.get("conf", "")}
     return {"ano": e["ano"], "vencedor": "", "partido": "", "turno": "", "votos": 0, "pct": -1}
 
 
@@ -138,8 +159,8 @@ def main():
     falhas = 0
     for ano in anos:
         try:
-            votos, info = processar(ano)
-            e = montar(ano, votos, info)
+            votos, info, geracao = processar(ano)
+            e = montar(ano, votos, info, geracao)
             s = resumo(e)
             if not s["vencedor"]:
                 raise RuntimeError("sem vencedor presidencial identificado")

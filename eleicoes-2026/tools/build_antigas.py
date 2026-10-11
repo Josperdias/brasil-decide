@@ -85,6 +85,31 @@ add(1989, "direta", {"1": t1, "2": [c("Fernando Collor de Mello", "PRN", 3508999
     PDBA + "; percentuais calculados sobre os votos dos candidatos (válidos)",
     "Primeira eleição direta para presidente em 29 anos. Na tabela de origem, os votos de Collor no 1º turno aparecem como 22.611.011; o app usa 20.611.011, único valor que fecha com os percentuais oficiais (30,48%).")
 
+# --- confiabilidade, justificativa e método de coleta (mostrados no app) ---
+MET_DIRETAS = ("Tabela histórica do TSE (votos do candidato eleito), digitada no gerador deste app com a fonte citada. "
+               "Os demais candidatos não constam na tabela; por isso o app não mostra placar completo.")
+MET_PDBA = ("Placar copiado da base Political Database of the Americas (Georgetown/OEA), que reproduz dados do TSE. "
+            "O gerador soma os votos, calcula os percentuais e confere contra os percentuais publicados; o CI refaz a conferência a cada build.")
+MET_IND = ("Registro histórico do resultado (data, órgão que elegeu e, quando conhecido, placar de delegados), conferido em mais de uma fonte "
+           "(glossário do TSE e imprensa da época). Não há voto popular.")
+CONF = {}
+for a in (1894, 1898, 1902, 1906, 1910):
+    CONF[a] = ("Parcial", "Só o candidato eleito consta na tabela do TSE; o voto era restrito e o apurado, de baixa abrangência. Fontes divergem em percentuais (ex.: 1906 = 97,22% no TSE e 97,9% em outra publicação).", MET_DIRETAS)
+for a in (1914, 1918, 1919, 1922, 1926, 1930):
+    CONF[a] = ("Parcial", "Só o candidato eleito e seus votos constam na tabela do TSE; sem percentual nem placar dos concorrentes. Eleições com histórico conhecido de fraude e baixa participação.", MET_DIRETAS)
+CONF[1934] = ("Parcial", "Resultado histórico consolidado (eleito pela Assembleia Constituinte), mas sem placar nas fontes consultadas.", MET_IND)
+CONF[1945] = ("Média", "Fonte oficial do TSE por intermediário; as somas fecham com os percentuais publicados (55,18 / 34,63 / 10,19), porém há fontes com números ligeiramente diferentes (3.251.507 para Dutra).", MET_PDBA)
+CONF[1950] = ("Média", "Fonte oficial do TSE por intermediário; as somas fecham com os percentuais publicados (48,90 / 29,76 / 21,33).", MET_PDBA)
+CONF[1955] = ("Média", "Placar da tabela oficial; confere com os 35,68% de Juscelino. A página do Georgetown divergia para Plínio Salgado, e o app descartou esse valor.", MET_PDBA)
+CONF[1960] = ("Média", "Fonte oficial do TSE por intermediário; as somas fecham com os percentuais publicados (48,26 / 32,93 / 18,80).", MET_PDBA)
+for a in (1964, 1966, 1969, 1978):
+    CONF[a] = ("Parcial", "Vencedor e data são fatos consolidados; o placar do Colégio Eleitoral/Congresso não aparece nas fontes consultadas.", MET_IND)
+CONF[1974] = ("Média", "Placar de delegados (400 x 76) confirmado em mais de uma fonte; não é voto popular.", MET_IND)
+CONF[1985] = ("Média", "Placar de delegados (480 x 180) confirmado em mais de uma fonte; não é voto popular.", MET_IND)
+CONF[1989] = ("Média", "Fonte oficial por intermediário, com uma correção explícita: os votos de Collor no 1º turno foram ajustados para fechar com os percentuais oficiais (30,48% e 53,03% no 2º turno). Os demais valores fecham com a soma.", MET_PDBA)
+for e in E:
+    e["conf"], e["just"], e["met"] = CONF[e["ano"]]
+
 E.sort(key=lambda e: e["ano"])
 out = os.path.join(os.path.dirname(__file__), "..", "android", "native-app", "src", "main", "assets", "historico_antigas.json")
 with open(out, "w", encoding="utf-8") as f:
