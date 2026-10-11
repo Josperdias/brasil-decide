@@ -213,6 +213,7 @@ public class MainActivity extends Activity {
             if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
             if (in.getStringExtra("ficha") != null) { final int fi = Integer.parseInt(in.getStringExtra("ficha")); ui.postDelayed(() -> { Model.Result pr = snap().pres; if (pr != null && fi < pr.cands.size()) showFicha(pr.cands.get(fi), pr, "BR", "candidato à presidência"); }, 14000); }
             if (in.getBooleanExtra("genreport", false)) ui.postDelayed(this::genReportsForTest, 30000);
+            if (in.hasExtra("histyear")) { final int hy = in.getIntExtra("histyear", 1989); ui.postDelayed(() -> history().open(hy), 12000); }
             if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
         if (p1Test != null) pres1TestRun(p1Test);
@@ -1351,12 +1352,28 @@ public class MainActivity extends Activity {
         });
     }
 
+    // ---------------------------------------------------------------- eleições passadas
+    private HistoryUi histUi;
+
+    private HistoryUi history() {
+        if (histUi == null) histUi = new HistoryUi(new HistoryUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
+            @Override public void rerender() { if (tab.equals("mais")) render(); }
+            @Override public void io(Runnable r) { exPool.execute(r); }
+            @Override public void post(Runnable r) { ui.post(r); }
+        });
+        return histUi;
+    }
+
     // ---------------------------------------------------------------- mais (labs)
     private void renderMais() {
         content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
         content.addView(analysis().build());
         content.addView(panorama().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
         loadPanorama(false);
+        content.addView(history().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+        if (histUi.needsLoad()) histUi.load();
 
         // comparador
         LinearLayout cmp = Ui.card(this);
