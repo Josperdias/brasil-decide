@@ -21,3 +21,5 @@ Mapa: geometria de `@svg-maps/brazil` (CC BY 4.0).
 - **Assinatura:** a chave antiga (publicada no repositório até o build 15) está **comprometida** e não é mais usada. Release só é assinada com a chave privada guardada em GitHub Actions Secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`); sem eles o CI gera só build debug e **não publica release**. Veja `SIGNING.md`.
 - **Atualização:** o app nativo baixa e instala a nova versão com um toque (permissão “instalar apps desconhecidos” na 1ª vez). O app WebView baixa sozinho o HTML novo (`central-eleicoes-2026.html` da release) ao abrir. Mudanças só no HTML não exigem novo APK no WebView; mudanças de código Java exigem APK novo (limitação do Android).
 - Instalações até o build 15 (chave comprometida) precisam ser desinstaladas uma vez antes da primeira instalação assinada pela nova chave.
+
+<!-- teste de auto-merge com ruleset (não fazer merge) -->
