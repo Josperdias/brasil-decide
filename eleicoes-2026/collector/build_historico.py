@@ -78,6 +78,8 @@ def processar(ano):
                 urna = row[iur].strip()
                 info[k] = (urna if urna.upper() not in SEM_NOME else row[inm].strip(), row[ip].strip(), row[isit].strip().upper())
     os.remove(dest)
+    from collections import Counter
+    print(f"  {ano}: situações (presidente):", dict(Counter(v[2] for k, v in info.items() if k[0] == "pres")), flush=True)
     return votos, info, geracao
 
 
@@ -110,6 +112,8 @@ def montar(ano, votos, info, geracao=""):
                 binfo[bk] = (bonito(urna), partido, eleito, sit.startswith("2") and "TURNO" in sit)
             elif eleito:
                 binfo[bk] = (binfo[bk][0], binfo[bk][1], True, False)
+    # alguns arquivos (2006, 2010) não trazem a situação "ELEITO": nesse caso, num cargo majoritário o eleito é o mais votado do último turno
+    fallback = False
     for (turno, nr, nm), v in brasil.items():
         urna, partido, eleito, seg = binfo[(turno, nr, nm)]
         d = {"n": urna, "p": partido, "v": v}
@@ -118,8 +122,19 @@ def montar(ano, votos, info, geracao=""):
         elif seg:
             d["s"] = "2º turno"
         por[("pres", turno, "BR")].append(d)
-    for (cargo, turno, uf), l in por.items():
+    for l in por.values():
         l.sort(key=lambda d: -d["v"])
+    grupos = defaultdict(list)    # (cargo, uf) -> [(turno, lista)]
+    for (cargo, turno, uf), l in por.items():
+        grupos[(cargo, uf)].append((turno, l))
+    for (cargo, uf), tl in grupos.items():
+        if any(d.get("w") for _, l in tl for d in l):
+            continue
+        turno, l = max(tl, key=lambda x: x[0])
+        l[0]["w"] = 1
+        l[0].pop("s", None)
+        fallback = True
+    for (cargo, turno, uf), l in por.items():
         out.setdefault(cargo, {}).setdefault(turno, {})[uf] = l
     # justificativa com os números conferidos nesta execução
     partes = ["Fonte oficial primária (TSE)."]
@@ -131,6 +146,8 @@ def montar(ano, votos, info, geracao=""):
         partes.append(f"Governador: {len(out['gov'])} turno(s), {len({uf for t in out['gov'].values() for uf in t})} UFs.")
     if geracao:
         partes.append(f"Arquivo gerado pelo TSE em {geracao}.")
+    if fallback:
+        partes.append("Neste arquivo o TSE não informa a situação \"ELEITO\" de todos os cargos; nesses casos o eleito é o candidato mais votado do último turno (regra dos cargos majoritários).")
     partes.append("O eleito vem da situação informada pelo TSE e os totais são somas dos próprios candidatos; por isso os percentuais podem diferir dos divulgados sobre o total de votos (que incluem brancos e nulos).")
     out["just"] = " ".join(partes)
     return out
