@@ -18,8 +18,8 @@ async function refresh(){if(st.busy)return;st.busy=true;await loadElectionConfig
  }catch(e){failures.push('rede');st.lastError=String(e&&e.message||e)}
  if(turn!==st.turn){st.busy=false;st.nextAt=Date.now();$('refreshBtn').disabled=false;return}
  if(R.presBR){const ref=usefulResult(st.presBR)?st.presBR:(turn===1?loadPres1Final():null);if(rejectRegression(ref,R.presBR)){R.presBR=null;st.lastError='proteção de histórico: resposta presidencial regressiva ignorada'}else{mark('presBR',R.presBR);st.presBR=R.presBR;if(turn===1&&finalResult(R.presBR))savePres1Final(R.presBR)}}
- for(const[uf,d]of Object.entries(R.states)){mark('uf-'+uf,d);st.states[uf]=d;recordHist('pres',uf,d)}
- for(const[uf,d]of Object.entries(R.gov)){mark('gov-'+uf,d);st.gov[uf]=d;recordHist('gov',uf,d)}
+ for(const[uf,d]of Object.entries(R.states)){if(rejectRegression(st.states[uf],d)){st.lastError='proteção de histórico: resposta de '+uf+' regressiva ignorada';continue}mark('uf-'+uf,d);st.states[uf]=d;recordHist('pres',uf,d)}
+ for(const[uf,d]of Object.entries(R.gov)){if(rejectRegression(st.gov[uf],d)){st.lastError='proteção de histórico: resposta de governador '+uf+' regressiva ignorada';delete R.gov[uf];continue}mark('gov-'+uf,d);st.gov[uf]=d;recordHist('gov',uf,d)}
  Object.assign(st.govAbsent,R.govAbsent);for(const uf of Object.keys(R.gov))delete st.govAbsent[uf];
  if(R.dfx)putDF(dfUf,R.dfx);
  st.lastPoll=new Date();st.lastPollMs=Math.round(performance.now()-began);if(!st.lastDataChange&&st.presBR)st.lastDataChange=new Date();
@@ -39,8 +39,8 @@ function renderRoundBar(){const el=$('round2Bar');if(!el)return;const[y,m,d]=ROU
 function roundClass(d){const cs=d&&d.cands;if(!cs||!cs.length)return'wait';if(cs.some(c=>R2RE.test(c.sit||'')))return'r2';if(cs.some(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||'')))return'win';const t=cs[0];if(!(t.votos>0))return'wait';const p=d.progress||0;if(t.pct>50)return p>=99||d.final?'win':'wait';return p>=99||finalResult(d)?'r2':'wait'}
 function r2Pick(d){const cs=d.cands||[];return cs.filter(c=>R2RE.test(c.sit||'')).concat(cs.filter(c=>!R2RE.test(c.sit||''))).slice(0,2)}
 const r2c=c=>`<div class="r2c"><i style="background:${candColor(c.nome)}"></i><span class="r2n">${esc(c.nome)}<small>${esc(c.partido)}</small></span><b>${fmtPct(c.pct)}</b></div>`;
-const roundPresData=()=>{const c=st.turn===1?[st.presBR]:[st.roundPres,st.buckets[1]&&st.buckets[1].presBR];c.push(loadPres1Final());return c.find(finalResult)||c.find(usefulResult)||null};
-const roundGovData=uf=>st.roundGov[uf]||(st.turn===1?st.gov[uf]:(st.buckets[1]&&st.buckets[1].gov&&st.buckets[1].gov[uf]))||null;
+const roundPresData=()=>{const c=st.turn===1?[st.presBR]:[st.roundPres,st.buckets[1]&&st.buckets[1].presBR];c.push(loadPres1Final(),coleta1().pres);return c.find(finalResult)||c.find(usefulResult)||null};
+const roundGovData=uf=>{const c=[st.roundGov[uf],st.turn===1?st.gov[uf]:(st.buckets[1]&&st.buckets[1].gov&&st.buckets[1].gov[uf]),loadUf1().g[uf],coleta1().gov[uf]];return c.find(finalResult)||c.find(usefulResult)||null};
 function r2PresHTML(){const d=roundPresData(),k=roundClass(d);let b;
  if(k==='r2')b=`<div class="r2cs">${r2Pick(d).map(r2c).join('')}</div><div class="r2s">Resultado do 1º turno • ${fmtPct(d.progress)} apurado</div>`;
  else if(k==='win'){const w=d.cands.find(c=>ELEITO_RE.test(c.sit||'')&&!NELEITO_RE.test(c.sit||''))||d.cands[0];b=`<div class="r2ok">Definido no 1º turno</div><div class="r2cs">${r2c(w)}</div>`}
@@ -60,7 +60,7 @@ function renderRound2(){const el=$('round2Card');if(!el)return;const h=`<div cla
 async function loadRoundPres(){const R=st.round;if(R.presBusy)return;R.presBusy=true;R.presAt=Date.now();try{await loadElectionConfig();const cd=codesFor(1),r=await getResult(resultURL(cd.fed,'br',1),{cargo:1,e:cd.fed,abr:'br',photoAbr:'br'},60000);if(usefulResult(r.d)&&!rejectRegression(st.roundPres||loadPres1Final(),r.d)){st.roundPres=r.d;if(finalResult(r.d))savePres1Final(r.d)}}catch(e){}finally{R.presBusy=false;renderRound2()}}
 async function loadRound(){const R=st.round;if(R.busy)return;R.busy=true;R.due=Date.now()+R2_EVERY;renderRound2();
  try{await loadElectionConfig();const cd=codesFor(1),codes=Object.keys(UFS),gr=await mapLimit(codes,8,uf=>getResult(resultURL(cd.est,uf.toLowerCase(),3),{cargo:3,e:cd.est,abr:uf.toLowerCase(),photoAbr:uf.toLowerCase()}));let fail=0;
-  gr.forEach((r,i)=>{const v=r.value,uf=codes[i];if(r.status!=='fulfilled'||v.error)fail++;else if(v.d){st.roundGov[uf]=v.d;delete st.roundGovAbs[uf]}else if(v.absent)st.roundGovAbs[uf]=true});
+  gr.forEach((r,i)=>{const v=r.value,uf=codes[i];if(r.status!=='fulfilled'||v.error)fail++;else if(v.d){if(rejectRegression(roundGovData(uf),v.d)){st.lastError='proteção de histórico: governador '+uf+' regressivo ignorado';fail++}else{st.roundGov[uf]=v.d;delete st.roundGovAbs[uf];if(finalResult(v.d)&&!v.d.src){const A=loadUf1();if(!rejectRegression(A.g[uf],v.d)){A.g[uf]=v.d;saveJSON(UF1_KEY,A)}}}}else if(v.absent)st.roundGovAbs[uf]=true});
   R.fail=fail;R.at=Date.now();if(fail===codes.length)R.due=Date.now()+60000;
   if(st.turn===2)await loadRoundPres()}
  catch(e){st.lastError=String(e&&e.message||e);R.due=Date.now()+60000}

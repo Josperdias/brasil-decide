@@ -27,6 +27,8 @@ final class Model {
         double progress, abstPct;
         long sections, sectionsTotal, valid, blank, nulls, electorate, turnout, absent;
         String date = "", time = "", sig = "", photoBase = "";
+        /** origem quando não veio direto do arquivo ao vivo do TSE: "coleta" = total final coletado do TSE em 05/10/2026 (reserva) */
+        String src = "";
         boolean fin;
 
         Cand lead() { return !cands.isEmpty() && cands.get(0).votos > 0 ? cands.get(0) : null; }
@@ -39,7 +41,7 @@ final class Model {
             return new JSONObject().put("c", a).put("pr", progress).put("ap", abstPct).put("se", sections)
                     .put("st", sectionsTotal).put("va", valid).put("bl", blank).put("d", date).put("t", time)
                     .put("g", sig).put("f", fin).put("pb", photoBase)
-                    .put("nu", nulls).put("el", electorate).put("tu", turnout).put("ab", absent);
+                    .put("nu", nulls).put("el", electorate).put("tu", turnout).put("ab", absent).put("sr", src);
         }
 
         static Result fromJson(JSONObject o) {
@@ -57,7 +59,7 @@ final class Model {
             r.progress = o.optDouble("pr"); r.abstPct = o.optDouble("ap"); r.sections = o.optLong("se");
             r.sectionsTotal = o.optLong("st"); r.valid = o.optLong("va"); r.blank = o.optLong("bl");
             r.date = o.optString("d"); r.time = o.optString("t"); r.sig = o.optString("g"); r.fin = o.optBoolean("f"); r.photoBase = o.optString("pb");
-            r.nulls = o.optLong("nu"); r.electorate = o.optLong("el"); r.turnout = o.optLong("tu"); r.absent = o.optLong("ab");
+            r.nulls = o.optLong("nu"); r.electorate = o.optLong("el"); r.turnout = o.optLong("tu"); r.absent = o.optLong("ab"); r.src = o.optString("sr");
             return r;
         }
     }
