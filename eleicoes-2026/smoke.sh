@@ -71,8 +71,10 @@ adb shell am start -S -W -n $N/.MainActivity --es tab brasil --es ficha 0 > /dev
 # painel de UF e estúdio de imagens
 adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es sel SP --es sheet SP > /dev/null; sleep 22; alive $N; shot native-sheet-sp
 adb shell am start -S -W -n $N/.MainActivity --es tab brasil --ez studio true --ez genstatus true > /dev/null; sleep 45; alive $N; shot native-studio
+# estúdio aberto no cartão do mapa-múndi (Mundo)
+adb shell am start -S -W -n $N/.MainActivity --es tab mapa --es msub mundo --ez studio true --ei stype 4 > /dev/null; sleep 40; alive $N; shot native-studio-mundo; crashes; ui_has "Compartilhar"
 # imagens de status geradas pelo app (6 variantes) — puxadas do cache do app (build debug)
-for t in 0 1 2 10 11 12 13 14; do for f in 0 1; do adb exec-out run-as $N cat cache/share/test-$t-$f.png > dist/status-$t-$f.png || true; done; done
+for t in 0 1 2 10 11 12 13 14 20; do for f in 0 1; do adb exec-out run-as $N cat cache/share/test-$t-$f.png > dist/status-$t-$f.png || true; done; done
 # relatórios da Central de Análises (6 formatos), gerados pelo app com os dados reais e validados depois pelo CI
 adb shell am start -S -W -n $N/.MainActivity --es tab mais --ez genreport true > /dev/null; sleep 55; alive $N; shot native-mais-analises; crashes
 for e in pdf docx xlsx csv json png; do adb exec-out run-as $N cat cache/share/test-report.$e > dist/report.$e || true; done

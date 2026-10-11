@@ -38,6 +38,7 @@ final class ExteriorUi {
         int turn();
         Model.Result nationalPres();
         void event(String icon, String title, String detail);
+        void statusImage();
     }
 
     private static final Locale BR = new Locale("pt", "BR");
@@ -114,6 +115,11 @@ final class ExteriorUi {
         root.addView(overview(s));
         root.addView(sectionTitle("Mapa-múndi eleitoral", "Cada país mostra a cor do candidato que lidera entre os brasileiros que votaram lá. Cinza: sem dados."), Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 0));
         root.addView(mapCard(s));
+        TextView img = Ui.text(cx, "📸 Criar imagem do mapa-múndi para status", 13, Ui.INK, true);
+        img.setGravity(Gravity.CENTER);
+        img.setBackground(Ui.accent(13));
+        img.setOnClickListener(v -> host.statusImage());
+        root.addView(img, Ui.margins(Ui.lp(-1, Ui.dp(46)), 0, 10, 0, 0));
         root.addView(sectionTitle("O mundo votou assim", "Frases geradas só a partir dos números oficiais."), Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 0));
         root.addView(worldSays(s));
         root.addView(sectionTitle("Brasil × Exterior", "Comparação matemática entre o resultado nacional e o do exterior (diferença em pontos percentuais)."), Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 0));

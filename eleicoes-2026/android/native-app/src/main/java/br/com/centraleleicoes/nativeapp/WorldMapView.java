@@ -38,6 +38,38 @@ final class WorldMapView extends View {
 
     static float[] geo(String iso2) { paths(); return GEO.get(iso2); }
 
+    /** Desenha o mapa-múndi (países coloridos pelo líder) numa largura dada; usado no cartão de imagem para status. */
+    static void drawMap(Canvas c, float width, Map<String, Integer> leaderColors, Set<String> withData) {
+        float s = width / ExteriorData.VIEW_W;
+        Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG), dot = new Paint(Paint.ANTI_ALIAS_FLAG);
+        stroke.setStyle(Paint.Style.STROKE);
+        stroke.setStrokeJoin(Paint.Join.ROUND);
+        stroke.setStrokeWidth(0.7f);
+        stroke.setColor(0x99CFE3F7);
+        fill.setStyle(Paint.Style.FILL);
+        c.save();
+        c.scale(s, s);
+        for (Map.Entry<String, Path> e : paths().entrySet()) {
+            Integer col = leaderColors.get(e.getKey());
+            fill.setColor(col != null ? col : (withData.contains(e.getKey()) ? 0xFF2A4A70 : NEUTRAL));
+            c.drawPath(e.getValue(), fill);
+            c.drawPath(e.getValue(), stroke);
+        }
+        for (String iso : withData) { // países pequenos (sem área visível) viram marcadores
+            float[] g = geo(iso);
+            if (g == null || g[2] >= 60f) continue;
+            Integer col = leaderColors.get(iso);
+            dot.setStyle(Paint.Style.FILL);
+            dot.setColor(col != null ? col : 0xFF2A4A70);
+            c.drawCircle(g[0], g[1], 5f, dot);
+            dot.setStyle(Paint.Style.STROKE);
+            dot.setStrokeWidth(1f);
+            dot.setColor(0xCCCFE3F7);
+            c.drawCircle(g[0], g[1], 5f, dot);
+        }
+        c.restore();
+    }
+
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG), dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Matrix m = new Matrix(), inv = new Matrix();
     private final Map<String, Integer> colors = new HashMap<>();

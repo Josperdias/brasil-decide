@@ -209,6 +209,7 @@ public class MainActivity extends Activity {
             tv = in.getBooleanExtra("tv", false);
             if (in.getStringExtra("lfilter") != null) livesFilter = in.getStringExtra("lfilter");
             genStatusPending = in.getBooleanExtra("genstatus", false);
+            if (in.hasExtra("stype")) studioType = in.getIntExtra("stype", StatusCard.PLACAR);
             if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
             if (in.getStringExtra("ficha") != null) { final int fi = Integer.parseInt(in.getStringExtra("ficha")); ui.postDelayed(() -> { Model.Result pr = snap().pres; if (pr != null && fi < pr.cands.size()) showFicha(pr.cands.get(fi), pr, "BR", "candidato à presidência"); }, 14000); }
             if (in.getBooleanExtra("genreport", false)) ui.postDelayed(this::genReportsForTest, 30000);
@@ -1622,6 +1623,7 @@ public class MainActivity extends Activity {
             @Override public int turn() { return turn; }
             @Override public Model.Result nationalPres() { return snap().pres; }
             @Override public void event(String icon, String title, String detail) { addEvent(icon, title, detail); }
+            @Override public void statusImage() { studioType = StatusCard.MUNDO; showStatusStudio(); }
         });
         return exUi;
     }
@@ -2155,6 +2157,7 @@ public class MainActivity extends Activity {
         d.format = studioFormat;
         d.turn = turn;
         d.pres = snap().pres;
+        d.ex = exSnaps[turn - 1];
         d.states = new HashMap<>(snap().states);
         d.ufCode = studioUf;
         d.ufName = ufName(studioUf);
@@ -2207,8 +2210,8 @@ public class MainActivity extends Activity {
         studioHolder.addView(Ui.text(this, "📸 Imagem para status", 20, Ui.TEXT, true));
         studioHolder.addView(Ui.text(this, "Card pronto com resultado oficial, fonte e horário — para WhatsApp, Instagram e redes.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 12));
         FlowLayout types = new FlowLayout(this, 7);
-        String[] tn = {"Placar", "Mapa", "Estado", "Cargos"};
-        for (int i = 0; i < 4; i++) {
+        String[] tn = {"Placar", "Mapa", "Estado", "Cargos", "Mundo"};
+        for (int i = 0; i < tn.length; i++) {
             final int ti = i;
             types.addView(optChip(tn[i], studioType == i, v -> { studioType = ti; regenStudio(); }));
         }
@@ -2298,6 +2301,15 @@ public class MainActivity extends Activity {
     }
 
     private String statusCaption() {
+        if (studioType == StatusCard.MUNDO) {
+            Exterior.Snapshot ex = exSnaps[turn - 1];
+            StringBuilder w = new StringBuilder("Brasil Decide • Eleições 2026 • " + turn + "º turno • Brasileiros no exterior\n");
+            if (ex != null && ex.total != null) {
+                for (int i = 0; i < Math.min(3, ex.total.cands.size()); i++) w.append(i + 1).append("º ").append(ex.total.cands.get(i).nome).append(" ").append(pc(ex.total.cands.get(i).pct)).append("\n");
+                w.append("Apuração: ").append(pc(ex.total.progress())).append(" das seções\n");
+            }
+            return w.append("Fonte: TSE (dados oficiais, sem projeção)\n📲 Baixe o app grátis: ").append(PAGE_URL).toString();
+        }
         Model.Result r = studioType == StatusCard.UF ? snap().states.get(studioUf) : studioType == StatusCard.DFC ? snap().df.get(studioUf + "|" + StatusCard.DF_KEYS[studioCargo]) : snap().pres;
         String where = studioType == StatusCard.UF ? ufName(studioUf) : studioType == StatusCard.DFC ? studioUf + " • " + StatusCard.DF_LABELS[studioCargo] : "Brasil";
         StringBuilder b = new StringBuilder("Brasil Decide • Eleições 2026 • " + turn + "º turno • " + where + "\n");
@@ -2369,6 +2381,25 @@ public class MainActivity extends Activity {
                     java.io.File dir = new java.io.File(getCacheDir(), "share");
                     dir.mkdirs();
                     java.io.FileOutputStream o = new java.io.FileOutputStream(new java.io.File(dir, "test-" + fty + "-" + ffm + ".png"));
+                    b.compress(Bitmap.CompressFormat.PNG, 90, o);
+                    o.close();
+                } catch (Throwable ignored) { }
+            }, d);
+        }
+    }
+
+    /** Teste do emulador: gera o cartão do mapa-múndi (story e post) em cache/share/test-20-N.png. */
+    private void genWorldStatusForTest() {
+        for (int fm = 0; fm < 2; fm++) {
+            final int ffm = fm;
+            final StatusCard.Data d = statusData();
+            d.type = StatusCard.MUNDO; d.format = fm;
+            generateStatus(b -> {
+                if (b == null) return;
+                try {
+                    java.io.File dir = new java.io.File(getCacheDir(), "share");
+                    dir.mkdirs();
+                    java.io.FileOutputStream o = new java.io.FileOutputStream(new java.io.File(dir, "test-20-" + ffm + ".png"));
                     b.compress(Bitmap.CompressFormat.PNG, 90, o);
                     o.close();
                 } catch (Throwable ignored) { }
@@ -2616,7 +2647,7 @@ public class MainActivity extends Activity {
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
         }
         if (failures == 0 || acceptedPres != null || !s.isEmpty()) saveCache(t);
-        if (genStatusPending && snap().pres != null) { genStatusPending = false; genAllStatusForTest(); }
+        if (genStatusPending && snap().pres != null) { genStatusPending = false; genAllStatusForTest(); genWorldStatusForTest(); }
     }
 
     // ============================================================ histórico do 1º turno por UF / governador / DF / exterior
