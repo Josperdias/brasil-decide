@@ -88,7 +88,14 @@ adb shell am start -S -W -n $N/.MainActivity --es pres1test check --es tab brasi
 p1need test-pres1-check.txt PRES1_RESTORED_AFTER_RESTART
 p1need test-pres1-check-live.txt PRES1_KEPT_AFTER_LIVE_FAILURE
 p1need test-pres1-check-live.txt PRES1_ARCHIVE_KEPT
-ui_has "Candidato Teste A"
+# o card do 2º turno fica abaixo da dobra na tela pequena do emulador: rola até achar (sem tentar várias vezes cada posição)
+p1_seen=0
+for i in 1 2 3 4 5 6 7 8; do
+  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+  if adb shell cat /sdcard/ui.xml 2> /dev/null | grep -q "Candidato Teste A"; then p1_seen=1; break; fi
+  scroll
+done
+if [ $p1_seen = 1 ]; then echo "OK: o card do 2º turno mostra o 1º turno arquivado (Candidato Teste A)"; shot native-pres1-card; else echo "FALHA: o card do 2º turno nao mostra o 1º turno arquivado"; fail=1; fi
 adb shell pm clear $N > /dev/null  # descarta os dados sintéticos do teste
 # --- APKs de RELEASE (só existem quando o CI tem os Secrets de assinatura): chave diferente da debug, então desinstala antes
 if [ -f dist/CentralEleicoes2026-Nativo.apk ] && [ -f dist/CentralEleicoes2026-WebView.apk ]; then
