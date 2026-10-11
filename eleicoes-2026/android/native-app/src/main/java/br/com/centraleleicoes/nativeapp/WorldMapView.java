@@ -1,6 +1,7 @@
 package br.com.centraleleicoes.nativeapp;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
@@ -38,12 +39,47 @@ final class WorldMapView extends View {
 
     static float[] geo(String iso2) { paths(); return GEO.get(iso2); }
 
+    /** Desenha o mapa-múndi (países coloridos pelo líder) numa largura dada; usado no cartão de imagem para status. */
+    static void drawMap(Canvas c, float width, Map<String, Integer> leaderColors, Set<String> withData) {
+        float s = width / ExteriorData.VIEW_W;
+        Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG), dot = new Paint(Paint.ANTI_ALIAS_FLAG);
+        stroke.setStyle(Paint.Style.STROKE);
+        stroke.setStrokeJoin(Paint.Join.ROUND);
+        stroke.setStrokeWidth(0.7f);
+        stroke.setColor(0x99CFE3F7);
+        fill.setStyle(Paint.Style.FILL);
+        c.save();
+        c.clipRect(0, 0, width, ExteriorData.VIEW_H * s); // a geometria passa um pouco da borda (Chukotka/Alasca)
+        c.scale(s, s);
+        for (Map.Entry<String, Path> e : paths().entrySet()) {
+            Integer col = leaderColors.get(e.getKey());
+            fill.setColor(col != null ? col : (withData.contains(e.getKey()) ? 0xFF2A4A70 : NEUTRAL));
+            c.drawPath(e.getValue(), fill);
+            c.drawPath(e.getValue(), stroke);
+        }
+        for (String iso : withData) { // países pequenos (sem área visível) viram marcadores
+            float[] g = geo(iso);
+            if (g == null || g[2] >= 60f) continue;
+            Integer col = leaderColors.get(iso);
+            dot.setStyle(Paint.Style.FILL);
+            dot.setColor(col != null ? col : 0xFF2A4A70);
+            c.drawCircle(g[0], g[1], 5f, dot);
+            dot.setStyle(Paint.Style.STROKE);
+            dot.setStrokeWidth(1f);
+            dot.setColor(0xCCCFE3F7);
+            c.drawCircle(g[0], g[1], 5f, dot);
+        }
+        c.restore();
+    }
+
     private final Paint fill = new Paint(Paint.ANTI_ALIAS_FLAG), stroke = new Paint(Paint.ANTI_ALIAS_FLAG), dot = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Matrix m = new Matrix(), inv = new Matrix();
     private final Map<String, Integer> colors = new HashMap<>();
     private final Set<String> dimmed = new HashSet<>(), hasData = new HashSet<>();
     private String selected = "";
     private OnCountry listener;
+    private Bitmap cache;            // mapa pronto: ~200 caminhos não são redesenhados a cada quadro da rolagem
+    private boolean cacheDirty = true;
     private final float[] pt = new float[2];
 
     WorldMapView(Context c) {
@@ -64,6 +100,7 @@ final class WorldMapView extends View {
         hasData.addAll(withData);
         dimmed.clear();
         dimmed.addAll(dim);
+        cacheDirty = true;
         invalidate();
     }
 
@@ -75,12 +112,13 @@ final class WorldMapView extends View {
     }
 
     @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
+        cacheDirty = true;
         float s = w / ExteriorData.VIEW_W;
         m.setScale(s, s);
         m.invert(inv);
     }
 
-    @Override protected void onDraw(Canvas c) {
+    private void paintMap(Canvas c) {
         c.save();
         c.concat(m);
         stroke.setStrokeWidth(0.7f);
@@ -110,6 +148,23 @@ final class WorldMapView extends View {
             dot.setColor(0xCCCFE3F7);
             c.drawCircle(g[0], g[1], 4.2f, dot);
         }
+        c.restore();
+    }
+
+    @Override protected void onDraw(Canvas c) {
+        int w = getWidth(), h = getHeight();
+        if (w <= 0 || h <= 0) return;
+        if (cache == null || cache.getWidth() != w || cache.getHeight() != h) {
+            if (cache != null) cache.recycle();
+            try { cache = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888); } catch (Throwable t) { cache = null; }
+            cacheDirty = true;
+        }
+        if (cache != null) {
+            if (cacheDirty) { cache.eraseColor(0); paintMap(new Canvas(cache)); cacheDirty = false; }
+            c.drawBitmap(cache, 0, 0, null);
+        } else paintMap(c); // sem memória para o cache: desenha direto
+        c.save();
+        c.concat(m);
         Path sel = paths().get(selected);
         if (sel != null) { stroke.setColor(Color.WHITE); stroke.setStrokeWidth(2f); c.drawPath(sel, stroke); }
         else if (!selected.isEmpty() && geo(selected) != null) {
@@ -118,6 +173,12 @@ final class WorldMapView extends View {
             c.drawCircle(g[0], g[1], 5.6f, dot);
         }
         c.restore();
+    }
+
+    @Override protected void onDetachedFromWindow() {
+        if (cache != null) { cache.recycle(); cache = null; }
+        cacheDirty = true;
+        super.onDetachedFromWindow();
     }
 
     @Override public boolean onTouchEvent(MotionEvent ev) {

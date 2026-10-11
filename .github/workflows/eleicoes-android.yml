@@ -42,6 +42,9 @@ jobs:
       - name: Teste funcional do histórico do 1º turno (WebView)
         working-directory: eleicoes-2026
         run: node tools/test_pres1.js central-eleicoes-2026.html
+      - name: Teste dos códigos de eleição (1º turno 6257/6259, 2º turno 6258/6260) no HTML/WebView
+        working-directory: eleicoes-2026
+        run: node tools/test_codes.js central-eleicoes-2026.html
       - name: Verificar Secrets de assinatura
         id: signing
         shell: bash

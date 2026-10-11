@@ -28,7 +28,7 @@ import java.util.Map;
 final class StatusCard {
     private StatusCard() {}
 
-    static final int PLACAR = 0, MAPA = 1, UF = 2, DFC = 3, STORY = 0, POST = 1;
+    static final int PLACAR = 0, MAPA = 1, UF = 2, DFC = 3, MUNDO = 4, STORY = 0, POST = 1;
     static final String[] DF_KEYS = {"pres", "gov", "sen", "depf", "depd"};
     static final String[] DF_LABELS = {"Presidente", "Governador", "Senador", "Dep. Federal", "Dep. Distrital"};
     private static final Locale BR = new Locale("pt", "BR");
@@ -38,6 +38,7 @@ final class StatusCard {
     static final class Data {
         int type, format, turn, dfCargo;
         Model.Result pres, ufRes;
+        Exterior.Snapshot ex;
         Map<String, Model.Result> states = new HashMap<>(), df = new HashMap<>();
         String ufCode = "DF", ufName = "Distrito Federal";
         long at = System.currentTimeMillis();
@@ -84,6 +85,7 @@ final class StatusCard {
     static Model.Result mainResult(Data d) {
         if (d.type == UF) return d.ufRes;
         if (d.type == DFC) return d.df.get(DF_KEYS[d.dfCargo]);
+        if (d.type == MUNDO) return d.ex == null ? null : d.ex.zz;
         return d.pres;
     }
 
@@ -91,7 +93,7 @@ final class StatusCard {
     static List<Model.Cand> shown(Data d) {
         List<Model.Cand> out = new ArrayList<>();
         Model.Result r = mainResult(d);
-        if (r == null || d.type == MAPA) return out;
+        if (r == null || d.type == MAPA || d.type == MUNDO) return out;
         int key = d.type == DFC ? d.dfCargo : -1;
         if (key == 3 || key == 4) out.addAll(elected(r, gridCount(d)));
         else if (key == 1 || key == 2) out.addAll(r.cands.subList(0, Math.min(5, r.cands.size())));
@@ -135,7 +137,7 @@ final class StatusCard {
         background(c, H);
         boolean story = d.format == STORY;
         Model.Result r = mainResult(d);
-        String kicker = "ELEIÇÕES 2026  •  " + d.turn + "º TURNO" + (d.type == DFC ? "  •  " + d.ufName.toUpperCase(Locale.ROOT) : "");
+        String kicker = "ELEIÇÕES 2026  •  " + d.turn + "º TURNO" + (d.type == DFC ? "  •  " + d.ufName.toUpperCase(Locale.ROOT) : d.type == MUNDO ? "  •  EXTERIOR" : "");
         Paint k = paint(Ui.MINT, story ? 30 : 26, true, Paint.Align.LEFT);
         k.setLetterSpacing(0.16f);
         c.drawText(kicker, M, story ? 128 : 82, k);
@@ -144,6 +146,7 @@ final class StatusCard {
             case PLACAR: title = "Presidente — Brasil"; sub = "Resultado oficial do TSE"; break;
             case MAPA: title = "Quem lidera cada UF"; sub = "Presidente • mapa por estado"; break;
             case UF: title = d.ufName; sub = "Presidente • " + d.ufCode; break;
+            case MUNDO: title = "O mundo votou assim"; sub = "Presidente • brasileiros no exterior"; break;
             default: {
                 boolean df = d.ufCode.equals("DF");
                 String[] t = df ? new String[]{"Presidente no DF", "Governo do DF", "Senado Federal — DF", "Câmara dos Deputados — DF", "Câmara Legislativa (CLDF)"}
@@ -157,6 +160,7 @@ final class StatusCard {
         c.drawText(sub, M, story ? 292 : 206, paint(Ui.MUTED, story ? 38 : 30, false, Paint.Align.LEFT));
         float y = story ? 372 : 250;
         if (d.type == MAPA) mapBlock(c, d, H, y, story);
+        else if (d.type == MUNDO) worldBlock(c, d, y, story);
         else if (r == null) c.drawText("Aguardando dados do TSE…", M, y + 120, paint(Ui.MUTED, 44, false, Paint.Align.LEFT));
         else if (d.type == DFC && d.dfCargo >= 3) electedGrid(c, d, r, y, H, story);
         else if (d.type == DFC && d.dfCargo >= 1) duelBlock(c, d, r, y, H, story);
@@ -430,6 +434,63 @@ final class StatusCard {
         else if (d.pres != null) c.drawText("Apuração nacional: " + pc(d.pres.progress) + " das seções", M, H - 240, paint(Ui.MINT, 38, true, Paint.Align.LEFT));
     }
 
+    /** Mapa-múndi colorido pelo líder de cada país + quem lidera no total e em quantos países (só números oficiais). */
+    private static void worldBlock(Canvas c, Data d, float y, boolean story) {
+        Exterior.Snapshot ex = d.ex;
+        Exterior.Agg t = ex == null ? null : ex.total;
+        if (t == null || t.valid <= 0 || t.cands.isEmpty()) {
+            c.drawText("Aguardando dados do TSE…", M, y + 120, paint(Ui.MUTED, 44, false, Paint.Align.LEFT));
+            return;
+        }
+        Map<String, Integer> colors = new HashMap<>();
+        java.util.Set<String> with = new java.util.HashSet<>();
+        Map<String, Integer> leads = new HashMap<>();
+        for (Exterior.Agg a : ex.countries.values()) {
+            if (a.localsWithData == 0) continue;
+            with.add(a.key);
+            Model.Cand l = a.lead();
+            if (l != null) { colors.put(a.key, Model.color(l.nome)); leads.merge(l.nome, 1, Integer::sum); }
+        }
+        float pad = 18, cardW = W - 2 * M, mapW = story ? cardW - 2 * pad : 800f;
+        float mapH = ExteriorData.VIEW_H * mapW / ExteriorData.VIEW_W, cardH = mapH + 2 * pad;
+        cardBox(c, new RectF(M, y, M + cardW, y + cardH), 36, 0);
+        c.save();
+        c.translate(M + (cardW - mapW) / 2f, y + pad);
+        WorldMapView.drawMap(c, mapW, colors, with);
+        c.restore();
+
+        float ry = y + cardH + (story ? 44 : 22);
+        c.drawText("QUEM LIDERA ENTRE OS BRASILEIROS NO EXTERIOR", M, ry + 6, labelPaint(story));
+        ry += story ? 34 : 22;
+        int n = Math.min(story ? 4 : 2, t.cands.size());
+        float rowH = story ? 118 : 78, gap = story ? 14 : 10;
+        for (int i = 0; i < n; i++) {
+            Model.Cand cd = t.cands.get(i);
+            int col = Model.color(cd.nome);
+            float top = ry + i * (rowH + gap), mid = top + rowH / 2;
+            cardBox(c, new RectF(M, top, W - M, top + rowH), 30, i == 0 ? col : 0);
+            Paint dot = new Paint(Paint.ANTI_ALIAS_FLAG);
+            dot.setColor(col);
+            c.drawCircle(M + 38, mid, story ? 20 : 15, dot);
+            Paint pp = paint(Ui.TEXT, story ? 54 : 40, true, Paint.Align.RIGHT);
+            c.drawText(pc(cd.pct), W - M - 30, mid + (story ? 18 : 14), pp);
+            float tx = M + 78, mw = W - M - 30 - pp.measureText(pc(cd.pct)) - 28 - tx;
+            fitText(c, (i + 1) + "º  " + cd.nome + (cd.partido.isEmpty() ? "" : " (" + cd.partido + ")"), tx, mid - (story ? 6 : 4), mw, story ? 40 : 30, 22, Ui.TEXT, true, Paint.Align.LEFT);
+            Integer lc = leads.get(cd.nome);
+            String sub = INT.format(cd.votos) + " votos" + (lc == null ? "" : "  •  lidera em " + lc + (lc == 1 ? " país" : " países"));
+            fitText(c, sub, tx, mid + (story ? 38 : 28), mw + pp.measureText(pc(cd.pct)), story ? 27 : 21, 16, Ui.MUTED, false, Paint.Align.LEFT);
+        }
+        float sy = ry + n * (rowH + gap) + (story ? 30 : 34);
+        if (t.cands.size() > 1) {
+            c.drawText("Diferença 1º × 2º: " + INT.format(t.cands.get(0).votos - t.cands.get(1).votos) + " votos (" + String.format(BR, "%.2f", t.cands.get(0).pct - t.cands.get(1).pct) + " p.p.)",
+                    M, sy, paint(Ui.MINT, story ? 34 : 27, true, Paint.Align.LEFT));
+        }
+        if (story) {
+            c.drawText("Apuração: " + pc(t.progress()) + " das seções  •  " + INT.format(t.valid) + " votos válidos", M, sy + 52, paint(Ui.MUTED, 30, false, Paint.Align.LEFT));
+            c.drawText(with.size() + " países/territórios • " + t.localsWithData + " de " + t.locals + " localidades com dados", M, sy + 98, paint(Ui.MUTED, 30, false, Paint.Align.LEFT));
+        }
+    }
+
     private static void footer(Canvas c, Data d, int H) {
         float ly = H - 164;
         Paint line = new Paint();
@@ -454,6 +515,6 @@ final class StatusCard {
         c.drawText("Brasil Decide", cx - 42, cy + 10, paint(Ui.TEXT, 28, true, Paint.Align.RIGHT));
         float ry = ly + 108;
         c.drawText("Atualizado em " + new SimpleDateFormat("dd/MM/yyyy 'às' HH:mm", BR).format(new Date(d.at)), M, ry, paint(Ui.MUTED, 25, false, Paint.Align.LEFT));
-        fitText(c, "Baixe o app grátis: " + MainActivity.PAGE_URL.replace("https://", ""), W - M, ry, W - 2 * M - 480, 23, 15, Ui.MINT, true, Paint.Align.RIGHT);
+        fitText(c, "Baixe grátis: " + MainActivity.PAGE_URL.replace("https://", "").replace("/releases/latest", ""), W - M, ry, W - 2 * M - 470, 23, 15, Ui.MINT, true, Paint.Align.RIGHT);
     }
 }

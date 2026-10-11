@@ -13,10 +13,10 @@ Mapa: geometria de `@svg-maps/brazil` (CC BY 4.0).
 
 ## Divulgação / download
 
-- **Link direto do APK** (sempre a última versão testada): https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk
-- **Página da release** (para compartilhar): https://github.com/Josperdias/concursos-df/releases/latest
+- **Link direto do APK** (sempre a última versão testada): https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk
+- **Página da release** (para compartilhar): https://github.com/Josperdias/brasil-decide/releases/latest
 - O site (`central-eleicoes-2026.html`) mostra um banner "Baixar app" (escondido dentro do próprio app).
-- A página de divulgação `docs/app/index.html` fica em `https://<usuario>.github.io/concursos-df/app/` depois de mesclada na `main` (o GitHub Pages serve a pasta `docs`).
+- A página de divulgação `docs/app/index.html` fica em `https://<usuario>.github.io/brasil-decide/app/` depois de mesclada na `main` (o GitHub Pages serve a pasta `docs`).
 - O CI publica/atualiza a release `app-latest` a cada build aprovado no emulador; o app consulta essa release e avisa quando há versão nova.
 - **Assinatura:** a chave antiga (publicada no repositório até o build 15) está **comprometida** e não é mais usada. Release só é assinada com a chave privada guardada em GitHub Actions Secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`); sem eles o CI gera só build debug e **não publica release**. Veja `SIGNING.md`.
 - **Atualização:** o app nativo baixa e instala a nova versão com um toque (permissão “instalar apps desconhecidos” na 1ª vez). O app WebView baixa sozinho o HTML novo (`central-eleicoes-2026.html` da release) ao abrir. Mudanças só no HTML não exigem novo APK no WebView; mudanças de código Java exigem APK novo (limitação do Android).
