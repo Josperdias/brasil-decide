@@ -102,7 +102,8 @@ final class HistoryUi {
         StringBuilder sub = new StringBuilder();
         if ("indireta".equals(s.tipo)) sub.append("eleição indireta");
         else {
-            if (!s.turno.isEmpty()) sub.append(s.turno).append("º turno");
+            if ("2".equals(s.turno)) sub.append("2º turno");
+            else if ("1".equals(s.turno) && s.ano >= 1989) sub.append("venceu no 1º turno");
             if (s.pct >= 0) sub.append(sub.length() > 0 ? " • " : "").append(pct(s.pct)).append(" dos votos");
             else if (s.votos > 0) sub.append(sub.length() > 0 ? " • " : "").append(n(s.votos)).append(" votos");
         }
@@ -116,6 +117,15 @@ final class HistoryUi {
     // ---------------------------------------------------------------- detalhe de um ano
     private String cargo = "pres", uf = "BR";
     private boolean showAll;
+
+    /** Abre o detalhe de um ano (usado também pelo teste do emulador). */
+    void open(final int ano) {
+        if (old != null) { openYear(ano); return; }
+        host.io(() -> {
+            final Map<Integer, History.Election> o = History.loadOld(host.ctx());
+            host.post(() -> { if (old == null) old = o; openYear(ano); });
+        });
+    }
 
     private void openYear(final int ano) {
         cargo = "pres";

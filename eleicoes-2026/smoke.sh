@@ -79,6 +79,10 @@ for t in 0 1 2 10 11 12 13 14 20; do for f in 0 1; do adb exec-out run-as $N cat
 adb shell am start -S -W -n $N/.MainActivity --es tab mais --ez genreport true > /dev/null; sleep 55; alive $N; shot native-mais-analises; crashes
 for e in pdf docx xlsx csv json png; do adb exec-out run-as $N cat cache/share/test-report.$e > dist/report.$e || true; done
 ls -la dist/report.* || true
+# eleições passadas: 1989 vem da tabela embarcada (sem rede); 2022 vem dos dados abertos do TSE (resumo na branch eleicao-data)
+adb shell am start -S -W -n $N/.MainActivity --es tab mais --ei histyear 1989 > /dev/null; sleep 22; alive $N; shot native-historico-1989; crashes
+ui_has "Fernando Collor de Mello"
+adb shell am start -S -W -n $N/.MainActivity --es tab mais --ei histyear 2022 > /dev/null; sleep 28; alive $N; shot native-historico-2022; crashes
 # --- Minijogo escondido
 adb logcat -c
 adb shell am start -S -W -n $N/.GameActivity > /dev/null; sleep 3; shot game-1-pronto

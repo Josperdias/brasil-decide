@@ -213,6 +213,7 @@ public class MainActivity extends Activity {
             if (in.getBooleanExtra("studio", false)) ui.postDelayed(this::showStatusStudio, 15000);
             if (in.getStringExtra("ficha") != null) { final int fi = Integer.parseInt(in.getStringExtra("ficha")); ui.postDelayed(() -> { Model.Result pr = snap().pres; if (pr != null && fi < pr.cands.size()) showFicha(pr.cands.get(fi), pr, "BR", "candidato à presidência"); }, 14000); }
             if (in.getBooleanExtra("genreport", false)) ui.postDelayed(this::genReportsForTest, 30000);
+            if (in.hasExtra("histyear")) { final int hy = in.getIntExtra("histyear", 1989); ui.postDelayed(() -> history().open(hy), 12000); }
             if (in.getStringExtra("sheet") != null) { final String su = in.getStringExtra("sheet"); ui.postDelayed(() -> showSheet(detailView(su)), 12000); }
         }
         if (p1Test != null) pres1TestRun(p1Test);
