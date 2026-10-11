@@ -24,6 +24,15 @@ ui_has() {
   echo "FALHA: a tela nao contem '$1'"; adb shell cat /sdcard/ui.xml 2> /dev/null | grep -o 'text="[^"]*"' | head -20; fail=1; return 1
 }
 crashes() { adb logcat -d -b crash | head -40; }
+# procura o texto rolando a tela (há cartões abaixo da dobra na tela pequena do emulador); falha só se não achar depois de rolar
+ui_find() {
+  for i in 1 2 3 4 5 6 7 8; do
+    adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
+    if adb shell cat /sdcard/ui.xml 2> /dev/null | grep -q "$1"; then echo "OK: a tela contem '$1' (apos $((i - 1)) rolagens)"; return 0; fi
+    scroll
+  done
+  echo "FALHA: a tela nao contem '$1' mesmo rolando"; fail=1; return 1
+}
 
 # --- WebView
 adb logcat -c
@@ -90,23 +99,17 @@ p1need test-pres1-check.txt PRES1_UF_RESTORED_AFTER_RESTART
 p1need test-pres1-check.txt PRES1_COLETA_FALLBACK_AFTER_RESTART
 p1need test-pres1-check-live.txt PRES1_KEPT_AFTER_LIVE_FAILURE
 p1need test-pres1-check-live.txt PRES1_ARCHIVE_KEPT
-# o card do 2º turno fica abaixo da dobra na tela pequena do emulador: rola até achar (sem tentar várias vezes cada posição)
-p1_seen=0
-for i in 1 2 3 4 5 6 7 8; do
-  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1
-  if adb shell cat /sdcard/ui.xml 2> /dev/null | grep -q "Candidato Teste A"; then p1_seen=1; break; fi
-  scroll
-done
-if [ $p1_seen = 1 ]; then echo "OK: o card do 2º turno mostra o 1º turno arquivado (Candidato Teste A)"; shot native-pres1-card; else echo "FALHA: o card do 2º turno nao mostra o 1º turno arquivado"; fail=1; fi
+# o card do 2º turno fica abaixo da dobra na tela pequena do emulador: rola até achar
+ui_find "Candidato Teste A" && shot native-pres1-card
 # 3) aparelho com o cache do 1º turno e o exterior salvos ZERADOS (como o TSE deixou) e sem rede: Brasil, 27 UFs, governadores, DF e
 #    exterior voltam da coleta REAL do TSE de 05/10/2026 (assets/pres1_coleta_2026.json); um UF zerado ao vivo não a sobrescreve
 adb shell am start -S -W -n $N/.MainActivity --es pres1test coleta --es tab mapa > /dev/null; sleep 25; alive $N; shot native-pres1-coleta-mapa; crashes
 for k in PRES1_COLETA_PRES PRES1_COLETA_STATES PRES1_COLETA_GOV PRES1_COLETA_DF PRES1_COLETA_EXTERIOR PRES1_COLETA_ZERO_REJECTED; do p1need test-pres1-coleta.txt $k; done
 ui_has "27/27 UFs"
 adb shell am start -S -W -n $N/.MainActivity --es pres1test coleta --es tab brasil --ei turn 2 > /dev/null; sleep 25; alive $N; shot native-pres1-coleta-turno2; crashes
-ui_has "47,03%"
+ui_find "47,03%" && shot native-pres1-coleta-card
 adb shell am start -S -W -n $N/.MainActivity --es pres1test coleta --es tab mapa --es msub mundo > /dev/null; sleep 30; alive $N; shot native-pres1-coleta-mundo; crashes
-ui_has "186 de 186"
+ui_find "186 de 186"
 adb shell pm clear $N > /dev/null  # descarta os dados sintéticos do teste
 # --- APKs de RELEASE (só existem quando o CI tem os Secrets de assinatura): chave diferente da debug, então desinstala antes
 if [ -f dist/CentralEleicoes2026-Nativo.apk ] && [ -f dist/CentralEleicoes2026-WebView.apk ]; then

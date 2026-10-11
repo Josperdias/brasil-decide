@@ -2792,6 +2792,9 @@ public class MainActivity extends Activity {
             pres1Commit(fixed);
             pres1Log(out, "PRES1_SMALL_CORRECTION_ACCEPTED", snaps[0].pres == fixed && candidateVotes(loadFirstRoundFinal()) == 100600);
             // estados: um resultado final "ao vivo" é arquivado; zerado/regressivo não o sobrescreve
+            snaps[0].states.clear(); // a reserva coletada já foi restaurada no início; o teste parte de UFs vazias para usar um resultado sintético pequeno
+            snaps[0].gov.clear();
+            snaps[0].df.clear();
             Model.Result sp = testRound1(70000, 30000, true, 100);
             Map<String, Model.Result> ms = new HashMap<>();
             ms.put("SP", sp);
