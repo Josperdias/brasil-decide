@@ -1,66 +1,42 @@
-# Robô de Concursos DF 🤖
+<div align="center">
 
-Um site que **se atualiza sozinho todo dia**, de graça, mostrando as novidades de concursos do Distrito Federal. Ele roda no GitHub (sem servidor, sem cartão, sem chave de API) e publica uma página que atualiza automaticamente.
+# 🇧🇷 Brasil Decide
 
-## Como funciona
-- Um agendamento do **GitHub Actions** roda todo dia de manhã.
-- O script `scripts/coletar.py` busca notícias de concursos do DF no **Google Notícias (RSS)** e gera o arquivo `docs/data.json`.
-- A página `docs/index.html` lê esse arquivo e mostra a lista, sempre atualizada.
-- Tudo publicado grátis pelo **GitHub Pages**.
+**Acompanhe a apuração das Eleições 2026 ao vivo, direto do seu celular.**
 
----
+[![Abrir o site](https://img.shields.io/badge/🌐_Abrir_o_site-009C3B?style=for-the-badge)](https://josperdias.github.io/brasil-decide/eleicoes/)
+[![Baixar o app Android](https://img.shields.io/badge/📲_Baixar_o_app_Android-002776?style=for-the-badge)](https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk)
 
-## Passo a passo (leva ~10 minutos)
+![Dados oficiais TSE](https://img.shields.io/badge/dados-oficiais_TSE-FFDF00?style=flat-square&labelColor=555)
+![Grátis](https://img.shields.io/badge/custo-grátis-009C3B?style=flat-square&labelColor=555)
+![Android](https://img.shields.io/badge/app-Android-3DDC84?style=flat-square&labelColor=555)
 
-### 1. Crie uma conta no GitHub
-Acesse https://github.com e crie uma conta gratuita (se ainda não tiver).
-
-### 2. Crie um repositório
-- Clique em **New repository**.
-- Nome: por exemplo `concursos-df`.
-- Marque **Public** (recomendado: deixa o GitHub Actions e o Pages ilimitados e grátis).
-- Clique em **Create repository**.
-
-### 3. Envie estes arquivos
-Na página do repositório, clique em **Add file → Upload files** e **arraste tudo o que está nesta pasta**, mantendo a estrutura:
-```
-.github/workflows/atualizar.yml
-scripts/coletar.py
-docs/index.html
-docs/data.json
-README.md
-```
-Depois clique em **Commit changes**.
-
-### 4. Dê permissão de escrita ao robô
-- Vá em **Settings → Actions → General**.
-- Em **Workflow permissions**, escolha **Read and write permissions** e salve.
-(É isso que permite o robô salvar as atualizações sozinho.)
-
-### 5. Ligue a página (GitHub Pages)
-- Vá em **Settings → Pages**.
-- Em **Source**, escolha **Deploy from a branch**.
-- Em **Branch**, escolha **main** e a pasta **/docs**. Salve.
-- Em alguns minutos aparece o endereço do seu site, algo como:
-  `https://SEU-USUARIO.github.io/concursos-df/`
-  Guarde esse link — é o seu site que se atualiza sozinho.
-
-### 6. Rode a primeira coleta
-- Vá na aba **Actions**.
-- Se aparecer um aviso pedindo para habilitar workflows, clique em **I understand... enable**.
-- Abra **Atualizar concursos DF** → **Run workflow** → **Run workflow**.
-- Em ~1 minuto ele coleta as novidades e atualiza a página.
-
-Pronto! Daqui pra frente ele roda **sozinho todo dia por volta das 6h** (horário de Brasília). Você também pode clicar em **Run workflow** quando quiser forçar uma atualização.
+</div>
 
 ---
 
-## Personalizar
-- **Mudar o que ele busca:** edite a lista `QUERIES` no topo de `scripts/coletar.py` (ex.: acrescente `"concurso Sedes DF"`).
-- **Mudar o horário:** edite a linha `cron` em `.github/workflows/atualizar.yml` (o horário está em UTC; Brasília é UTC−3).
+## ✨ O que você encontra
 
-## (Opcional) Receber por e-mail
-Dá para o robô te mandar um e-mail a cada atualização usando a action `dawidd6/action-send-mail` com uma **senha de app** do Gmail guardada em *Secrets*. Se quiser, peça que eu te passo esse trecho pronto — deixei de fora para manter a instalação simples.
+- 🗳️ **Presidente — Brasil:** votos e situação publicados oficialmente pelo TSE
+- 🗺️ **Mapa por estado** e resultado do **DF**
+- 🔄 **1º e 2º turno**, com leitura instantânea do que mudou a cada atualização
+- 📰 **Notícias** e imagens prontas para status
 
-## Aviso
-As informações vêm de notícias e servem como radar. **Confirme sempre no edital oficial** do órgão antes de tomar qualquer decisão.
+## 📲 Instalar o app
+
+1. Toque em **Baixar o app Android** acima (ou abra a [página de download](https://josperdias.github.io/brasil-decide/app/)).
+2. Abra o arquivo `.apk` baixado e permita a instalação de fontes externas, se o Android pedir.
+
+## 🗂️ Estrutura
+
+| Pasta | Conteúdo |
+|---|---|
+| `docs/eleicoes/` | Site da apuração (PWA com ícones e manifest) |
+| `docs/app/` | Página de download do app Android |
+| `docs/index.html` | Redireciona para o site |
+
+O APK fica na release [`app-latest`](https://github.com/Josperdias/brasil-decide/releases/tag/app-latest).
+
+## ⚠️ Aviso
+
+Os dados vêm do TSE e servem como acompanhamento, sem previsão. Para resultado oficial, consulte sempre o [site do TSE](https://resultados.tse.jus.br/).
