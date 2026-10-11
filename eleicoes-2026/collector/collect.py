@@ -17,7 +17,7 @@ Somente leitura do TSE; nenhum dado pessoal; nenhuma previsão.
 import argparse, concurrent.futures as cf, gzip, hashlib, json, os, subprocess, sys, time, urllib.request, urllib.error
 
 BASE = "https://resultados.tse.jus.br/oficial"
-UA = "BrasilDecide-Coletor/1.0 (+https://github.com/Josperdias/concursos-df)"
+UA = "BrasilDecide-Coletor/1.0 (+https://github.com/Josperdias/brasil-decide)"
 UFS = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"]
 
 

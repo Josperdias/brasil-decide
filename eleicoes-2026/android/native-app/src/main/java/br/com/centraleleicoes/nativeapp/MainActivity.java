@@ -62,9 +62,9 @@ import java.util.concurrent.Future;
 public class MainActivity extends Activity {
     static final String VERSION = "2026.10.05-nativo";
     /** Link direto do APK (release "app-latest", atualizada pelo CI) e página de divulgação. */
-    static final String DL_URL = "https://github.com/Josperdias/concursos-df/releases/download/app-latest/CentralEleicoes2026.apk";
-    static final String PAGE_URL = "https://github.com/Josperdias/concursos-df/releases/latest";
-    private static final String RELEASE_API = "https://api.github.com/repos/Josperdias/concursos-df/releases/tags/app-latest";
+    static final String DL_URL = "https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk";
+    static final String PAGE_URL = "https://github.com/Josperdias/brasil-decide/releases/latest";
+    private static final String RELEASE_API = "https://api.github.com/repos/Josperdias/brasil-decide/releases/tags/app-latest";
     private static final Locale BR = new Locale("pt", "BR");
     private static final NumberFormat INT = NumberFormat.getIntegerInstance(BR);
 
@@ -129,6 +129,13 @@ public class MainActivity extends Activity {
     private boolean exBusy;
     private long exAt;
     private final ExecutorService exPool = Executors.newSingleThreadExecutor();
+    /** Gravação do cache em segundo plano (montar o JSON de ~50 resultados no thread da tela travava a cada consulta). */
+    private final ExecutorService io = Executors.newSingleThreadExecutor();
+    private final String[] cacheSig = {"", ""};
+    private final long[] lastFullFetch = {0, 0};
+    private long lastRenderAt;
+    private String lastVisibleSig = "";
+    private String pres1FinalSig;
     // Replay da apuração (registros do coletor)
     private ReplayUi rpUi;
     private final Replay.Series[] rpSeries = new Replay.Series[2];
@@ -234,6 +241,7 @@ public class MainActivity extends Activity {
         bg.shutdownNow();
         net.shutdownNow();
         newsPool.shutdownNow();
+        io.shutdown(); // deixa terminar a gravação pendente do cache
         super.onDestroy();
     }
 
@@ -352,6 +360,7 @@ public class MainActivity extends Activity {
 
     // ============================================================ render
     private void render() {
+        lastRenderAt = System.currentTimeMillis();
         try {
             if (rpUi != null && !(tab.equals("mapa") && mapaSub.equals("replay"))) rpUi.stop();
             int keep = scroll.getScrollY();
@@ -2447,7 +2456,7 @@ public class MainActivity extends Activity {
         final int t = turn;
         final boolean wantGov = govMode;
         final String lu = localUf;
-        ui.post(() -> { statusText = "Consultando o TSE…"; if (!tv) render(); });
+        final boolean skipUfs = settledForSkip(t, wantGov);
         bg.execute(() -> {
             final Map<String, Model.Result> sOk = new HashMap<>(), gOk = new HashMap<>(), dOk = new HashMap<>();
             final Map<String, Boolean> gAbs = new HashMap<>(), dAbs = new HashMap<>();
@@ -2468,8 +2477,8 @@ public class MainActivity extends Activity {
                 else pres[0] = bf.result;
                 if (!wait[0]) {
                     List<Callable<Object[]>> ts = new ArrayList<>();
-                    for (String[] u : UFS) ts.add(task("s:" + u[0], Tse.url(fed, u[0].toLowerCase(Locale.ROOT), 1), 300000, Tse.photoBase(fed, "br")));
-                    if (wantGov) for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000, Tse.photoBase(est, u[0].toLowerCase(Locale.ROOT))));
+                    if (!skipUfs) for (String[] u : UFS) ts.add(task("s:" + u[0], Tse.url(fed, u[0].toLowerCase(Locale.ROOT), 1), 300000, Tse.photoBase(fed, "br")));
+                    if (wantGov && !skipUfs) for (String[] u : UFS) ts.add(task("g:" + u[0], Tse.url(est, u[0].toLowerCase(Locale.ROOT), 3), 300000, Tse.photoBase(est, u[0].toLowerCase(Locale.ROOT))));
                     ts.addAll(localTasks(t, lu));
                     for (Object[] o : runAll(ts)) {
                         String k = (String) o[0];
@@ -2489,11 +2498,47 @@ public class MainActivity extends Activity {
                     if (cfgDone) codesFromConfig = true;
                     commit(t, pres[0], sOk, gOk, dOk, gAbs, dAbs, wait[0], fails);
                     localAt.put(t + lu, System.currentTimeMillis());
+                    if (!skipUfs && fails == 0) lastFullFetch[t - 1] = System.currentTimeMillis();
                 } catch (Throwable th) { lastError = "commit: " + th; }
                 busy = false;
-                if (!tv || resumed) render();
+                if (!tv || resumed) renderIfChanged();
             });
         });
+    }
+
+    /** true quando o resultado do turno já é final e vindo do TSE (não da reserva) em Brasil e UFs: dispensa rebaixar 54 arquivos a cada consulta. */
+    private boolean settledForSkip(int t, boolean wantGov) {
+        Snap sn = snaps[t - 1];
+        if (lastFullFetch[t - 1] == 0 || System.currentTimeMillis() - lastFullFetch[t - 1] > 10 * 60 * 1000L) return false;
+        if (!finalResult(sn.pres) || !sn.pres.src.isEmpty()) return false;
+        for (String[] u : UFS) {
+            Model.Result r = sn.states.get(u[0]);
+            if (r == null || !finalResult(r) || !r.src.isEmpty()) return false;
+            if (wantGov) {
+                Model.Result g = sn.gov.get(u[0]);
+                if (g == null ? !Boolean.TRUE.equals(sn.govAbsent.get(u[0])) : (!finalResult(g) || !g.src.isEmpty())) return false;
+            }
+        }
+        return true;
+    }
+
+    /** Assinatura barata dos dados do turno: serve para não regravar o cache nem redesenhar a tela quando nada mudou. */
+    private static String snapSig(Snap sn) {
+        StringBuilder b = new StringBuilder();
+        b.append(sn.presSig).append('|').append(sn.hist.size()).append('|').append(sn.lastChange);
+        for (Map<String, Model.Result> m : java.util.Arrays.asList(sn.states, sn.gov, sn.df)) {
+            b.append('#').append(m.size());
+            for (Map.Entry<String, Model.Result> e : m.entrySet()) b.append(e.getKey()).append(e.getValue().sig).append(e.getValue().src).append(',');
+        }
+        return b.toString();
+    }
+
+    /** Depois de uma consulta: só redesenha a tela se algo visível mudou (ou a cada 40 s, para atualizar "última consulta"). */
+    private void renderIfChanged() {
+        String sig = snapSig(snap()) + '|' + statusText + '|' + statusSub + '|' + waiting + '|' + updateAvailable;
+        if (!tv && sig.equals(lastVisibleSig) && System.currentTimeMillis() - lastRenderAt < 40000) return;
+        lastVisibleSig = sig;
+        render();
     }
 
     private void addEvent(String icon, String title, String detail) {
@@ -2564,6 +2609,8 @@ public class MainActivity extends Activity {
             statusSub = "o cargo ainda não tem arquivo publicado";
         } else {
             delayMs = intervalMs;
+            // resultado final do TSE e sem mudança: não precisa consultar a cada poucos segundos
+            if (!changed && finalResult(sn.pres) && sn.pres.src.isEmpty()) delayMs = Math.max(intervalMs, 60000);
             boolean offline = acceptedPres == null && s.isEmpty() && failures > 0;
             statusText = offline ? "Sem conexão • último resultado salvo" : failures > 0 ? "Online • dados parciais" : changed ? "Ao vivo • dados novos" : "Ao vivo • TSE sem mudança";
             statusSub = failures > 0 ? failures + " arquivos serão tentados de novo" : "dados oficiais • sem projeção";
@@ -2685,10 +2732,13 @@ public class MainActivity extends Activity {
 
     private void saveFirstRoundFinal(Model.Result r) {
         if (!finalResult(r) || !r.src.isEmpty() || prefs == null) return; // a reserva coletada nunca vira "arquivo do TSE"
+        if (pres1FinalSig != null && pres1FinalSig.equals(r.sig)) return; // já está salvo: não reescrever o arquivo a cada consulta
         try {
             Model.Result old = loadFirstRoundFinal();
+            if (old != null && old.sig.equals(r.sig)) { pres1FinalSig = r.sig; return; }
             if (rejectRegression(old, r)) return;
             prefs.edit().putString(PREF_PRES1_FINAL, r.toJson().toString()).commit();
+            pres1FinalSig = r.sig;
         } catch (Throwable th) { lastError = "arquivo do 1º turno: " + th; }
     }
 
@@ -2843,19 +2893,33 @@ public class MainActivity extends Activity {
     // ============================================================ cache do último snapshot válido
     private void saveCache(int t) {
         try {
-            Snap sn = snaps[t - 1];
-            JSONObject o = new JSONObject();
-            if (sn.pres != null) o.put("pres", sn.pres.toJson());
-            JSONArray hist = new JSONArray();
-            for (LinkedHashMap<String, Float> h : sn.hist) {
-                JSONObject ho = new JSONObject();
-                for (Map.Entry<String, Float> e : h.entrySet()) ho.put(e.getKey(), (double) e.getValue());
-                hist.put(ho);
-            }
-            o.put("states", mapJson(sn.states)).put("gov", mapJson(sn.gov)).put("df", mapJson(sn.df)).put("hist", hist)
-                    .put("lc", sn.lastChange).put("sig", sn.presSig).put("at", System.currentTimeMillis());
+            final Snap sn = snaps[t - 1];
             sn.at = System.currentTimeMillis();
-            prefs.edit().putString("snap" + t, o.toString()).apply();
+            final String sig = snapSig(sn);
+            if (!sig.equals(cacheSig[t - 1])) { // só grava quando algo mudou; o JSON é montado em segundo plano
+                cacheSig[t - 1] = sig;
+                final int tt = t;
+                final Model.Result pres = sn.pres;
+                final Map<String, Model.Result> st = new HashMap<>(sn.states), gv = new HashMap<>(sn.gov), df = new HashMap<>(sn.df);
+                final List<LinkedHashMap<String, Float>> hist = new ArrayList<>(sn.hist);
+                final long lc = sn.lastChange, at = sn.at;
+                final String ps = sn.presSig;
+                io.execute(() -> {
+                    try {
+                        JSONObject o = new JSONObject();
+                        if (pres != null) o.put("pres", pres.toJson());
+                        JSONArray ha = new JSONArray();
+                        for (LinkedHashMap<String, Float> h : hist) {
+                            JSONObject ho = new JSONObject();
+                            for (Map.Entry<String, Float> e : h.entrySet()) ho.put(e.getKey(), (double) e.getValue());
+                            ha.put(ho);
+                        }
+                        o.put("states", mapJson(st)).put("gov", mapJson(gv)).put("df", mapJson(df)).put("hist", ha)
+                                .put("lc", lc).put("sig", ps).put("at", at);
+                        prefs.edit().putString("snap" + tt, o.toString()).apply();
+                    } catch (Throwable th) { lastError = "cache: " + th; }
+                });
+            }
             if (t == 1 && finalResult(sn.pres)) saveFirstRoundFinal(sn.pres);
             if (t == 1) saveUf1Archive(sn);
         } catch (Throwable th) { lastError = "cache: " + th; }

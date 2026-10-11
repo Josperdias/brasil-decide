@@ -18,7 +18,7 @@ import java.util.Map;
 final class Replay {
     private Replay() {}
 
-    static final String DATA_BASE = "https://raw.githubusercontent.com/Josperdias/concursos-df/eleicao-data/2026/";
+    static final String DATA_BASE = "https://raw.githubusercontent.com/Josperdias/brasil-decide/eleicao-data/2026/";
     static final String[] UFS = {"AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"};
 
     static final class Part {

@@ -36,7 +36,7 @@ public class MainActivity extends Activity {
     private static final String HOME = "https://" + HOST + "/index.html";
     private static final int BG = Color.parseColor("#040913");
     /** Atualização do HTML sem reinstalar: a release "app-latest" (publicada pelo CI após o teste) traz o HTML mais novo. */
-    private static final String OTA_URL = "https://github.com/Josperdias/concursos-df/releases/download/app-latest/central-eleicoes-2026.html";
+    private static final String OTA_URL = "https://github.com/Josperdias/brasil-decide/releases/download/app-latest/central-eleicoes-2026.html";
 
     private FrameLayout root;
     private WebView webView;
