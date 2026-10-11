@@ -46,9 +46,10 @@ jobs:
         working-directory: eleicoes-2026
         run: node tools/test_codes.js central-eleicoes-2026.html
       - name: Tabela das eleições antigas (1894–1989) em dia com o gerador
+        working-directory: eleicoes-2026
         run: |
-          python3 eleicoes-2026/tools/build_antigas.py
-          git diff --exit-code -- eleicoes-2026/android/native-app/src/main/assets/historico_antigas.json
+          python3 tools/build_antigas.py
+          git diff --exit-code -- android/native-app/src/main/assets/historico_antigas.json
       - name: Verificar Secrets de assinatura
         id: signing
         shell: bash
