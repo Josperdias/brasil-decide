@@ -48,6 +48,7 @@ final class WorldMapView extends View {
         stroke.setColor(0x99CFE3F7);
         fill.setStyle(Paint.Style.FILL);
         c.save();
+        c.clipRect(0, 0, width, ExteriorData.VIEW_H * s); // a geometria passa um pouco da borda (Chukotka/Alasca)
         c.scale(s, s);
         for (Map.Entry<String, Path> e : paths().entrySet()) {
             Integer col = leaderColors.get(e.getKey());
