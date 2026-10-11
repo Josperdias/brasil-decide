@@ -1351,12 +1351,28 @@ public class MainActivity extends Activity {
         });
     }
 
+    // ---------------------------------------------------------------- eleições passadas
+    private HistoryUi histUi;
+
+    private HistoryUi history() {
+        if (histUi == null) histUi = new HistoryUi(new HistoryUi.Host() {
+            @Override public Context ctx() { return MainActivity.this; }
+            @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
+            @Override public void rerender() { if (tab.equals("mais")) render(); }
+            @Override public void io(Runnable r) { exPool.execute(r); }
+            @Override public void post(Runnable r) { ui.post(r); }
+        });
+        return histUi;
+    }
+
     // ---------------------------------------------------------------- mais (labs)
     private void renderMais() {
         content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
         content.addView(analysis().build());
         content.addView(panorama().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
         loadPanorama(false);
+        content.addView(history().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+        if (histUi.needsLoad()) histUi.load();
 
         // comparador
         LinearLayout cmp = Ui.card(this);
