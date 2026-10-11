@@ -118,6 +118,8 @@ final class Exterior {
             Tse.Fetch z = Tse.fetch(Tse.url(fed, "zz", 1));
             if (z.absent) { s.absent = true; return keepOld(s, previous, "Resultado do exterior ainda não publicado pelo TSE."); }
             if (z.error != null || z.result == null) return keepOld(s, previous, "TSE indisponível (" + z.error + ").");
+            if (previous != null && MainActivity.rejectRegression(previous.zz, z.result))
+                return keepOld(s, previous, "O TSE publicou o exterior zerado ou regressivo; mantido o último resultado final (proteção de histórico).");
             s.zz = z.result;
             for (Model.Cand c : z.result.cands) s.registry.put(c.numero, new String[]{c.nome, c.partido});
             int[] st = {0};
@@ -153,7 +155,8 @@ final class Exterior {
                 for (Future<Locality> f : fs) {
                     try {
                         Locality l = f.get();
-                        if (l.r == null && previous != null && previous.locs.get(l.code) != null) l.r = previous.locs.get(l.code).r; // mantém o último válido
+                        Locality old = previous == null ? null : previous.locs.get(l.code);
+                        if ((l.r == null || !MainActivity.usefulResult(l.r)) && old != null && MainActivity.usefulResult(old.r)) l.r = old.r; // mantém o último válido
                         s.locs.put(l.code, l);
                     } catch (Throwable ignored) { }
                 }
@@ -232,7 +235,7 @@ final class Exterior {
 
     // ------------------------------------------------------------------ cache em arquivo (último snapshot válido por turno)
     static void save(File dir, Snapshot s) {
-        if (s == null || s.zz == null) return;
+        if (s == null || s.zz == null || !MainActivity.usefulResult(s.zz)) return;
         try {
             JSONObject o = new JSONObject();
             o.put("turn", s.turn).put("at", s.at).put("zz", s.zz.toJson());

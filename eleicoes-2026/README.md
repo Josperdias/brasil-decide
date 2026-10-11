@@ -21,3 +21,8 @@ Mapa: geometria de `@svg-maps/brazil` (CC BY 4.0).
 - **Assinatura:** a chave antiga (publicada no repositório até o build 15) está **comprometida** e não é mais usada. Release só é assinada com a chave privada guardada em GitHub Actions Secrets (`ANDROID_KEYSTORE_B64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`); sem eles o CI gera só build debug e **não publica release**. Veja `SIGNING.md`.
 - **Atualização:** o app nativo baixa e instala a nova versão com um toque (permissão “instalar apps desconhecidos” na 1ª vez). O app WebView baixa sozinho o HTML novo (`central-eleicoes-2026.html` da release) ao abrir. Mudanças só no HTML não exigem novo APK no WebView; mudanças de código Java exigem APK novo (limitação do Android).
 - Instalações até o build 15 (chave comprometida) precisam ser desinstaladas uma vez antes da primeira instalação assinada pela nova chave.
+
+## Histórico do 1º turno e reserva coletada
+- O resultado final do 1º turno (Brasil, UFs, governadores, DF e exterior) é guardado sem TTL e nunca é sobrescrito por resposta zerada, vazia ou regressiva do TSE (nativo e site).
+- Se o TSE publicar arquivos zerados e o aparelho não tiver o resultado salvo, o app usa a **reserva coletada**: totais finais reais do TSE de 05/10/2026 (`android/native-app/src/main/assets/pres1_coleta_2026.json`; no site, o bloco `COLETA` em `html/part-04.html`). Gere-os de novo com `python3 eleicoes-2026/tools/build_pres1_coleta.py [ref]` (lê a branch `eleicao-data`, pasta `2026/t1-test`). A reserva traz só os primeiros colocados por disputa e deriva "eleito / 2º turno" da regra dos 50% dos válidos; a tela avisa quando é a reserva.
+- Testes: `node eleicoes-2026/tools/test_pres1.js` (site) e o smoke do emulador (`pres1test`, só build debug).
