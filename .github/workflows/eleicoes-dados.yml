@@ -1,0 +1,53 @@
+name: Brasil Decide — Dados de transparência
+
+# Resume patrimônio declarado e contas de campanha (TSE, dados abertos) em arquivos pequenos por UF na branch "eleicao-data".
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'eleicoes-2026/collector/build_transparency.py'
+      - 'eleicoes-2026/collector/build_panorama.py'
+      - '.github/workflows/eleicoes-dados.yml'
+  schedule:
+    - cron: "17 7 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: dados-transparencia
+  cancel-in-progress: false
+
+jobs:
+  resumir:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preparar a branch de dados
+        shell: bash
+        run: |
+          REPO_URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads "$REPO_URL" eleicao-data > /dev/null 2>&1; then
+            git clone -q --depth 1 --branch eleicao-data "$REPO_URL" data
+          else
+            mkdir data && cd data
+            git init -q -b eleicao-data && git remote add origin "$REPO_URL"
+            printf '%s\n' "Dados coletados do TSE (somente leitura) para o Brasil Decide." > README.md
+            git add -A && git -c user.name=x -c user.email=x@x commit -q -m "inicia branch de dados"
+            cd ..
+          fi
+          git -C data config user.name "github-actions[bot]"
+          git -C data config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Resumir
+        run: python3 eleicoes-2026/collector/build_transparency.py --ano 2026 --out data/2026/transparencia
+      - name: Panorama político
+        run: python3 eleicoes-2026/collector/build_panorama.py --ano 2026 --out data/2026
+      - name: Publicar
+        shell: bash
+        run: |
+          cd data
+          git add -A
+          if git diff --cached --quiet; then echo "sem mudanças"; exit 0; fi
+          git commit -q -m "transparência: resumo $(date -u +%F)"
+          for i in 1 2 3 4; do git push origin eleicao-data && break || { git pull -q --rebase origin eleicao-data; sleep $((i*3)); }; done
