@@ -62,7 +62,7 @@ import java.util.concurrent.Future;
 public class MainActivity extends Activity {
     static final String VERSION = "2026.10.05-nativo";
     /** Link direto do APK (release "app-latest", atualizada pelo CI) e página de divulgação. */
-    static final String DL_URL = "https://github.com/Josperdias/brasil-decide/releases/download/app-latest/BrasilDecide.apk";
+    static final String DL_URL = "https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk";
     static final String PAGE_URL = "https://github.com/Josperdias/brasil-decide/releases/latest";
     private static final String RELEASE_API = "https://api.github.com/repos/Josperdias/brasil-decide/releases/tags/app-latest";
     private static final Locale BR = new Locale("pt", "BR");
@@ -156,7 +156,7 @@ public class MainActivity extends Activity {
     private ImageView studioPreview;
     private LinearLayout studioHolder;
     private Dialog sheetDialog;
-    private boolean updateAvailable, updating;
+    private boolean updateAvailable, updating, awaitingInstallPermission;
     private long lastUpdateCheck;
     private int updatePct;
     private int remoteVersion;
@@ -230,6 +230,7 @@ public class MainActivity extends Activity {
         ui.removeCallbacks(poller);
         ui.post(poller);
         checkUpdate();
+        if (awaitingInstallPermission && Build.VERSION.SDK_INT >= 26 && getPackageManager().canRequestPackageInstalls()) { awaitingInstallPermission = false; startUpdate(); }
     }
 
     @Override protected void onPause() {
@@ -939,7 +940,7 @@ public class MainActivity extends Activity {
         c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
         t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão disponível (build " + remoteVersion + ")", 14, Ui.TEXT, true));
-        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar. Se o Play Protect bloquear: Mais detalhes → Instalar mesmo assim." : "Toque para baixar a versão nova (abre o navegador). Se o Android avisar de app nocivo: Mais detalhes → Instalar mesmo assim.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar. Se o Play Protect bloquear: Mais detalhes → Instalar mesmo assim." : "Toque para atualizar aqui mesmo. Se o Android avisar de app nocivo: Mais detalhes → Instalar mesmo assim.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         if (updating) t.addView(new GradientBar(this, 6).colors(Ui.AMBER, Ui.MINT).value(updatePct), Ui.margins(Ui.lp(-1, Ui.dp(6)), 0, 8, 0, 0));
         c.addView(t, Ui.lp(0, -2, 1f));
         if (!updating) c.addView(Ui.text(this, "Atualizar ›", 13, Ui.AMBER, true));
@@ -948,10 +949,59 @@ public class MainActivity extends Activity {
         return c;
     }
 
-    /** Abre o download do APK novo no navegador (o app não baixa nem instala pacotes: evita o alerta de "app nocivo" do Play Protect). */
+    /** Baixa o APK novo para o cache do app e abre o instalador do Android (uma confirmação do usuário). */
     private void startUpdate() {
-        openUrl(DL_URL);
-        Toast.makeText(this, "Baixando no navegador. Ao abrir o arquivo, toque em Instalar (se o Play Protect avisar: Mais detalhes → Instalar mesmo assim).", Toast.LENGTH_LONG).show();
+        if (updating) return;
+        if (Build.VERSION.SDK_INT >= 26 && !getPackageManager().canRequestPackageInstalls()) {
+            awaitingInstallPermission = true;
+            Toast.makeText(this, "Ative “Permitir desta fonte” e volte — a atualização começa sozinha", Toast.LENGTH_LONG).show();
+            try { startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + getPackageName()))); }
+            catch (Throwable t) { openUrl(DL_URL); }
+            return;
+        }
+        updating = true;
+        updatePct = 0;
+        render();
+        bg.execute(() -> {
+            java.io.File out = new java.io.File(new java.io.File(getCacheDir(), "share"), "update.apk");
+            try {
+                out.getParentFile().mkdirs();
+                java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(DL_URL).openConnection();
+                c.setConnectTimeout(12000);
+                c.setReadTimeout(20000);
+                c.setRequestProperty("User-Agent", "CentralEleicoes2026-Nativo");
+                if (c.getResponseCode() != 200) throw new IllegalStateException("HTTP " + c.getResponseCode());
+                long total = c.getContentLengthLong(), got = 0;
+                java.io.InputStream in = c.getInputStream();
+                java.io.FileOutputStream fo = new java.io.FileOutputStream(out);
+                byte[] buf = new byte[32768];
+                int n, last = -1;
+                while ((n = in.read(buf)) > 0) {
+                    fo.write(buf, 0, n);
+                    got += n;
+                    final int pct = total > 0 ? (int) (got * 100 / total) : 0;
+                    if (pct != last) { last = pct; ui.post(() -> { updatePct = pct; if (!tv) render(); }); }
+                }
+                fo.close();
+                in.close();
+                if (out.length() < 100000) throw new IllegalStateException("arquivo incompleto");
+                ui.post(() -> { updating = false; render(); installApk(); });
+            } catch (Throwable t) {
+                lastError = "atualização: " + t;
+                out.delete();
+                ui.post(() -> { updating = false; render(); Toast.makeText(this, "Não foi possível baixar a atualização. Tente de novo ou use o link de download.", Toast.LENGTH_LONG).show(); });
+            }
+        });
+    }
+
+    private void installApk() {
+        try {
+            Uri uri = new Uri.Builder().scheme("content").authority(StatusProvider.AUTHORITY).appendPath("update.apk").build();
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setDataAndType(uri, "application/vnd.android.package-archive");
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(i);
+        } catch (Throwable t) { lastError = "instalar: " + t; openUrl(DL_URL); }
     }
 
     private static final String VIDEO_BASE = "https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/";
