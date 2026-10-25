@@ -1707,6 +1707,8 @@ public class MainActivity extends Activity {
             @Override public void showSheet(View v) { MainActivity.this.showSheet(v); }
             @Override public int turn() { return turn; }
             @Override public void reload() { render(); }
+            @Override public void goTurn(int t) { setTurn(t); }
+            @Override public void retry() { loadReplay(true); }
         });
         if (rpPresetPct >= 0 || rpPresetMode > 0) { rpUi.preset(rpPresetMode, rpPresetPct); rpPresetMode = 0; rpPresetPct = -1; }
         rpUi.setSeries(rpSeries[turn - 1], rpBusy && rpSeries[turn - 1] == null);
