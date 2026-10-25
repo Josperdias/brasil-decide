@@ -1,0 +1,44 @@
+name: Brasil Decide — Fotos dos candidatos
+
+# Copia as fotos oficiais (TSE) de presidente e governador para a branch "eleicao-fotos" (servida com CORS pelo raw.githubusercontent),
+# para o vídeo da apuração poder desenhá-las. Não toca na branch de dados da apuração.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'eleicoes-2026/tools/baixar_fotos.py'
+      - '.github/workflows/eleicoes-fotos.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fotos-candidatos
+  cancel-in-progress: false
+
+jobs:
+  fotos:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ler os candidatos já coletados (somente leitura)
+        run: |
+          REPO_URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          mkdir metas
+          git clone -q --depth 1 --branch eleicao-data "$REPO_URL" data
+          for d in t2 t1-test demo; do [ -f "data/2026/$d/meta.json" ] && cp "data/2026/$d/meta.json" "metas/$d.json" || true; done
+          ls metas
+      - name: Baixar as fotos
+        run: python3 eleicoes-2026/tools/baixar_fotos.py fotos metas/*.json
+      - name: Publicar na branch eleicao-fotos
+        run: |
+          [ -f fotos/index.json ] || exit 1
+          cd fotos
+          git init -q -b eleicao-fotos
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          printf '%s\n' "Fotos oficiais dos candidatos (TSE), usadas no vídeo da apuração do Brasil Decide." > README.md
+          git add -A
+          git commit -q -m "fotos dos candidatos"
+          git push -q --force "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" eleicao-fotos
