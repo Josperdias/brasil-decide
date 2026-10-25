@@ -532,6 +532,17 @@ public class MainActivity extends Activity {
                 row.addView(cell, Ui.lp(0, -2, 1f));
             }
             card.addView(row, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
+            Model.Cand c0 = r.cands.get(0), c1 = r.cands.get(1);
+            String info = shortNm(c0.nome) + " lidera por " + n(Math.abs(c0.votos - c1.votos)) + " votos (" + String.format(BR, "%.2f", Math.abs(c0.pct - c1.pct)) + " p.p.)";
+            long lc = snap().lastChange;
+            if (lc > 0) {
+                info += " • dado das " + hhmm(lc);
+                long mins = (System.currentTimeMillis() - lc) / 60000;
+                if (mins >= 5) info += " • sem novidade há " + mins + " min";
+            }
+            TextView it = Ui.text(this, info, 10, Ui.MUTED, false);
+            it.setGravity(Gravity.CENTER_HORIZONTAL);
+            card.addView(it, Ui.margins(Ui.lp(-1, -2), 0, 5, 0, 0));
         }
         content.addView(card);
     }
@@ -910,7 +921,7 @@ public class MainActivity extends Activity {
         c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
         t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão disponível (build " + remoteVersion + ")", 14, Ui.TEXT, true));
-        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar na tela do Android." : "Toque para atualizar aqui mesmo — sem abrir o navegador.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar. Se o Play Protect bloquear: Mais detalhes → Instalar mesmo assim." : "Toque para atualizar aqui mesmo. Se o Android avisar de app nocivo: Mais detalhes → Instalar mesmo assim.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         if (updating) t.addView(new GradientBar(this, 6).colors(Ui.AMBER, Ui.MINT).value(updatePct), Ui.margins(Ui.lp(-1, Ui.dp(6)), 0, 8, 0, 0));
         c.addView(t, Ui.lp(0, -2, 1f));
         if (!updating) c.addView(Ui.text(this, "Atualizar ›", 13, Ui.AMBER, true));
