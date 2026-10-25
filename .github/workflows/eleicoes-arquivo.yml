@@ -1,0 +1,99 @@
+name: Brasil Decide — Arquivo da apuração
+
+# Congela e organiza a apuração coletada (branch "eleicao-data", pasta 2026/<dir>) numa release própria, que nenhuma atualização do app,
+# do site ou da branch de dados sobrescreve: a release "apuracao-2t-2026" é um arquivo separado do "app-latest".
+# Regra de segurança: nunca troca o arquivo por outro com MENOS snapshots (proteção contra perda de dados).
+on:
+  workflow_dispatch:
+    inputs:
+      dir:
+        description: "Pasta em 2026/ (t2 = 2º turno; t1-test = teste)"
+        default: "t2"
+      tag:
+        description: "Tag da release de arquivo"
+        default: "apuracao-2t-2026"
+  push:
+    paths:
+      - '.github/workflows/eleicoes-arquivo.yml'
+  schedule:
+    - cron: "30 22 25 10 *"   # 19:30 em Brasília
+    - cron: "30 0 26 10 *"    # 21:30 em Brasília
+    - cron: "30 3 26 10 *"    # 00:30 em Brasília (depois do fim da coleta)
+    - cron: "30 12 26 10 *"   # 09:30 em Brasília
+
+permissions:
+  contents: write
+
+concurrency:
+  group: arquivo-apuracao
+  cancel-in-progress: false
+
+jobs:
+  arquivar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Definir o que arquivar
+        id: def
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "dir=${{ github.event.inputs.dir }}" >> "$GITHUB_OUTPUT"; echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            if [ "$(date -u +%Y)" = "2026" ]; then
+              echo "dir=t2" >> "$GITHUB_OUTPUT"; echo "tag=apuracao-2t-2026" >> "$GITHUB_OUTPUT"
+            else
+              echo "dir=" >> "$GITHUB_OUTPUT"; echo "tag=" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            # push neste arquivo: teste com a pasta de teste, em release de teste
+            echo "dir=t1-test" >> "$GITHUB_OUTPUT"; echo "tag=apuracao-teste" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Arquivar
+        if: steps.def.outputs.dir != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          DIR="${{ steps.def.outputs.dir }}"; TAG="${{ steps.def.outputs.tag }}"
+          git clone -q --depth 1 --branch eleicao-data "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" data
+          SRC="data/2026/${DIR}"
+          if [ ! -s "$SRC/snapshots.ndjson" ]; then echo "::warning::Sem snapshots em $SRC: nada a arquivar."; exit 0; fi
+          # valida: todas as linhas são JSON, conta snapshots e pega primeira/última hora
+          INFO=$(python3 - "$SRC/snapshots.ndjson" <<'PY'
+          import json, sys
+          n = 0; first = last = None
+          for line in open(sys.argv[1], encoding="utf-8"):
+              line = line.strip()
+              if not line:
+                  continue
+              j = json.loads(line)
+              n += 1
+              first = first or j.get("t"); last = j.get("t")
+          print(n, first, last)
+          PY
+          )
+          read N FIRST LAST <<< "$INFO"
+          echo "snapshots=$N primeiro=$FIRST ultimo=$LAST"
+          mkdir -p out
+          # tabelas CSV organizadas (série do Brasil, por UF, governadores, resultado final) + LEIA-ME
+          python3 eleicoes-2026/collector/export_series.py --src "$SRC" --out out
+          gzip -9 -c "$SRC/snapshots.ndjson" > out/snapshots.ndjson.gz
+          [ -s "$SRC/zz.ndjson" ] && gzip -9 -c "$SRC/zz.ndjson" > out/zz.ndjson.gz || true
+          for f in meta.json index.json latest.json; do [ -f "$SRC/$f" ] && cp "$SRC/$f" out/ || true; done
+          (cd out && sha256sum * > SHA256SUMS.txt)
+          NOTES="Arquivo da apuração coletada do TSE (pasta 2026/${DIR}). snapshots=${N} primeiro=${FIRST} ultimo=${LAST}. Atualizado em $(date -u +%FT%TZ). Somente dados oficiais coletados; sem projeção."
+          if gh release view "$TAG" --repo "$REPO" > /dev/null 2>&1; then
+            PREV=$(gh release view "$TAG" --repo "$REPO" --json body -q .body | grep -oE 'snapshots=[0-9]+' | head -1 | cut -d= -f2 || true)
+            if [ -n "${PREV:-}" ] && [ "$N" -lt "$PREV" ]; then
+              echo "::error::O arquivo novo tem $N snapshots e o já arquivado tem $PREV: não substituo (proteção de dados)."; exit 1
+            fi
+            gh release edit "$TAG" --repo "$REPO" --notes "$NOTES"
+          else
+            gh release create "$TAG" --repo "$REPO" --target main --latest=false --title "Apuração coletada — ${DIR}" --notes "$NOTES"
+          fi
+          gh release upload "$TAG" out/* --repo "$REPO" --clobber
+          echo "arquivado em release ${TAG}"
