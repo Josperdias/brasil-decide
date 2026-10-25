@@ -34,12 +34,16 @@ const rpLerp=(x,y,f)=>x+(y-x)*f;
 const rpName=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.nm||('Candidato '+n)};
 const rpParty=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.sg||''};
 const rpNice=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,x=>x.toLowerCase());
+/* tira os registros repetidos (horas paradas à espera do TSE): fica o primeiro e o último de cada trecho igual */
+function rpDedupe(S){const sg=q=>(q.br&&q.br.s?q.br.s[0]:'')+'|'+((q.br&&q.br.c)||[]).map(x=>x[1]).join(',');
+  return S.filter((q,i)=>{if(i===0||i===S.length-1)return true;const k=sg(q);return sg(S[i-1])!==k||sg(S[i+1])!==k})}
 function rpPrep(){
+  RP.snaps=rpDedupe(RP.snaps);
   const S=RP.snaps,last={};RP.flips=[];
   const fin=S[S.length-1],c=(fin.br&&fin.br.c)||[];
   RP.order=c.filter(x=>x[1]>0).slice(0,3).map(x=>x[0]);
   if(!RP.order.length)RP.order=c.slice(0,2).map(x=>x[0]);
-  S.forEach(s=>{Object.keys(s.uf||{}).forEach(uf=>{const x=s.uf[uf],top=x&&x.c&&x.c[0],ld=top&&top[1]>0?top[0]:null;if(!ld)return;if(last[uf]&&last[uf]!==ld)RP.flips.push({t:s.t,uf,from:last[uf],to:ld});last[uf]=ld})});
+  S.forEach((s,si)=>{Object.keys(s.uf||{}).forEach(uf=>{const x=s.uf[uf],top=x&&x.c&&x.c[0],ld=top&&top[1]>0?top[0]:null;if(!ld)return;if(last[uf]&&last[uf]!==ld)RP.flips.push({t:s.t,i:si,uf,from:last[uf],to:ld});last[uf]=ld})});
   RP.curve=S.map(s=>{const c=(s.br&&s.br.c)||[],vv=s.br&&s.br.v&&s.br.v[0],sum=c.reduce((q,x)=>q+x[1],0),den=vv||sum;return{t:s.t,p:RP.order.slice(0,2).map(n=>{const x=c.find(y=>y[0]===n);return den>0&&x?100*x[1]/den:null})}}).filter(r=>r.p.some(v=>v!=null));
   RP.paths=RP.paths||Object.fromEntries(Object.keys(MAP_PATHS).map(k=>[k,new Path2D(MAP_PATHS[k])]));
 }
@@ -62,10 +66,10 @@ function rpPhotoLoad(){RP.photos=RP.photos||{};const ids=[];(RP.order||[]).forEa
 async function rpEnsure(){const src=$('rpSrc').value;if(!(RP.src===src&&RP.snaps.length>1)&&!await rpLoad(src))return false;await rpPhotoLoad();return true}
 function rpClock(t,sec){return new Date(t*1000).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:sec?'2-digit':undefined})}
 function rpState(p){
-  const S=RP.snaps,n=S.length,t0=S[0].t,t1=S[n-1].t,T=t0+p*(t1-t0);let i=0;
-  while(i<n-1&&S[i+1].t<=T)i++;
-  const a=S[i],b=S[Math.min(i+1,n-1)],f=b.t>a.t?Math.min(1,Math.max(0,(T-a.t)/(b.t-a.t))):0;
-  return{T,a,b,f,t0,t1};
+  /* o vídeo anda por registro (não por relógio): trechos parados do TSE não ocupam tempo */
+  const S=RP.snaps,n=S.length,u=Math.min(n-1,Math.max(0,p*(n-1)));let i=Math.min(n-2,Math.floor(u));
+  const a=S[i],b=S[i+1],f=u-i,T=a.t+f*(b.t-a.t);
+  return{T,a,b,f,u,t0:S[0].t,t1:S[n-1].t};
 }
 function rpFit(ctx,text,maxW,size,weight){let s=size;do{ctx.font=weight+' '+s+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';if(ctx.measureText(text).width<=maxW||s<=14)break;s-=2}while(true);return s}
 function rpTxt(ctx,text,x,y,size,color,weight,align,maxW){ctx.fillStyle=color;ctx.textAlign=align||'left';ctx.textBaseline='alphabetic';if(maxW)rpFit(ctx,text,maxW,size,weight||'800');else ctx.font=(weight||'800')+' '+size+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';ctx.fillText(text,x,y)}
@@ -175,10 +179,10 @@ function rpMap(ctx,box,st,a,sz,vertCount){
   ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=5;ctx.textAlign='center';ctx.textBaseline='middle';
   keys.forEach(uf=>{const l=RP_LBL[uf];if(!l||l[2]<50||l[3]<40)return;const px=(l[2]>=100?sz:sz*.78);ctx.font='900 '+(px/sc)+'px '+RPF;ctx.fillStyle='rgba(255,255,255,.95)';ctx.fillText(uf,l[0],l[1])});
   ctx.shadowColor='rgba(0,0,0,0)';ctx.shadowBlur=0;ctx.textBaseline='alphabetic';
-  const win=1.4/RP.dur*(st.t1-st.t0);let last=null;
-  RP.flips.forEach(x=>{const age=st.T-x.t;if(age>=0&&age<=win){const k=1-age/win;ctx.save();ctx.shadowColor=candColor(rpName(x.to));ctx.shadowBlur=34*k+6;ctx.lineWidth=(3+8*k)/sc;ctx.strokeStyle='rgba(255,255,255,'+(0.3+0.7*k).toFixed(2)+')';ctx.stroke(RP.paths[x.uf]);ctx.restore();last=x}else if(age>=0&&age<=win*2.2&&!last)last=x});
+  const win=1.4/RP.dur*(RP.snaps.length-1);let last=null;
+  RP.flips.forEach(x=>{const age=st.u-x.i;if(age>=0&&age<=win){const k=1-age/win;ctx.save();ctx.shadowColor=candColor(rpName(x.to));ctx.shadowBlur=34*k+6;ctx.lineWidth=(3+8*k)/sc;ctx.strokeStyle='rgba(255,255,255,'+(0.3+0.7*k).toFixed(2)+')';ctx.stroke(RP.paths[x.uf]);ctx.restore();last=x}else if(age>=0&&age<=win*2.2&&!last)last=x});
   ctx.restore();
-  return{cnt,last:last&&st.T-last.t<=win*2.2?last:null};
+  return{cnt,last:last&&st.u-last.i<=win*2.2?last:null};
 }
 function rpDraw(ctx,fmt,p){
   const F=RP_FMT[fmt],W=F.dw,H=F.dh,st=rpState(p),a=st.a,b=st.b,f=st.f;
