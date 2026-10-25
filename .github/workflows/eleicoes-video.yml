@@ -41,6 +41,11 @@ jobs:
           git clone -q --depth 1 --branch eleicao-data "$REPO_URL" data
           git clone -q --depth 1 --branch eleicao-fotos "$REPO_URL" fotos || mkdir fotos
           ls data/2026 | head
+      - name: Instalar o ffmpeg
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ffmpeg
+          ffmpeg -version | head -1
       - name: Instalar o Chromium sem tela
         working-directory: eleicoes-2026/tools
         run: |

@@ -49,7 +49,8 @@ function lerSnaps() {
     const out = path.join(OUT, PREFIX + '-' + NAMES[fmt] + '.mp4');
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-vcodec', 'mjpeg', '-i', '-',
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
-    const done = new Promise(r => ff.on('close', r));
+    const done = new Promise((r, rej) => { ff.on('close', r); ff.on('error', rej); });
+    ff.stdin.on('error', () => { });
     const n = Math.round(SEC * FPS), total = n + Math.round(HOLD * FPS), t0 = Date.now();
     for (let i = 0; i < total; i++) {
       const p = Math.min(1, i / n);
