@@ -1,6 +1,6 @@
 {
-  "name": "Eleições 2026 • Apuração ao vivo",
-  "short_name": "Eleições 2026",
+  "name": "Brasil Decide • Eleições 2026",
+  "short_name": "Brasil Decide",
   "description": "Apuração das eleições 2026 em tempo real, com dados oficiais do TSE.",
   "start_url": "./",
   "scope": "./",
