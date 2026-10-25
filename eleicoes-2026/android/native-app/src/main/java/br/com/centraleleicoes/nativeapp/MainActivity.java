@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
         String presSig = "";
     }
 
-    static final class Event { String icon, title, detail; long at; }
+    static final class Event { String icon, title, detail; long at; boolean lot; int turn; }
 
     private final Snap[] snaps = {new Snap(), new Snap()};
     private final Map<String, Long> absentAt = new HashMap<>();
@@ -373,6 +373,7 @@ public class MainActivity extends Activity {
             nav.setVisibility(View.VISIBLE);
             renderHeader();
             if (!tab.equals("brasil") && !(tab.equals("mapa") && mapaSub.equals("ufs"))) renderLiveStrip();
+            if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("mapa"))) renderLots(tab.equals("brasil") ? 6 : 4);
             if (updateAvailable) content.addView(updateBanner());
             if (tab.equals("brasil") || (tab.equals("mapa") && !mapaSub.equals("mundo") && !mapaSub.equals("replay"))) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
@@ -533,6 +534,29 @@ public class MainActivity extends Activity {
             }
             card.addView(row, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
         }
+        content.addView(card);
+    }
+
+    /** Lotes recém-apurados (por estado), do mais novo ao mais antigo; atualiza a cada consulta com novidade. */
+    private void renderLots(int max) {
+        LinearLayout card = Ui.card(this);
+        card.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), Ui.dp(8));
+        card.addView(Ui.label(this, "⚡ Lotes que acabaram de sair"));
+        int shown = 0;
+        for (Event e : events) {
+            if (!e.lot || e.turn != turn) continue;
+            LinearLayout row = Ui.row(this);
+            row.setPadding(0, Ui.dp(6), 0, Ui.dp(4));
+            TextView tm = Ui.text(this, hhmmss(e.at), 10, Ui.MUTED, true);
+            row.addView(tm, Ui.margins(Ui.lp(Ui.dp(48), -2), 0, 2, 8, 0));
+            LinearLayout tx = Ui.col(this);
+            tx.addView(Ui.text(this, e.title, 12, Ui.TEXT, true));
+            tx.addView(Ui.text(this, e.detail, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+            row.addView(tx, Ui.lp(0, -2, 1f));
+            card.addView(row);
+            if (++shown >= max) break;
+        }
+        if (shown == 0) card.addView(Ui.text(this, "Aguardando o próximo lote de seções do TSE…", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 4));
         content.addView(card);
     }
 
@@ -2640,7 +2664,38 @@ public class MainActivity extends Activity {
         Event e = new Event();
         e.icon = icon; e.title = title; e.detail = detail; e.at = System.currentTimeMillis();
         events.add(0, e);
-        while (events.size() > 50) events.remove(events.size() - 1);
+        while (events.size() > 150) events.remove(events.size() - 1);
+    }
+
+    private static String shortNm(String nome) {
+        String[] w = nome.trim().split("\\s+");
+        String x = w[w.length - 1];
+        return x.isEmpty() ? nome : x.substring(0, 1).toUpperCase(Locale.ROOT) + x.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    /** Lote novo de seções de um estado: quantas seções entraram e quantos votos cada um dos dois primeiros recebeu. */
+    private void addLots(int t, String cargo, Map<String, Model.Result> neu, Map<String, Model.Result> old) {
+        List<Event> novos = new ArrayList<>();
+        for (Map.Entry<String, Model.Result> e : neu.entrySet()) {
+            Model.Result o = old.get(e.getKey()), nw = e.getValue();
+            if (o == null || nw == null || nw.sections <= o.sections) continue;
+            StringBuilder d = new StringBuilder();
+            for (int i = 0; i < Math.min(2, nw.cands.size()); i++) {
+                Model.Cand c = nw.cands.get(i);
+                long prev = 0;
+                for (Model.Cand oc : o.cands) if (oc.nome.equals(c.nome)) prev = oc.votos;
+                if (d.length() > 0) d.append(" • ");
+                d.append(shortNm(c.nome)).append(" +").append(n(Math.max(0, c.votos - prev)));
+            }
+            d.append(" • apuração ").append(pc(nw.progress));
+            Event ev = new Event();
+            ev.icon = "📦"; ev.lot = true; ev.turn = t; ev.at = System.currentTimeMillis();
+            ev.title = ufName(e.getKey()) + " • " + cargo + " • +" + n(nw.sections - o.sections) + " seções";
+            ev.detail = d.toString();
+            novos.add(ev);
+        }
+        for (Event ev : novos) events.add(0, ev);
+        while (events.size() > 150) events.remove(events.size() - 1);
     }
 
     private void commit(int t, Model.Result pres, Map<String, Model.Result> s, Map<String, Model.Result> g, Map<String, Model.Result> d,
@@ -2692,6 +2747,8 @@ public class MainActivity extends Activity {
             if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
                 addEvent("🗺️", ufName(e.getKey()) + " mudou de líder", e.getValue().lead().nome + " passou à frente • Presidente • " + t + "º turno");
         }
+        addLots(t, "Presidente", s, oldStates);
+        addLots(t, "Governador", g, oldGov);
         for (Map.Entry<String, Model.Result> e : g.entrySet()) {
             Model.Result o = oldGov.get(e.getKey());
             if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
