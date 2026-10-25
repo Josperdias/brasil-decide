@@ -25,6 +25,142 @@ function nowRows(){const rows=[],stamp=new Date().toISOString(),add=(esc,uf,d)=>
 function downloadNow(kind){const r=nowRows();if(!r.length){toast('Os dados ainda não carregaram');return}const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');if(kind==='json')saveText('brasil-decide-resultado-'+stamp+'.json',JSON.stringify({fonte:'TSE (via Brasil Decide)',turno:st.turn,baixado_em:new Date().toISOString(),linhas:r},null,1),'application/json');else{const h=Object.keys(r[0]);saveText('brasil-decide-resultado-'+stamp+'.csv',h.join(',')+'\n'+r.map(x=>h.map(k=>csvCell(x[k])).join(',')).join('\n'),'text/csv')}}
 if($('dlNowCsv'))$('dlNowCsv').onclick=()=>downloadNow('csv');if($('dlNowJson'))$('dlNowJson').onclick=()=>downloadNow('json');
 (async()=>{const box=$('dataFiles');if(!box)return;const fallback=()=>{box.innerHTML=Object.keys(DATA_INFO).map(n=>`<a href="${DATA_DL}${n}" rel="noopener" download><div><b>${esc(DATA_INFO[n][0])}</b><small>${esc(DATA_INFO[n][1])}</small></div><span>Baixar</span></a>`).join('')+'<div class="news-disclaimer">Os arquivos aparecem aqui depois da apuração do 2º turno; antes disso os links ainda não existem.</div>'};try{const r=await fetch(DATA_REL,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok){fallback();return}const j=await r.json(),as=(j.assets||[]);if(!as.length){fallback();return}const order=Object.keys(DATA_INFO),list=as.slice().sort((a,b)=>{const x=order.indexOf(a.name),y=order.indexOf(b.name);return(x<0?99:x)-(y<0?99:y)});const m=(j.body||'').match(/snapshots=(\d+)/);box.innerHTML=list.map(a=>{const i=DATA_INFO[a.name]||[a.name,''];return `<a href="${a.browser_download_url}" rel="noopener" download><div><b>${esc(i[0])}</b><small>${esc(i[1])} • ${Math.max(1,Math.round(a.size/1024))} KB • ${new Date(a.updated_at).toLocaleString('pt-BR')}</small></div><span>Baixar</span></a>`}).join('')+(m?`<div class="news-disclaimer">${m[1]} instantes coletados até agora.</div>`:'')}catch(e){fallback()}})();
+// ======== Replay da apuração em vídeo (canvas + MediaRecorder): assiste e exporta MP4/WebM no próprio navegador ========
+const RP={snaps:[],meta:null,src:'',loading:false,playing:false,recording:false,raf:0,startAt:0,dur:30,fmt:'v',flips:[],paths:null,rec:null,holdUntil:0,order:[],url:''};
+const RP_BASE='https://raw.githubusercontent.com/Josperdias/brasil-decide/eleicao-data/2026/';
+const RP_FMT={v:{dw:1080,dh:1920,cw:720,ch:1280},q:{dw:1080,dh:1080,cw:720,ch:720},h:{dw:1920,dh:1080,cw:1280,ch:720}};
+const rpSet=m=>{const e=$('rpStatus');if(e)e.textContent=m};
+const rpLerp=(x,y,f)=>x+(y-x)*f;
+const rpName=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.nm||('Candidato '+n)};
+const rpParty=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.sg||''};
+const rpNice=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,x=>x.toLowerCase());
+function rpPrep(){
+  const S=RP.snaps,last={};RP.flips=[];
+  const fin=S[S.length-1],c=(fin.br&&fin.br.c)||[];
+  RP.order=c.filter(x=>x[1]>0).slice(0,3).map(x=>x[0]);
+  if(!RP.order.length)RP.order=c.slice(0,2).map(x=>x[0]);
+  S.forEach(s=>{Object.keys(s.uf||{}).forEach(uf=>{const x=s.uf[uf],top=x&&x.c&&x.c[0],ld=top&&top[1]>0?top[0]:null;if(!ld)return;if(last[uf]&&last[uf]!==ld)RP.flips.push({t:s.t,uf,from:last[uf],to:ld});last[uf]=ld})});
+  RP.paths=RP.paths||Object.fromEntries(Object.keys(MAP_PATHS).map(k=>[k,new Path2D(MAP_PATHS[k])]));
+}
+async function rpLoad(src){
+  if(RP.loading)return false;RP.loading=true;rpSet('Carregando os dados da apuração…');
+  try{
+    const [a,b]=await Promise.all([fetch(RP_BASE+src+'/snapshots.ndjson',{cache:'no-store'}),fetch(RP_BASE+src+'/meta.json',{cache:'no-store'})]);
+    if(!a.ok||!b.ok)throw new Error('HTTP '+a.status+'/'+b.status);
+    const txt=await a.text();RP.meta=await b.json();
+    RP.snaps=txt.split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(s=>s&&s.br&&s.t).sort((x,y)=>x.t-y.t);
+    RP.src=src;
+    if(RP.snaps.length<2){rpSet('Ainda não há dados suficientes desta apuração ('+RP.snaps.length+' registro). Tente de novo depois que a apuração começar.');return false}
+    rpPrep();rpSet(RP.snaps.length+' registros de '+rpClock(RP.snaps[0].t)+' a '+rpClock(RP.snaps[RP.snaps.length-1].t)+' (Brasília).');return true;
+  }catch(e){RP.snaps=[];rpSet('Não foi possível carregar os dados agora ('+e.message+').');return false}
+  finally{RP.loading=false}
+}
+async function rpEnsure(){const src=$('rpSrc').value;if(RP.src===src&&RP.snaps.length>1)return true;return rpLoad(src)}
+function rpClock(t,sec){return new Date(t*1000).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:sec?'2-digit':undefined})}
+function rpState(p){
+  const S=RP.snaps,n=S.length,t0=S[0].t,t1=S[n-1].t,T=t0+p*(t1-t0);let i=0;
+  while(i<n-1&&S[i+1].t<=T)i++;
+  const a=S[i],b=S[Math.min(i+1,n-1)],f=b.t>a.t?Math.min(1,Math.max(0,(T-a.t)/(b.t-a.t))):0;
+  return{T,a,b,f,t0,t1};
+}
+function rpFit(ctx,text,maxW,size,weight){let s=size;do{ctx.font=weight+' '+s+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';if(ctx.measureText(text).width<=maxW||s<=14)break;s-=2}while(true);return s}
+function rpTxt(ctx,text,x,y,size,color,weight,align,maxW){ctx.fillStyle=color;ctx.textAlign=align||'left';ctx.textBaseline='alphabetic';if(maxW)rpFit(ctx,text,maxW,size,weight||'800');else ctx.font=(weight||'800')+' '+size+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';ctx.fillText(text,x,y)}
+function rpRound(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+function rpDraw(ctx,fmt,p){
+  const F=RP_FMT[fmt],W=F.dw,H=F.dh,st=rpState(p),a=st.a,b=st.b,f=st.f;
+  ctx.setTransform(F.cw/W,0,0,F.ch/H,0,0);
+  const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0b1e34');g.addColorStop(.55,'#040913');g.addColorStop(1,'#02060d');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  const vert=fmt==='v',turn=a.turn||2;
+  // cabeçalho
+  const hx=vert?70:60;
+  const wide=fmt==='h';
+  rpTxt(ctx,'BRASIL DECIDE • ELEIÇÕES 2026',hx,vert?90:76,vert?36:30,'#64f5cb','900',null,W-hx*2);
+  rpTxt(ctx,'Apuração do '+turn+'º turno',hx,vert?168:136,vert?72:60,'#f7fbff','900',null,wide?W-hx*2-420:W-hx*2);
+  rpTxt(ctx,rpClock(st.T)+' (Brasília)',wide?W-60:hx,wide?76:(vert?226:186),vert?38:30,'#c6d5e5','800',wide?'right':'left');
+  if(RP.src==='demo')rpTxt(ctx,'DEMONSTRAÇÃO — DADOS SIMULADOS',wide||!vert?W-60:hx,wide?124:(vert?268:186),vert?30:26,'#ffc966','900',wide||!vert?'right':'left');
+  // mapa
+  const box=vert?{x:90,y:290,w:900,h:780}:fmt==='q'?{x:30,y:215,w:520,h:700}:{x:50,y:190,w:800,h:800};
+  const vb=MAP_VB.split(' ').map(Number),sc=Math.min(box.w/vb[2],box.h/vb[3]),ox=box.x+(box.w-vb[2]*sc)/2,oy=box.y+(box.h-vb[3]*sc)/2;
+  ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);
+  const ld={};Object.keys(RP.paths).forEach(uf=>{const x=a.uf&&a.uf[uf],top=x&&x.c&&x.c[0];ld[uf]=top&&top[1]>0?top[0]:null;
+    ctx.fillStyle=ld[uf]?candColor(rpName(ld[uf])):'#17304f';ctx.fill(RP.paths[uf]);ctx.lineWidth=1.1/sc*(vert?1:.8);ctx.strokeStyle='#cfe3f7';ctx.stroke(RP.paths[uf])});
+  // pulso nas viradas recentes (últimos ~1,3 s do vídeo)
+  const win=1.3/RP.dur*(st.t1-st.t0);let last=null;
+  RP.flips.forEach(x=>{const age=st.T-x.t;if(age>=0&&age<=win){const k=1-age/win;ctx.lineWidth=(3+9*k)/sc;ctx.strokeStyle='rgba(255,255,255,'+(0.25+0.75*k).toFixed(2)+')';ctx.stroke(RP.paths[x.uf]);last=x}else if(age>=0&&age<=win*2.2&&!last)last=x});
+  ctx.restore();
+  if(last&&st.T-last.t<=win*2.2){const nm=(UFS[last.uf]||[last.uf])[0];rpTxt(ctx,'⚡ '+nm+' muda: '+rpNice(rpName(last.to))+' passa à frente',box.x+box.w/2,box.y+box.h+(vert?46:36),vert?34:26,'#ffc966','900','center',box.w)}
+  // barras dos candidatos
+  const bx=vert?{x:70,y:1120,w:940}:fmt==='q'?{x:580,y:235,w:470}:{x:920,y:200,w:940};
+  const ca={},cb={};(a.br.c||[]).forEach(x=>ca[x[0]]=x[1]);(b.br.c||[]).forEach(x=>cb[x[0]]=x[1]);
+  const votes=RP.order.map(n=>({n,v:rpLerp(ca[n]||0,cb[n]==null?ca[n]||0:cb[n],f)}));
+  const validA=(a.br.v&&a.br.v[0])||0,validB=(b.br.v&&b.br.v[0])||0,valid=rpLerp(validA,validB||validA,f)||votes.reduce((s,x)=>s+x.v,0)||1;
+  const rowH=vert?142:(fmt==='q'?140:170),maxv=Math.max(1,...votes.map(x=>x.v));
+  votes.forEach((x,i)=>{const y=bx.y+i*rowH,col=candColor(rpName(x.n)),pct=100*x.v/valid;
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(bx.x+16,y+22,13,0,7);ctx.fill();
+    rpTxt(ctx,rpNice(rpName(x.n)),bx.x+44,y+34,vert?44:32,'#f7fbff','900',null,bx.w-250);
+    rpTxt(ctx,rpParty(x.n)+' • '+fmtInt(Math.round(x.v))+' votos',bx.x+44,y+(vert?78:64),vert?30:22,'#93a9c2','700',null,bx.w-250);
+    rpTxt(ctx,pct.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%',bx.x+bx.w,y+(vert?52:42),vert?64:46,col,'900','right');
+    ctx.fillStyle='#0a1728';rpRound(ctx,bx.x,y+(vert?96:80),bx.w,vert?26:20,12);ctx.fill();
+    ctx.fillStyle=col;rpRound(ctx,bx.x,y+(vert?96:80),Math.max(14,bx.w*x.v/maxv),vert?26:20,12);ctx.fill()});
+  const yy=bx.y+votes.length*rowH+(vert?10:4);
+  if(votes.length>1){const d=Math.abs(votes[0].v-votes[1].v);rpTxt(ctx,'Diferença: '+fmtInt(Math.round(d))+' votos ('+(100*d/valid).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+' p.p.)',bx.x,yy+(vert?20:14),vert?32:24,'#c6d5e5','800',null,bx.w)}
+  const prog=rpLerp(a.br.p||0,b.br.p==null?a.br.p||0:b.br.p,f),py=yy+(vert?66:50);
+  rpTxt(ctx,'Seções apuradas: '+prog.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})+'%',bx.x,py,vert?34:26,'#f7fbff','900',null,bx.w);
+  ctx.fillStyle='#0a1728';rpRound(ctx,bx.x,py+14,bx.w,vert?24:18,12);ctx.fill();
+  const gg=ctx.createLinearGradient(bx.x,0,bx.x+bx.w,0);gg.addColorStop(0,'#50d5ff');gg.addColorStop(1,'#64f5cb');ctx.fillStyle=gg;rpRound(ctx,bx.x,py+14,Math.max(14,bx.w*Math.min(100,prog)/100),vert?24:18,12);ctx.fill();
+  // exterior
+  if(a.zz&&a.zz.c&&a.zz.c[0]&&a.zz.c[0][1]>0){const z=a.zz,n=z.c[0][0];rpTxt(ctx,'Exterior: '+rpNice(rpName(n))+' lidera • '+(z.p||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'% apurado',bx.x,py+(vert?96:70),vert?28:22,'#93a9c2','700',null,bx.w)}
+  // rodapé
+  rpTxt(ctx,'Fonte: TSE, coleta minuto a minuto • sem projeção',W/2,H-(vert?70:48),vert?28:22,'#93a9c2','700','center',W-120);
+  rpTxt(ctx,'josperdias.github.io/brasil-decide',W/2,H-(vert?30:18),vert?28:22,'#64f5cb','900','center');
+}
+function rpCanvas(){const cv=$('rpCanvas'),F=RP_FMT[RP.fmt];if(cv.width!==F.cw||cv.height!==F.ch){cv.width=F.cw;cv.height=F.ch}return cv}
+function rpFrame(p){const cv=rpCanvas();rpDraw(cv.getContext('2d'),RP.fmt,p)}
+function rpButtons(){const pl=$('rpPlay'),ex=$('rpExport');if(pl)pl.querySelector('b').textContent=RP.playing&&!RP.recording?'⏸ Parar':'▶ Assistir';if(ex)ex.disabled=RP.recording}
+function rpStop(){RP.playing=false;cancelAnimationFrame(RP.raf);rpButtons()}
+function rpLoop(ts){
+  if(!RP.playing)return;
+  const p=Math.min(1,(ts-RP.startAt)/(RP.dur*1000));rpFrame(p);
+  if(p>=1){
+    if(RP.recording){if(!RP.holdUntil)RP.holdUntil=ts+1200;if(ts>=RP.holdUntil){RP.holdUntil=0;RP.playing=false;rpButtons();try{RP.rec.stop()}catch(e){}return}}
+    else{RP.playing=false;rpButtons();return}
+  }
+  RP.raf=requestAnimationFrame(rpLoop);
+}
+async function rpPlay(){
+  if(RP.playing&&!RP.recording){rpStop();return}
+  if(RP.recording)return;
+  RP.dur=Number($('rpDur').value)||30;RP.fmt=$('rpFmt').value;
+  if(!(await rpEnsure()))return;
+  RP.playing=true;RP.startAt=performance.now();rpButtons();RP.raf=requestAnimationFrame(rpLoop);
+}
+async function rpExport(){
+  if(RP.recording)return;
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){rpSet('Este navegador não grava vídeo. Use o Chrome (Android ou computador) ou o Safari mais recente.');return}
+  RP.dur=Number($('rpDur').value)||30;RP.fmt=$('rpFmt').value;
+  if(!(await rpEnsure()))return;
+  rpStop();
+  const cv=rpCanvas();rpFrame(0);
+  const mimes=['video/mp4;codecs=avc1.42E01E','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt=mimes.find(m=>MediaRecorder.isTypeSupported(m))||'';
+  const chunks=[];let rec;
+  try{rec=new MediaRecorder(cv.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:5000000}:{videoBitsPerSecond:5000000})}catch(e){rpSet('Não foi possível iniciar a gravação ('+e.message+').');return}
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  rec.onstop=()=>{
+    RP.recording=false;rpButtons();
+    const type=(rec.mimeType||mt||'video/webm').split(';')[0],blob=new Blob(chunks,{type}),ext=/mp4/.test(type)?'mp4':'webm';
+    if(RP.url)URL.revokeObjectURL(RP.url);RP.url=URL.createObjectURL(blob);
+    const name='brasil-decide-apuracao-'+(RP.snaps[0].turn||2)+'t.'+ext,out=$('rpOut');
+    out.innerHTML='<video controls playsinline style="max-width:100%;border-radius:12px;margin-top:10px" src="'+RP.url+'"></video><div class="action-grid" style="margin-top:8px"><a class="action-btn" href="'+RP.url+'" download="'+name+'"><b>⬇️ Baixar vídeo (.'+ext+')</b><span>'+(blob.size/1048576).toFixed(1).replace('.',',')+' MB</span></a><button id="rpShare" class="action-btn"><b>📤 Compartilhar</b><span>Enviar para status e conversas</span></button></div>'+(ext==='webm'?'<div class="news-disclaimer">Este navegador gerou .webm. Para WhatsApp/Instagram, prefira o Chrome atualizado (gera .mp4) ou o app Brasil Decide.</div>':'');
+    $('rpShare').onclick=async()=>{try{const file=new File([blob],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Apuração — Brasil Decide'});else toast('Use o botão Baixar e envie o arquivo')}catch(e){}};
+    rpSet('Vídeo pronto ('+ext.toUpperCase()+'). Assista abaixo, baixe ou compartilhe.');
+  };
+  RP.rec=rec;RP.recording=true;RP.playing=true;RP.holdUntil=0;rpButtons();
+  rpSet('Gravando… mantenha esta aba aberta e na frente (≈ '+RP.dur+' s).');
+  rec.start(250);RP.startAt=performance.now();RP.raf=requestAnimationFrame(rpLoop);
+  clearTimeout(RP.safety);RP.safety=setTimeout(()=>{if(RP.recording){RP.playing=false;try{RP.rec.stop()}catch(e){}}},(RP.dur+5)*1000);
+}
+if($('rpPlay')){$('rpPlay').onclick=rpPlay;$('rpExport').onclick=rpExport;$('rpFmt').onchange=()=>{RP.fmt=$('rpFmt').value;if(RP.snaps.length>1)rpFrame(1)};$('rpSrc').onchange=()=>{RP.src='';RP.snaps=[]};rpCanvas()}
+/*RP_END*/
 if($('shareSite'))$('shareSite').onclick=async()=>{const url=location.href.split('#')[0],data={title:'Brasil Decide • Eleições 2026 — apuração ao vivo',text:'Acompanhe a apuração das eleições 2026 com dados oficiais do TSE:',url};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);toast('Link copiado')}}catch(e){}};
 $('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
 document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
