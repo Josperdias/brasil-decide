@@ -373,7 +373,7 @@ public class MainActivity extends Activity {
             nav.setVisibility(View.VISIBLE);
             renderHeader();
             if (!tab.equals("brasil") && !(tab.equals("mapa") && mapaSub.equals("ufs"))) renderLiveStrip();
-            if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("mapa"))) renderLots(tab.equals("brasil") ? 6 : 4);
+            if (tab.equals("mapa") && mapaSub.equals("mapa")) renderLots(4);
             if (updateAvailable) content.addView(updateBanner());
             if (tab.equals("brasil") || (tab.equals("mapa") && !mapaSub.equals("mundo") && !mapaSub.equals("replay"))) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
@@ -833,10 +833,9 @@ public class MainActivity extends Activity {
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
-        content.addView(promoStatus());
-        content.addView(roundCard());
         content.addView(resultCard("Presidente da República", cargoSub("Brasil"), "🇧🇷", r, turn == 2 ? 2 : 3));
         if (r == null && waiting) content.addView(emptyCard("Aguardando o TSE", "O resultado presidencial do " + turn + "º turno ainda não foi publicado. Nova consulta automática em ~60 s."));
+        renderLots(6);
 
         // Pulso: gráfico do top 3
         content.addView(sectionHead("Pulso da apuração", "Percentual dos válidos a cada arquivo novo do TSE (histórico guardado neste aparelho, separado por turno)."));
@@ -912,6 +911,8 @@ public class MainActivity extends Activity {
             }
             content.addView(c);
         }
+        content.addView(promoStatus());
+        content.addView(roundCard());
     }
 
     private View updateBanner() {
@@ -1828,8 +1829,8 @@ public class MainActivity extends Activity {
     private View roundCard() {
         loadRoundGov();
         LinearLayout c = Ui.card(this);
-        c.addView(Ui.text(this, "Quem disputa o 2º turno", 15, Ui.TEXT, true));
-        c.addView(Ui.text(this, "Domingo, 25/10/2026 • dados oficiais do 1º turno (TSE)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
+        c.addView(Ui.text(this, turn == 2 ? "Referência: como foi o 1º turno" : "Quem disputa o 2º turno", 15, Ui.TEXT, true));
+        c.addView(Ui.text(this, turn == 2 ? "Resultado do 1º turno (TSE) — não é a apuração de hoje" : "Domingo, 25/10/2026 • dados oficiais do 1º turno (TSE)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
         // presidente
         Model.Result p1 = snaps[0].pres;
         List<Model.Cand> pair = new ArrayList<>();
