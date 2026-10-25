@@ -139,13 +139,13 @@ final class ReplayUi {
         head.addView(Ui.text(cx, "▶ Replay da apuração", 18, Ui.TEXT, true));
         head.addView(Ui.text(cx, "Registros do coletor, minuto a minuto. Só reproduz dados oficiais; sem previsão.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
         root.addView(head);
-        root.addView(videoCard(cx));
         if (series == null || series.snaps.isEmpty()) {
             LinearLayout e = Ui.card(cx);
             e.addView(Ui.text(cx, loading ? "Carregando os registros da apuração…" : "Ainda não há registros", 15, Ui.TEXT, true));
             e.addView(Ui.text(cx, loading ? "Buscando a linha do tempo na base de dados do Brasil Decide." : (series != null && !series.error.isEmpty() ? series.error + " " : "")
                     + (host.turn() == 1 ? "O 1º turno não foi registrado: o coletor só passa a gravar a apuração a partir do 2º turno (25/10/2026)." : "O coletor começa a gravar a apuração minuto a minuto na noite do 2º turno (25/10/2026). Volte aqui depois para assistir ao replay."), 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
             root.addView(e);
+            root.addView(videoCard(cx));
             return root;
         }
         if (series.demo) {
@@ -154,6 +154,7 @@ final class ReplayUi {
             d.setBackground(Ui.fill(0x33FFC966, 12, 0x99FFC966));
             root.addView(d, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 10));
         }
+        root.addView(videoCard(cx));
         // controles
         LinearLayout ctl = Ui.card(cx);
         timeTv = Ui.text(cx, "", 13, Ui.TEXT, true);
