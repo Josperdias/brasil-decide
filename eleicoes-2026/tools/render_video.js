@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
 const { chromium } = require('playwright');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const SITE = arg('site'), DATA = arg('data'), FOTOS = arg('fotos', ''), OUT = arg('out', 'out');
+const GOV = arg('gov', ''), SITE = arg('site'), DATA = arg('data'), FOTOS = arg('fotos', ''), OUT = arg('out', 'out');
 const FMTS = arg('fmt', 'v,q,h').split(','), SEC = +arg('seconds', 45), FPS = +arg('fps', 30), SRC = arg('src', 't2'), PREFIX = arg('prefix', 'apuracao-2t');
 const NAMES = { v: 'vertical', q: 'quadrado', h: 'horizontal' }, HOLD = 2.5;
 
@@ -19,17 +19,19 @@ function lerSnaps() {
 
 (async () => {
   const snaps = lerSnaps();
+  if (GOV) { const n = snaps.filter(q => q.gv && q.gv[GOV]).length; if (n < 2) { console.log('dados insuficientes para ' + GOV + ': ' + n + ' registro(s)'); process.exit(2); } }
   if (snaps.length < 2) { console.log('dados insuficientes: ' + snaps.length + ' registro(s)'); process.exit(2); }
   const meta = JSON.parse(fs.readFileSync(path.join(DATA, 'meta.json'), 'utf8'));
   const fotos = {};
-  for (const m of Object.values(meta.pres || {})) {
+  const cands = GOV ? ((meta.gov || {})[GOV] || {}) : (meta.pres || {});
+  for (const m of Object.values(cands)) {
     const f = path.join(FOTOS, (m.sq || 'x') + '.jpg');
     if (m.sq && FOTOS && fs.existsSync(f)) fotos[m.sq] = 'data:image/jpeg;base64,' + fs.readFileSync(f).toString('base64');
   }
   console.log(snaps.length + ' registros, ' + Object.keys(fotos).length + ' fotos');
   let html = fs.readFileSync(SITE, 'utf8');
   const hook = `/*RP_END*/window.__rp={
-    init:function(snaps,meta,fotos,fmt,dur,src){RP.snaps=snaps;RP.meta=meta;RP.src=src;rpPrep();RP.dur=dur;RP.fmt=fmt;
+    init:function(snaps,meta,fotos,fmt,dur,src,gov){RP.gov=gov||null;RP.raw=null;RP.snaps=snaps;RP.meta=meta;RP.src=src;rpPrep();RP.dur=dur;RP.fmt=fmt;
       const F=RP_FMT[fmt];F.cw=F.dw;F.ch=F.dh;RP.photos={};
       return Promise.all(Object.keys(fotos).map(k=>new Promise(res=>{const i=new Image();i.onload=()=>{RP.photos[k]=i;res()};i.onerror=()=>{RP.photos[k]=false;res()};i.src=fotos[k]})))},
     frame:function(p){rpFrame(p);return rpCanvas().toDataURL('image/jpeg',0.93).split(',')[1]}};`;
@@ -45,7 +47,7 @@ function lerSnaps() {
     page.on('pageerror', e => console.log('erro na página:', e.message));
     await page.goto('file://' + path.resolve(tmp));
     await page.waitForFunction(() => window.__rp, null, { timeout: 30000 });
-    await page.evaluate(([s, m, f, fm, d, src]) => window.__rp.init(s, m, f, fm, d, src), [snaps, meta, fotos, fmt, SEC, SRC]);
+    await page.evaluate(([s, m, f, fm, d, src, g]) => window.__rp.init(s, m, f, fm, d, src, g), [snaps, meta, fotos, fmt, SEC, SRC, GOV]);
     const out = path.join(OUT, PREFIX + '-' + NAMES[fmt] + '.mp4');
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-vcodec', 'mjpeg', '-i', '-',
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
