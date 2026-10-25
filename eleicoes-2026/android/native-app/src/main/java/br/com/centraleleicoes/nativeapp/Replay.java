@@ -53,6 +53,7 @@ final class Replay {
         final Map<String, Map<String, String[]>> gov = new HashMap<>();     // UF -> número -> {...}
         final List<Event> events = new ArrayList<>();
         String error = "";
+        boolean failed; // falha de rede/servidor ao baixar (diferente de "ainda não há registros")
         boolean demo;   // série de demonstração (simulada) — só para teste, sempre avisada na tela
 
         String presName(String num) { String[] r = pres.get(num); return r == null ? "Candidato " + num : r[0]; }
@@ -210,8 +211,19 @@ final class Replay {
     }
 
     static Series load(int turn, String dir) {
-        String nd = download(dir + "/snapshots.ndjson"), meta = download(dir + "/meta.json");
-        if (nd.isEmpty()) { Series s = new Series(); s.turn = turn; s.error = "Ainda não há registros desta apuração."; return s; }
+        int[] st = {0};
+        String nd = "";
+        boolean netFail = false;
+        try { nd = Tse.httpGet(DATA_BASE + dir + "/snapshots.ndjson", st); } catch (Throwable t) { netFail = true; }
+        if (nd.isEmpty()) {
+            Series s = new Series();
+            s.turn = turn;
+            s.error = netFail || st[0] != 404 ? "Não foi possível carregar os registros agora (conexão ou servidor). Toque em Tentar de novo."
+                    : "Ainda não há registros desta apuração.";
+            s.failed = netFail || st[0] != 404;
+            return s;
+        }
+        String meta = download(dir + "/meta.json");
         return parse(turn, nd, meta.isEmpty() ? "{}" : meta);
     }
 

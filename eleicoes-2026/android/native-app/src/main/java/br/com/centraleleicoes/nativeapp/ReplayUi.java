@@ -32,6 +32,8 @@ final class ReplayUi {
         void showSheet(View v);
         int turn();
         void reload();
+        void goTurn(int t);
+        void retry();
     }
 
     private static final Locale BR = new Locale("pt", "BR");
@@ -141,9 +143,29 @@ final class ReplayUi {
         root.addView(head);
         if (series == null || series.snaps.isEmpty()) {
             LinearLayout e = Ui.card(cx);
-            e.addView(Ui.text(cx, loading ? "Carregando os registros da apuração…" : "Ainda não há registros", 15, Ui.TEXT, true));
-            e.addView(Ui.text(cx, loading ? "Buscando a linha do tempo na base de dados do Brasil Decide." : (series != null && !series.error.isEmpty() ? series.error + " " : "")
-                    + (host.turn() == 1 ? "O 1º turno não foi registrado: o coletor só passa a gravar a apuração a partir do 2º turno (25/10/2026)." : "O coletor começa a gravar a apuração minuto a minuto na noite do 2º turno (25/10/2026). Volte aqui depois para assistir ao replay."), 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+            boolean t1 = host.turn() == 1, failed = series != null && series.failed;
+            String ttl = loading ? "Carregando os registros da apuração…" : t1 ? "O replay existe só para o 2º turno" : failed ? "Não foi possível carregar o replay" : "Ainda não há registros";
+            String body = loading ? "Buscando a linha do tempo na base de dados do Brasil Decide."
+                    : t1 ? "O 1º turno não foi registrado: o coletor só grava a apuração minuto a minuto a partir do 2º turno (25/10/2026)."
+                    : failed ? series.error
+                    : (series != null && !series.error.isEmpty() ? series.error + " " : "") + "O coletor grava a apuração minuto a minuto na noite do 2º turno (25/10/2026). Volte aqui depois para assistir ao replay.";
+            e.addView(Ui.text(cx, ttl, 15, Ui.TEXT, true));
+            e.addView(Ui.text(cx, body, 12, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 6, 0, 0));
+            if (host.turn() == 1) {
+                TextView go = Ui.text(cx, "▶ Abrir o replay do 2º turno", 13, Ui.INK, true);
+                go.setGravity(Gravity.CENTER);
+                go.setBackground(Ui.accent(99));
+                go.setPadding(Ui.dp(16), Ui.dp(11), Ui.dp(16), Ui.dp(11));
+                go.setOnClickListener(v -> host.goTurn(2));
+                e.addView(go, Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+            } else if (!loading && series != null && series.failed) {
+                TextView again = Ui.text(cx, "↻ Tentar de novo", 13, Ui.INK, true);
+                again.setGravity(Gravity.CENTER);
+                again.setBackground(Ui.accent(99));
+                again.setPadding(Ui.dp(16), Ui.dp(11), Ui.dp(16), Ui.dp(11));
+                again.setOnClickListener(v -> host.retry());
+                e.addView(again, Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
+            }
             root.addView(e);
             root.addView(videoCard(cx));
             return root;
