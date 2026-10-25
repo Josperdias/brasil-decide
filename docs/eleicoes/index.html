@@ -239,7 +239,7 @@ button,select,input{font:inherit}.app{max-width:1500px;margin:auto;padding:0 14p
     <article class="card tool-card"><h3>🔬 Comparador de UFs</h3><p>Coloque dois estados lado a lado e compare o top 3 e o andamento das seções.</p><div class="compare-controls"><select id="compareA"></select><select id="compareB"></select></div><div id="compareView" class="compare-view"></div></article>
     <article class="card tool-card"><h3>🎯 Marcos da totalização</h3><p>O app marca automaticamente os percentuais nacionais já alcançados.</p><div id="milestones" class="milestones"></div></article>
     <article class="card tool-card"><h3>🧰 Ações rápidas</h3><p>Recursos úteis sem sair do aplicativo.</p><div class="action-grid"><button id="copySnapshot" class="action-btn"><b>📋 Copiar resumo</b><span>Gera um boletim com os dados atuais</span></button><button id="tvMode" class="action-btn"><b>📺 Modo TV</b><span>Tela limpa para acompanhar de longe</span></button><button id="clearHistory" class="action-btn"><b>🧹 Zerar histórico</b><span>Recomeça o gráfico desta sessão</span></button><button id="shareSite" class="action-btn"><b>📤 Compartilhar o site</b><span>Envie o link para amigos</span></button><button id="jumpNews" class="action-btn"><b>🌍 Radar global</b><span>Ir direto para notícias internacionais</span></button></div></article>
-    <article class="card tool-card" id="replayCard"><h3>🎬 Replay da apuração (vídeo)</h3><p>Veja a apuração passando em segundos — o país mudando de cor, os votos e a porcentagem avançando — e exporte em vídeo para postar. Usa os dados coletados minuto a minuto pelo Brasil Decide; nada é estimado.</p><div class="rp-row"><label>Duração<select id="rpDur"><option value="30" selected>30 s</option><option value="60">1 min</option><option value="120">2 min</option><option value="300">5 min</option></select></label><label>Formato<select id="rpFmt"><option value="v" selected>Vertical (status/story)</option><option value="q">Quadrado (feed)</option><option value="h">Horizontal (TV/YouTube)</option></select></label><label>Dados<select id="rpSrc"><option value="t2" selected>2º turno (coleta real)</option><option value="demo">Demonstração (simulada)</option></select></label></div><div class="rp-stage"><canvas id="rpCanvas" width="720" height="1280"></canvas></div><div class="action-grid"><button id="rpPlay" class="action-btn"><b>▶ Assistir</b><span>Prévia nesta tela</span></button><button id="rpExport" class="action-btn"><b>🎬 Exportar vídeo</b><span>Grava MP4/WebM no seu aparelho</span></button></div><h4 style="margin:14px 0 6px">⬇️ Vídeo pronto (MP4 1080p)</h4><p style="margin:0 0 8px;font-size:12px;opacity:.8">Gerado automaticamente no servidor com os dados coletados, em alta qualidade e sempre em MP4 (funciona no Instagram). Atualizado várias vezes na noite; se o arquivo ainda não existir, o primeiro vídeo ainda está sendo gerado.</p><div class="action-grid"><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-vertical.mp4" target="_blank" rel="noopener"><b>⬇ Vertical</b><span>Stories e Reels</span></a><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-quadrado.mp4" target="_blank" rel="noopener"><b>⬇ Quadrado</b><span>Feed</span></a><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-horizontal.mp4" target="_blank" rel="noopener"><b>⬇ Horizontal</b><span>TV e YouTube</span></a></div><div id="rpStatus" class="news-disclaimer">O vídeo é gravado em tempo real: um vídeo de 30 s leva 30 s para ser gerado. Mantenha a aba aberta.</div><div id="rpOut"></div></article>
+    <article class="card tool-card" id="replayCard"><h3>🎬 Replay da apuração (vídeo)</h3><p>Veja a apuração passando em segundos — o país mudando de cor, os votos e a porcentagem avançando — e exporte em vídeo para postar. Usa os dados coletados minuto a minuto pelo Brasil Decide; nada é estimado.</p><div class="rp-row"><label>Duração<select id="rpDur"><option value="30" selected>30 s</option><option value="60">1 min</option><option value="120">2 min</option><option value="300">5 min</option></select></label><label>Formato<select id="rpFmt"><option value="v" selected>Vertical (status/story)</option><option value="q">Quadrado (feed)</option><option value="h">Horizontal (TV/YouTube)</option></select></label><label>Dados<select id="rpSrc"><option value="t2" selected>2º turno (coleta real)</option><option value="demo">Demonstração (simulada)</option></select></label></div><div class="rp-stage"><canvas id="rpCanvas" width="720" height="1280"></canvas></div><div class="action-grid"><button id="rpPlay" class="action-btn"><b>▶ Assistir</b><span>Prévia nesta tela</span></button><button id="rpExport" class="action-btn"><b>🎬 Exportar vídeo</b><span>Grava MP4/WebM no seu aparelho</span></button></div><h4 style="margin:14px 0 6px">⬇️ Vídeo pronto (MP4 1080p)</h4><p style="margin:0 0 8px;font-size:12px;opacity:.8">Gerado automaticamente no servidor com os dados coletados, em alta qualidade e sempre em MP4 (funciona no Instagram). Atualizado várias vezes na noite; se o arquivo ainda não existir, o primeiro vídeo ainda está sendo gerado.</p><div class="action-grid"><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-vertical.mp4" target="_blank" rel="noopener"><b>⬇ Vertical</b><span>Stories e Reels</span></a><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-quadrado.mp4" target="_blank" rel="noopener"><b>⬇ Quadrado</b><span>Feed</span></a><a class="action-btn" style="text-decoration:none;display:block" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/apuracao-2t-horizontal.mp4" target="_blank" rel="noopener"><b>⬇ Horizontal</b><span>TV e YouTube</span></a></div><h4 style="margin:14px 0 6px">⬇️ Governadores do 2º turno (vídeo vertical)</h4><div><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-AC-vertical.mp4" target="_blank" rel="noopener">⬇ AC</a><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-AM-vertical.mp4" target="_blank" rel="noopener">⬇ AM</a><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-DF-vertical.mp4" target="_blank" rel="noopener">⬇ DF</a><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-ES-vertical.mp4" target="_blank" rel="noopener">⬇ ES</a><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-RN-vertical.mp4" target="_blank" rel="noopener">⬇ RN</a><a class="chip" style="margin:3px 6px 3px 0;display:inline-block;padding:7px 12px;border:1px solid rgba(255,255,255,.2);border-radius:99px;text-decoration:none" href="https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/governador-TO-vertical.mp4" target="_blank" rel="noopener">⬇ TO</a></div><p style="margin:6px 0 0;font-size:12px;opacity:.8">Senadores e deputados foram decididos no 1º turno e não têm replay minuto a minuto, por isso não há vídeo da apuração deles.</p><div id="rpStatus" class="news-disclaimer">O vídeo é gravado em tempo real: um vídeo de 30 s leva 30 s para ser gerado. Mantenha a aba aberta.</div><div id="rpOut"></div></article>
     <article class="card tool-card" id="dataCard"><h3>📦 Dados abertos da apuração</h3><p>São dados públicos do TSE. A cada minuto o Brasil Decide guarda o que o TSE publicou, para qualquer pessoa baixar e usar livremente (planilhas, gráficos, vídeos), com ou sem o app. Cite a fonte: TSE e Brasil Decide.</p><div class="action-grid"><button id="dlNowCsv" class="action-btn"><b>⬇️ Resultado de agora (CSV)</b><span>Brasil e estados, como está nesta tela</span></button><button id="dlNowJson" class="action-btn"><b>⬇️ Resultado de agora (JSON)</b><span>Os mesmos dados em formato JSON</span></button></div><div class="section-head" style="margin:12px 0 5px"><div><h2 style="font-size:.9rem">Apuração minuto a minuto (2º turno)</h2></div></div><div id="dataFiles" class="data-files">Carregando a lista de arquivos…</div><div class="news-disclaimer">Arquivos guardados numa release própria do projeto, que atualizações do app e do site não sobrescrevem. Horários em UTC e Brasília. Se a coleta falhou em algum minuto, esse instante não existe: o arquivo não preenche lacunas. Nada é estimado ou projetado.</div></article>
     <article class="card tool-card"><h3>🛠️ Diagnóstico</h3><p>Versão, rede, endpoint, último erro e saúde das fontes.</p><div id="diagBox"></div></article>
     <article class="card tool-card"><h3>🧠 Como ler o painel</h3><p>“Movimento” significa apenas mudança entre dois arquivos oficiais. Ritmo de votos, diferença e variação de posições são descritivos — não são projeções de resultado.</p><div class="mini-stats" id="labStats"></div></article>
@@ -632,7 +632,11 @@ const rpNice=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.t
 /* tira os registros repetidos (horas paradas à espera do TSE): fica o primeiro e o último de cada trecho igual */
 function rpDedupe(S){const sg=q=>(q.br&&q.br.s?q.br.s[0]:'')+'|'+((q.br&&q.br.c)||[]).map(x=>x[1]).join(',');
   return S.filter((q,i)=>{if(i===0||i===S.length-1)return true;const k=sg(q);return sg(S[i-1])!==k||sg(S[i+1])!==k})}
+function rpGovView(){const uf=RP.gov,raw=RP.raw||(RP.raw={snaps:RP.snaps,meta:RP.meta});
+  RP.snaps=raw.snaps.filter(q=>q.gv&&q.gv[uf]).map(q=>({t:q.t,turn:q.turn,br:q.gv[uf],uf:{[uf]:q.gv[uf]},zz:null}));
+  RP.meta=Object.assign({},raw.meta,{pres:(raw.meta.gov&&raw.meta.gov[uf])||{}})}
 function rpPrep(){
+  if(RP.gov)rpGovView();
   RP.snaps=rpDedupe(RP.snaps);
   const S=RP.snaps,last={};RP.flips=[];
   const fin=S[S.length-1],c=(fin.br&&fin.br.c)||[];
@@ -649,7 +653,7 @@ async function rpLoad(src){
     if(!a.ok||!b.ok)throw new Error('HTTP '+a.status+'/'+b.status);
     const txt=await a.text();RP.meta=await b.json();
     RP.snaps=txt.split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(s=>s&&s.br&&s.t).sort((x,y)=>x.t-y.t);
-    RP.src=src;
+    RP.src=src;RP.raw=null;
     if(RP.snaps.length<2){rpSet('Ainda não há dados suficientes desta apuração ('+RP.snaps.length+' registro). Tente de novo depois que a apuração começar.');return false}
     rpPrep();rpSet(RP.snaps.length+' registros de '+rpClock(RP.snaps[0].t)+' a '+rpClock(RP.snaps[RP.snaps.length-1].t)+' (Brasília).');return true;
   }catch(e){RP.snaps=[];rpSet('Não foi possível carregar os dados agora ('+e.message+').');return false}
@@ -760,15 +764,17 @@ function rpChart(ctx,x,y,w,h,s,st,C){
 }
 /* mapa: líder em cada estado; devolve a contagem e a virada mais recente */
 function rpMap(ctx,box,st,a,sz,vertCount){
-  const vb=MAP_VB.split(' ').map(Number),sc=Math.min(box.w/vb[2],box.h/vb[3]),ox=box.x+(box.w-vb[2]*sc)/2,oy=box.y+(box.h-vb[3]*sc)/2,keys=Object.keys(RP.paths),cnt={};
+  const gv=RP.gov,vb=MAP_VB.split(' ').map(Number);
+  if(gv&&RP_LBL[gv]){const l=RP_LBL[gv],pd=14;vb[0]=l[0]-l[2]/2-pd;vb[1]=l[1]-l[3]/2-pd;vb[2]=l[2]+pd*2;vb[3]=l[3]+pd*2}
+  const sc=Math.min(box.w/vb[2],box.h/vb[3]),ox=box.x+(box.w-vb[2]*sc)/2,oy=box.y+(box.h-vb[3]*sc)/2,keys=gv?[gv]:Object.keys(RP.paths),cnt={};
   const mcx=box.x+box.w/2,mcy=box.y+box.h/2,hr=ctx.createRadialGradient(mcx,mcy,0,mcx,mcy,Math.max(box.w,box.h)*.65);hr.addColorStop(0,'rgba(80,213,255,.16)');hr.addColorStop(1,'rgba(80,213,255,0)');ctx.fillStyle=hr;ctx.fillRect(box.x-80,box.y-80,box.w+160,box.h+160);
-  ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);
+  ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);ctx.translate(-vb[0],-vb[1]);
   ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=28;ctx.shadowOffsetY=10;
   keys.forEach(uf=>{const x=a.uf&&a.uf[uf],c=(x&&x.c)||[],t1=c[0]?c[0][1]:0,t2=c[1]?c[1][1]:0,ld=t1>0?c[0][0]:null;
     if(ld){cnt[ld]=(cnt[ld]||0)+1;const m=(t1-t2)/Math.max(1,t1+t2);ctx.globalAlpha=.7+.3*Math.min(1,m/.3);ctx.fillStyle=candColor(rpName(ld))}else{ctx.globalAlpha=1;ctx.fillStyle='#16304f'}
     ctx.fill(RP.paths[uf])});
   ctx.globalAlpha=1;ctx.shadowColor='rgba(0,0,0,0)';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
-  const mg=ctx.createLinearGradient(0,0,vb[2]*.35,vb[3]);mg.addColorStop(0,'rgba(255,255,255,.26)');mg.addColorStop(.55,'rgba(255,255,255,0)');mg.addColorStop(1,'rgba(0,0,20,.34)');ctx.fillStyle=mg;keys.forEach(uf=>ctx.fill(RP.paths[uf]));
+  const mg=ctx.createLinearGradient(vb[0],vb[1],vb[0]+vb[2]*.35,vb[1]+vb[3]);mg.addColorStop(0,'rgba(255,255,255,.26)');mg.addColorStop(.55,'rgba(255,255,255,0)');mg.addColorStop(1,'rgba(0,0,20,.34)');ctx.fillStyle=mg;keys.forEach(uf=>ctx.fill(RP.paths[uf]));
   ctx.lineJoin='round';ctx.lineWidth=2.6/sc;ctx.strokeStyle='rgba(4,12,26,.55)';keys.forEach(uf=>ctx.stroke(RP.paths[uf]));
   ctx.lineWidth=1.1/sc;ctx.strokeStyle='rgba(235,245,255,.6)';keys.forEach(uf=>ctx.stroke(RP.paths[uf]));
   ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=5;ctx.textAlign='center';ctx.textBaseline='middle';
@@ -799,14 +805,17 @@ function rpDraw(ctx,fmt,p){
   const hx=vert?50:(sq?36:50),bY=vert?92:(sq?58:68),bS=vert?27:(sq?20:24),tY=vert?178:(sq?122:136),tS=vert?80:(sq?54:68),sY=vert?236:(sq?160:136),sS=vert?32:(sq?23:32);
   const bw=rpPill(ctx,'BRASIL DECIDE',hx,bY,bS,'#04121f','#64f5cb','left');
   rpTxt(ctx,'ELEIÇÕES 2026',hx+bw+16,bY,bS,'#9db4cc','800');
-  rpTxt(ctx,'Apuração do '+turn+'º turno',hx,tY,tS,'#ffffff','900',null,vert||sq?W-hx*2:W-hx*2-520);
+  rpTxt(ctx,RP.gov?'Governador • '+((UFS[RP.gov]||[RP.gov])[0]):'Apuração do '+turn+'º turno',hx,tY,tS,'#ffffff','900',null,vert||sq?W-hx*2:W-hx*2-520);
   if(vert||sq)rpTxt(ctx,rpClock(st.T)+' • Brasília',hx,sY,sS,'#c6d5e5','700',null,vert?420:W-hx*2);
   else rpTxt(ctx,rpClock(st.T)+' • Brasília',W-hx,sY,sS,'#c6d5e5','700','right');
   const bgY=vert?sY:bY,bgS=vert?21:(sq?16:21);
   if(demo)rpPill(ctx,'DEMONSTRAÇÃO • DADOS SIMULADOS',W-hx,bgY,bgS,'#ffc966','rgba(255,201,102,.16)','right');
   else rpPill(ctx,'REPLAY DA APURAÇÃO',W-hx,bgY,bgS,'#ff9aa3','rgba(255,95,109,.16)','right','rgba(255,95,109,'+(0.55+0.45*Math.sin(p*260)).toFixed(2)+')');
-  const legend=(cx,cy,sz,i)=>{};
   let mp=null;
+  const gov=RP.gov,cpt=n=>n>=1e6?(n/1e6).toFixed(1).replace('.',',')+' mi':fmtInt(Math.round(n));
+  const statG=(cx,cy,k,sz)=>{const sc2=a.br.s||[0,0],big=k===0?fmtInt(sc2[0]):cpt(valid),l1=k===0?'seções apuradas':'votos válidos',l2=k===0?'de '+fmtInt(sc2[1]):'apurados até agora';
+    ctx.save();ctx.shadowColor='#50d5ff';ctx.shadowBlur=20;rpTxt(ctx,big,cx,cy+sz*.2,sz*1.1,'#ffffff','900','center',sz*2.6);ctx.restore();
+    rpTxt(ctx,l1,cx,cy+sz*.78,sz*.4,'#f4f9ff','800','center',sz*2.6);rpTxt(ctx,l2,cx,cy+sz*1.2,sz*.33,'#93a9c2','700','center',sz*2.6)};
   const stat=(cx,cy,n,k,sz)=>{ // contagem de estados ao lado do mapa
     const c=duel[n];if(!c)return;const v=k.cnt[c.n]||0;
     rpPortrait(ctx,cx,cy-sz*.95,sz*.5,c.cc,c.ph,c.nm,false);
@@ -817,9 +826,9 @@ function rpDraw(ctx,fmt,p){
     if(duel.length>1)y+=rpTug(ctx,50,y,W-100,1,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+18;
     if(others.length)y+=rpOthers(ctx,50,y,W-100,.9,others)+16;
     const ph=Math.min(700,1672-y),mb={x:270,y:y+52,w:540,h:ph-84};
-    rpPanel(ctx,40,y,W-80,ph,28);rpTxt(ctx,'MAPA • QUEM LIDERA EM CADA ESTADO',66,y+38,20,'#9db4cc','800',null,W-140);
+    rpPanel(ctx,40,y,W-80,ph,28);rpTxt(ctx,RP.gov?'ESTADO • QUEM LIDERA':'MAPA • QUEM LIDERA EM CADA ESTADO',66,y+38,20,'#9db4cc','800',null,W-140);
     mp=rpMap(ctx,mb,st,a,26,true);
-    if(duel.length>1){stat(176,y+ph*.52,0,mp,86);stat(W-176,y+ph*.52,1,mp,86)}
+    if(gov){statG(176,y+ph*.52,0,86);statG(W-176,y+ph*.52,1,86)}else if(duel.length>1){stat(176,y+ph*.52,0,mp,86);stat(W-176,y+ph*.52,1,mp,86)}
     if(mp.last){const nm=(UFS[mp.last.uf]||[mp.last.uf])[0];rpPill(ctx,'⚡ '+nm+' vira para '+rpNice(rpName(mp.last.to)).split(' ').slice(-1)[0],W/2,y+ph-22,26,'#1b1200','#ffc966','center')}
     rpProg(ctx,50,1694,W-100,.95,prog,bn);
   }else if(sq){
@@ -827,12 +836,12 @@ function rpDraw(ctx,fmt,p){
     if(duel.length>1)y+=rpTug(ctx,36,y,W-72,.7,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+10;
     const my=y,mh=1012-my;rpPanel(ctx,24,my,500,mh,22);
     mp=rpMap(ctx,{x:30,y:my+10,w:440,h:mh-60},st,a,20,false);
-    duel.forEach((c,i)=>{const k=mp.cnt[c.n]||0,fs=21,lx=44+i*236;ctx.beginPath();ctx.arc(lx+9,my+mh-26,9,0,7);ctx.fillStyle=c.cc;ctx.fill();rpTxt(ctx,k+(k===1?' estado':' estados')+' • '+c.nm.split(' ').slice(-1)[0],lx+26,my+mh-18,fs,'#f4f9ff','800',null,200)});
+    if(!gov)duel.forEach((c,i)=>{const k=mp.cnt[c.n]||0,fs=21,lx=44+i*236;ctx.beginPath();ctx.arc(lx+9,my+mh-26,9,0,7);ctx.fillStyle=c.cc;ctx.fill();rpTxt(ctx,k+(k===1?' estado':' estados')+' • '+c.nm.split(' ').slice(-1)[0],lx+26,my+mh-18,fs,'#f4f9ff','800',null,200)});
     const cx=548,cw=W-36-cx;let yy=my;yy+=rpProg(ctx,cx,yy,cw,.8,prog,bn)+10;rpChart(ctx,cx,yy,cw,1012-yy,.8,st,duel);
   }else{
-    let hx2=40;const ph=H-176-86;rpPanel(ctx,hx2,170,900,ph,28);rpTxt(ctx,'MAPA • QUEM LIDERA EM CADA ESTADO',66,208,20*s,'#9db4cc','800',null,860);
+    let hx2=40;const ph=H-176-86;rpPanel(ctx,hx2,170,900,ph,28);rpTxt(ctx,RP.gov?'ESTADO • QUEM LIDERA':'MAPA • QUEM LIDERA EM CADA ESTADO',66,208,20*s,'#9db4cc','800',null,860);
     mp=rpMap(ctx,{x:196,y:226,w:588,h:ph-120},st,a,26*s,true);
-    if(duel.length>1){stat(118,170+ph*.5,0,mp,54);stat(862,170+ph*.5,1,mp,54)}
+    if(gov){statG(118,170+ph*.5,0,54);statG(862,170+ph*.5,1,54)}else if(duel.length>1){stat(118,170+ph*.5,0,mp,54);stat(862,170+ph*.5,1,mp,54)}
     if(mp.last){const nm=(UFS[mp.last.uf]||[mp.last.uf])[0];rpPill(ctx,'⚡ '+nm+' vira para '+rpNice(rpName(mp.last.to)).split(' ').slice(-1)[0],490,170+ph-26,24,'#1b1200','#ffc966','center')}
     const cx=964,cw=W-50-cx;let y=170;y+=rpHero(ctx,cx,y,cw,.74,duel,leadN)+16;
     if(duel.length>1)y+=rpTug(ctx,cx,y,cw,.9,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+14;

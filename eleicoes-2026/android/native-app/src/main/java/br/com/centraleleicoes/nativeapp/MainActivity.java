@@ -1057,6 +1057,12 @@ public class MainActivity extends Activity {
             }
             c.addView(vr);
             c.addView(Ui.text(this, "O vídeo mostra a apuração até o último dado coletado e é atualizado várias vezes na noite. Se o arquivo ainda não abrir, o primeiro vídeo ainda está sendo gerado.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
+            c.addView(Ui.text(this, "GOVERNADORES DO 2º TURNO • VÍDEO VERTICAL", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 14, 0, 6));
+            FlowLayout gv = new FlowLayout(this, 7);
+            for (final String guf : new String[]{"AC", "AM", "DF", "ES", "RN", "TO"})
+                gv.addView(optChip("⬇ " + guf, false, v -> openUrl(VIDEO_BASE + "governador-" + guf + "-vertical.mp4")));
+            c.addView(gv);
+            c.addView(Ui.text(this, "Senadores e deputados foram decididos no 1º turno e não têm replay minuto a minuto, por isso não há vídeo da apuração deles.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
         } else {
             c.addView(Ui.text(this, "O vídeo existe só para o 2º turno: a apuração foi gravada minuto a minuto a partir de 25/10/2026. Para o 1º turno, use a imagem.", 11, Ui.MUTED, false));
         }
