@@ -202,14 +202,18 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           cp dist/CentralEleicoes2026-Nativo.apk dist/CentralEleicoes2026.apk
+          # mesmo arquivo com o nome do app (é o que a pessoa vê ao baixar); os nomes antigos continuam porque o aviso de
+          # atualização dos apps já instalados baixa "CentralEleicoes2026.apk"
+          cp dist/CentralEleicoes2026-Nativo.apk dist/BrasilDecide.apk
+          cp dist/CentralEleicoes2026-WebView.apk dist/BrasilDecide-Lite.apk
           printf '%s\n' \
             "versionCode=${{ github.run_number }}" \
             "" \
             "App Android **Brasil Decide** (versão nativa), compilado automaticamente e testado em emulador Android 15." \
             "" \
-            "**Instalar:** baixe \`CentralEleicoes2026.apk\`, abra o arquivo e, se o Android pedir, permita instalar de fontes desconhecidas." \
+            "**Instalar:** baixe \`BrasilDecide.apk\`, abra o arquivo e, se o Android pedir, permita instalar de fontes desconhecidas." \
             "" \
-            "\`CentralEleicoes2026-WebView.apk\` é a versão WebView (idêntica ao site; atualiza o conteúdo sozinha pela internet)." \
+            "\`BrasilDecide-Lite.apk\` é a versão WebView (idêntica ao site; atualiza o conteúdo sozinha pela internet)." \
             "" \
             "Atualizações: o app avisa e atualiza com um toque. Os builds são assinados com a chave privada do projeto, então instalam por cima uns dos outros." \
             "" \
@@ -219,4 +223,4 @@ jobs:
           else
             gh release create app-latest --repo "$REPO" --target "$GITHUB_SHA" --title "Brasil Decide — app Android" --notes-file notes.md --latest
           fi
-          gh release upload app-latest dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk dist/central-eleicoes-2026.html --repo "$REPO" --clobber
+          gh release upload app-latest dist/BrasilDecide.apk dist/BrasilDecide-Lite.apk dist/CentralEleicoes2026.apk dist/CentralEleicoes2026-WebView.apk dist/central-eleicoes-2026.html --repo "$REPO" --clobber

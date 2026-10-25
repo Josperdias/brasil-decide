@@ -46,7 +46,7 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
   <p class="lead">Dados oficiais do TSE em tempo real: <b>mapa por estado</b>, <b>resultado do DF</b> (Senado, Governo e Câmaras), <b>notícias</b>, <b>lives de TV</b> e <b>imagens prontas</b> para postar nos seus status.</p>
 
   <div class="cta">
-    <a class="btn primary" id="dl" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener" download>📲 Baixar o app (Android)</a>
+    <a class="btn primary" id="dl" href="BrasilDecide.apk" download="BrasilDecide.apk">📲 Baixar o app (Android)</a>
     <a class="btn" href="../eleicoes/">🌐 Abrir o site no navegador</a>
     <button class="btn" id="share" type="button">📤 Compartilhar</button>
   </div>
@@ -55,7 +55,7 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
 
   <h2>Não conseguiu baixar? Tente nesta ordem</h2>
   <div class="cta">
-    <a class="btn" id="dl2" href="BrasilDecide.apk" download>⬇️ Link alternativo (cópia do build 57)</a>
+    <a class="btn" id="dl2" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener" download>⬇️ Link alternativo (GitHub)</a>
     <a class="btn" id="dl3" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026-WebView.apk" rel="noopener" download>🪶 Versão Lite (WebView, 82 KB)</a>
   </div>
   <details open><summary>Passo a passo para quem não consegue baixar ou instalar</summary>
@@ -65,7 +65,7 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
       <li>Ao abrir o arquivo, se o Android pedir, ative <b>Permitir desta fonte</b> para o Chrome (ou para o app Arquivos).</li>
       <li>Se aparecer o Google Play Protect, toque em <b>Mais detalhes</b> e depois em <b>Instalar mesmo assim</b>.</li>
       <li>Se aparecer <b>“App não instalado”</b> ou “conflito com um pacote existente”, você tem uma versão antiga: desinstale o app anterior (Configurações → Apps → Eleições 2026 / Brasil Decide → Desinstalar) e instale de novo.</li>
-      <li>Se o primeiro botão não baixar, use o <b>Link alternativo</b> acima (a cópia do build 57 servida por esta própria página). Em último caso, a <b>Versão Lite</b> funciona igual ao site e é bem menor.</li>
+      <li>Se o primeiro botão não baixar, use o <b>Link alternativo</b> acima (o mesmo app, servido pelo GitHub). Em último caso, a <b>Versão Lite</b> funciona igual ao site e é bem menor.</li>
       <li>Sem conseguir instalar de jeito nenhum? Use o <a href="../eleicoes/" style="color:var(--mint)">site</a> direto no navegador — é a mesma apuração. No Chrome, toque em ⋮ → <b>Adicionar à tela inicial</b> para ter um ícone.</li>
     </ol>
   </details>
@@ -97,6 +97,7 @@ document.getElementById('share').onclick=async()=>{
   const data={title:'Brasil Decide • app grátis',text:'Acompanhe a apuração das eleições 2026 em tempo real com dados oficiais do TSE. Baixe o app grátis:',url:location.href};
   try{ if(navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(location.href); document.getElementById('share').textContent='✅ Link copiado'; } }catch(e){}
 };
+const COPY_BUILD=57; // a cópia BrasilDecide.apk desta página é o build 57
 // mostra a versão publicada agora (release app-latest); se a consulta falhar, ficam os dados estáticos acima
 (async()=>{
   try{
@@ -108,7 +109,10 @@ document.getElementById('share').onclick=async()=>{
     const kb=Math.round(apk.size/1024), d=new Date(apk.updated_at||j.published_at);
     document.getElementById('ver').textContent='Versão atual: build '+(vc||'?')+' • '+kb+' KB • publicada em '+d.toLocaleString('pt-BR')+' • Android 8 ou mais novo • grátis, sem cadastro • atualiza sozinho.';
     if(apk.digest) document.getElementById('hash').innerHTML='SHA-256 do arquivo: <code>'+apk.digest.replace('sha256:','')+'</code>';
-    document.getElementById('dl').href=apk.browser_download_url;
+    const named=(j.assets||[]).find(a=>a.name==='BrasilDecide.apk'),lite=(j.assets||[]).find(a=>a.name==='BrasilDecide-Lite.apk'),n=Number(vc||0);
+    if(lite)document.getElementById('dl3').href=lite.browser_download_url;
+    if(named&&n>=COPY_BUILD){document.getElementById('dl').href=named.browser_download_url;document.getElementById('dl2').href=named.browser_download_url}
+    else if(n>COPY_BUILD){document.getElementById('dl').href=apk.browser_download_url}
   }catch(e){}
 })();
 </script>
