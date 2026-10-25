@@ -544,6 +544,8 @@ public class MainActivity extends Activity {
             it.setGravity(Gravity.CENTER_HORIZONTAL);
             card.addView(it, Ui.margins(Ui.lp(-1, -2), 0, 5, 0, 0));
         }
+        View early = earlyNote(r);
+        if (early != null) card.addView(early, Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 0));
         content.addView(card);
     }
 
@@ -829,7 +831,22 @@ public class MainActivity extends Activity {
         return e;
     }
 
+    /** Aviso de leitura no começo da apuração: os primeiros votos vêm de poucas seções e regiões (não é projeção). */
+    private View earlyNote(Model.Result r) {
+        if (r == null || r.sections <= 0 || r.progress >= 30) return null;
+        TextView t = Ui.text(this, "ℹ️ Começo da apuração: poucos votos de algumas regiões; o placar muda bastante até chegar a maior parte das seções.", 10, Ui.AMBER, false);
+        t.setGravity(Gravity.CENTER_HORIZONTAL);
+        return t;
+    }
+
     private void renderBrasil() {
+        View early = earlyNote(snap().pres);
+        if (early != null) {
+            LinearLayout box = Ui.card(this);
+            box.setPadding(Ui.dp(12), Ui.dp(9), Ui.dp(12), Ui.dp(9));
+            box.addView(early);
+            content.addView(box);
+        }
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
