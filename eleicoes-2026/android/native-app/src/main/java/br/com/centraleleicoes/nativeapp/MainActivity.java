@@ -372,6 +372,7 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
+            if (!tab.equals("brasil") && !(tab.equals("mapa") && mapaSub.equals("ufs"))) renderLiveStrip();
             if (updateAvailable) content.addView(updateBanner());
             if (tab.equals("brasil") || (tab.equals("mapa") && !mapaSub.equals("mundo") && !mapaSub.equals("replay"))) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
@@ -495,6 +496,44 @@ public class MainActivity extends Activity {
         seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(34), 1f));
         seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(34), 1f));
         content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+    }
+
+    /** Faixa fixa no topo de todas as abas: % apurado no Brasil e a porcentagem dos dois primeiros (presidente). */
+    private void renderLiveStrip() {
+        Model.Result r = snap().pres;
+        if (r == null) return;
+        LinearLayout card = Ui.card(this);
+        card.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), Ui.dp(10));
+        card.setOnClickListener(v -> { tab = "brasil"; animateNext = true; render(); scroll.scrollTo(0, 0); });
+        LinearLayout top = Ui.row(this);
+        top.setBaselineAligned(false);
+        LinearLayout l = Ui.col(this);
+        l.addView(Ui.label(this, "Brasil • apuração " + turn + "º turno"));
+        l.addView(Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        top.addView(l, Ui.lp(0, -2, 1f));
+        top.addView(Ui.big(this, pc(r.progress), 28));
+        card.addView(top);
+        card.addView(new GradientBar(this, 6).value(r.progress));
+        if (r.cands.size() >= 2 && candidateVotes(r) > 0) {
+            LinearLayout row = Ui.row(this);
+            for (int i = 0; i < 2; i++) {
+                Model.Cand c = r.cands.get(i);
+                String[] w = c.nome.trim().split("\\s+");
+                String nm = w[w.length - 1].substring(0, 1).toUpperCase(Locale.ROOT) + w[w.length - 1].substring(1).toLowerCase(Locale.ROOT);
+                View dot = new View(this);
+                dot.setBackground(Ui.fill(Model.color(c.nome), 99, 0));
+                TextView t = Ui.text(this, nm + "  " + pc(c.pct), 14, Ui.TEXT, true);
+                t.setSingleLine();
+                t.setEllipsize(TextUtils.TruncateAt.END);
+                LinearLayout cell = Ui.row(this);
+                cell.setGravity(i == 0 ? Gravity.START : Gravity.END);
+                cell.addView(dot, Ui.margins(Ui.lp(Ui.dp(9), Ui.dp(9)), 0, 0, 7, 0));
+                cell.addView(t);
+                row.addView(cell, Ui.lp(0, -2, 1f));
+            }
+            card.addView(row, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
+        }
+        content.addView(card);
     }
 
     private TextView turnBtn(int t) {
