@@ -519,8 +519,7 @@ public class MainActivity extends Activity {
             LinearLayout row = Ui.row(this);
             for (int i = 0; i < 2; i++) {
                 Model.Cand c = r.cands.get(i);
-                String[] w = c.nome.trim().split("\\s+");
-                String nm = w[w.length - 1].substring(0, 1).toUpperCase(Locale.ROOT) + w[w.length - 1].substring(1).toLowerCase(Locale.ROOT);
+                String nm = shortNm(c.nome);
                 View dot = new View(this);
                 dot.setBackground(Ui.fill(Model.color(c.nome), 99, 0));
                 TextView t = Ui.text(this, nm + "  " + pc(c.pct), 14, Ui.TEXT, true);
