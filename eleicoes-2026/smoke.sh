@@ -47,8 +47,8 @@ for tab in mapa brasil ufs df news lives mais; do
   sleep $([ "$tab" = news ] || [ "$tab" = lives ] && echo 30 || echo 22)
   alive $N; shot native-$tab
   crashes
-  [ "$tab" = brasil ] && ui_has "turno: domingo"
-  if [ "$tab" = mais ]; then ui_has "Central de análises"; scroll; scroll; shot native-mais-2; ui_has "Câmara hoje\|Senado hoje\|% mulheres"; ui_find "6257 / 6259"; fi
+  [ "$tab" = brasil ] && ui_find "turno: domingo"
+  if [ "$tab" = mais ]; then ui_has "Imagem e vídeo para postar\|Apuração do"; ui_find "Central de análises"; shot native-mais-2; ui_find "Câmara hoje\|Senado hoje\|% mulheres"; ui_find "6257 / 6259"; fi
 done
 # aba Estado: abre no DF e também em outro estado (SP) — cartões e imagens de status do estado escolhido
 adb shell am start -S -W -n $N/.MainActivity --es tab df --es luf SP > /dev/null; sleep 28; alive $N; shot native-df-sp; crashes

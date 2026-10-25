@@ -371,6 +371,7 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
+            if (turnFinished() && !tab.equals("mais")) content.addView(exportBanner());
             if (!tab.equals("brasil") && !(tab.equals("mapa") && mapaSub.equals("ufs"))) renderLiveStrip();
             if (tab.equals("mapa") && mapaSub.equals("mapa")) renderLots(4);
             if (updateAvailable) content.addView(updateBanner());
@@ -953,6 +954,65 @@ public class MainActivity extends Activity {
         Toast.makeText(this, "Baixando no navegador. Ao abrir o arquivo, toque em Instalar (se o Play Protect avisar: Mais detalhes → Instalar mesmo assim).", Toast.LENGTH_LONG).show();
     }
 
+    private static final String VIDEO_BASE = "https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/";
+
+    /** Apuração do turno selecionado terminou (resultado final do TSE): imagem e vídeo aparecem em todas as abas. */
+    private boolean turnFinished() {
+        return finalResult(snap().pres);
+    }
+
+    /** Faixa compacta (todas as abas) quando a apuração do turno termina: leva ao cartão de imagem e vídeo na aba Mais. */
+    private View exportBanner() {
+        LinearLayout c = Ui.row(this);
+        c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 16, 0x9950D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        c.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), Ui.dp(10));
+        c.addView(Ui.text(this, "🏁", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 10, 0));
+        LinearLayout t = Ui.col(this);
+        t.addView(Ui.text(this, "Apuração do " + turn + "º turno encerrada", 13, Ui.TEXT, true));
+        t.addView(Ui.text(this, "Imagem e vídeo prontos para postar", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+        c.addView(t, Ui.lp(0, -2, 1f));
+        c.addView(Ui.text(this, "Abrir ›", 13, Ui.MINT, true));
+        c.setOnClickListener(v -> { tab = "mais"; animateNext = true; render(); scroll.scrollTo(0, 0); });
+        c.setLayoutParams(Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        return c;
+    }
+
+    /** Imagem e vídeo para postar: escolha do turno, imagem (story/post) e vídeo MP4 (vertical, quadrado, horizontal). */
+    private View exportCard(boolean finished) {
+        LinearLayout c = Ui.card(this);
+        if (finished) c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 18, 0x9950D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
+        c.addView(Ui.text(this, finished ? "🏁 Apuração do " + turn + "º turno encerrada" : "📤 Imagem e vídeo para postar", 16, Ui.TEXT, true));
+        c.addView(Ui.text(this, finished ? "Resultado oficial do TSE. Crie a imagem ou baixe o vídeo para postar." : "Gere o card do resultado ou baixe o vídeo da apuração.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
+        c.addView(Ui.text(this, "1. ESCOLHA O TURNO", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 0, 0, 6));
+        LinearLayout tr = Ui.row(this);
+        for (int t = 1; t <= 2; t++) {
+            final int tt = t;
+            TextView b = Ui.text(this, t + "º turno", 13, turn == t ? Ui.INK : Ui.MUTED, true);
+            b.setGravity(Gravity.CENTER);
+            b.setPadding(Ui.dp(16), Ui.dp(9), Ui.dp(16), Ui.dp(9));
+            b.setBackground(turn == t ? Ui.accent(99) : Ui.fill(0xFF09182A, 99, Ui.LINE));
+            b.setOnClickListener(v -> setTurn(tt));
+            tr.addView(b, Ui.margins(Ui.lp(-2, -2), 0, 0, 8, 0));
+        }
+        c.addView(tr, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        c.addView(Ui.text(this, "2. IMAGEM (" + turn + "º TURNO)", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 0, 0, 6));
+        c.addView(actionBtn("🖼️ Criar imagem", "Placar, mapa, estado ou mundo • Story 9:16 ou Post 1:1", v -> { studioType = StatusCard.PLACAR; showStatusStudio(); }), Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+        c.addView(Ui.text(this, "3. VÍDEO MP4 (1080p)", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 0, 0, 6));
+        if (turn == 2) {
+            LinearLayout vr = Ui.row(this);
+            String[][] vv = {{"⬇ Vertical", "Stories e Reels", "apuracao-2t-vertical.mp4"}, {"⬇ Quadrado", "Feed", "apuracao-2t-quadrado.mp4"}, {"⬇ Horizontal", "TV e YouTube", "apuracao-2t-horizontal.mp4"}};
+            for (int i = 0; i < vv.length; i++) {
+                final String file = vv[i][2];
+                vr.addView(actionBtn(vv[i][0], vv[i][1], v -> openUrl(VIDEO_BASE + file)), Ui.margins(Ui.lp(0, -2, 1f), i == 0 ? 0 : 4, 0, i == vv.length - 1 ? 0 : 4, 0));
+            }
+            c.addView(vr);
+            c.addView(Ui.text(this, "O vídeo mostra a apuração até o último dado coletado e é atualizado várias vezes na noite. Se o arquivo ainda não abrir, o primeiro vídeo ainda está sendo gerado.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
+        } else {
+            c.addView(Ui.text(this, "O vídeo existe só para o 2º turno: a apuração foi gravada minuto a minuto a partir de 25/10/2026. Para o 1º turno, use a imagem.", 11, Ui.MUTED, false));
+        }
+        return c;
+    }
+
     private View promoStatus() {
         LinearLayout c = Ui.row(this);
         c.setBackground(Ui.gradient(0x3350D5FF, 0x3364F5CB, 18, 0x6650D5FF, android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT));
@@ -1409,6 +1469,7 @@ public class MainActivity extends Activity {
 
     // ---------------------------------------------------------------- mais (labs)
     private void renderMais() {
+        content.addView(exportCard(turnFinished()));
         content.addView(sectionHead("Laboratório da apuração", "Ferramentas que transformam o app numa central de acompanhamento."));
         content.addView(analysis().build());
         content.addView(panorama().build(), Ui.margins(Ui.lp(-1, -2), 0, 12, 0, 0));
