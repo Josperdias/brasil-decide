@@ -25,6 +25,274 @@ function nowRows(){const rows=[],stamp=new Date().toISOString(),add=(esc,uf,d)=>
 function downloadNow(kind){const r=nowRows();if(!r.length){toast('Os dados ainda não carregaram');return}const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');if(kind==='json')saveText('brasil-decide-resultado-'+stamp+'.json',JSON.stringify({fonte:'TSE (via Brasil Decide)',turno:st.turn,baixado_em:new Date().toISOString(),linhas:r},null,1),'application/json');else{const h=Object.keys(r[0]);saveText('brasil-decide-resultado-'+stamp+'.csv',h.join(',')+'\n'+r.map(x=>h.map(k=>csvCell(x[k])).join(',')).join('\n'),'text/csv')}}
 if($('dlNowCsv'))$('dlNowCsv').onclick=()=>downloadNow('csv');if($('dlNowJson'))$('dlNowJson').onclick=()=>downloadNow('json');
 (async()=>{const box=$('dataFiles');if(!box)return;const fallback=()=>{box.innerHTML=Object.keys(DATA_INFO).map(n=>`<a href="${DATA_DL}${n}" rel="noopener" download><div><b>${esc(DATA_INFO[n][0])}</b><small>${esc(DATA_INFO[n][1])}</small></div><span>Baixar</span></a>`).join('')+'<div class="news-disclaimer">Os arquivos aparecem aqui depois da apuração do 2º turno; antes disso os links ainda não existem.</div>'};try{const r=await fetch(DATA_REL,{headers:{Accept:'application/vnd.github+json'}});if(!r.ok){fallback();return}const j=await r.json(),as=(j.assets||[]);if(!as.length){fallback();return}const order=Object.keys(DATA_INFO),list=as.slice().sort((a,b)=>{const x=order.indexOf(a.name),y=order.indexOf(b.name);return(x<0?99:x)-(y<0?99:y)});const m=(j.body||'').match(/snapshots=(\d+)/);box.innerHTML=list.map(a=>{const i=DATA_INFO[a.name]||[a.name,''];return `<a href="${a.browser_download_url}" rel="noopener" download><div><b>${esc(i[0])}</b><small>${esc(i[1])} • ${Math.max(1,Math.round(a.size/1024))} KB • ${new Date(a.updated_at).toLocaleString('pt-BR')}</small></div><span>Baixar</span></a>`}).join('')+(m?`<div class="news-disclaimer">${m[1]} instantes coletados até agora.</div>`:'')}catch(e){fallback()}})();
+// ======== Replay da apuração em vídeo (canvas + MediaRecorder): assiste e exporta MP4/WebM no próprio navegador ========
+const RP={snaps:[],meta:null,src:'',loading:false,playing:false,recording:false,raf:0,startAt:0,dur:30,fmt:'v',flips:[],paths:null,rec:null,holdUntil:0,order:[],url:''};
+const RP_BASE='https://raw.githubusercontent.com/Josperdias/brasil-decide/eleicao-data/2026/';
+const RP_FMT={v:{dw:1080,dh:1920,cw:720,ch:1280},q:{dw:1080,dh:1080,cw:720,ch:720},h:{dw:1920,dh:1080,cw:1280,ch:720}};
+const rpSet=m=>{const e=$('rpStatus');if(e)e.textContent=m};
+const rpLerp=(x,y,f)=>x+(y-x)*f;
+const rpName=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.nm||('Candidato '+n)};
+const rpParty=n=>{const r=(RP.meta&&RP.meta.pres&&RP.meta.pres[n])||{};return r.sg||''};
+const rpNice=s=>String(s||'').toLowerCase().replace(/(^|\s)(\S)/g,(m,a,b)=>a+b.toUpperCase()).replace(/\b(Da|De|Do|Das|Dos|E)\b/g,x=>x.toLowerCase());
+function rpPrep(){
+  const S=RP.snaps,last={};RP.flips=[];
+  const fin=S[S.length-1],c=(fin.br&&fin.br.c)||[];
+  RP.order=c.filter(x=>x[1]>0).slice(0,3).map(x=>x[0]);
+  if(!RP.order.length)RP.order=c.slice(0,2).map(x=>x[0]);
+  S.forEach(s=>{Object.keys(s.uf||{}).forEach(uf=>{const x=s.uf[uf],top=x&&x.c&&x.c[0],ld=top&&top[1]>0?top[0]:null;if(!ld)return;if(last[uf]&&last[uf]!==ld)RP.flips.push({t:s.t,uf,from:last[uf],to:ld});last[uf]=ld})});
+  RP.curve=S.map(s=>{const c=(s.br&&s.br.c)||[],vv=s.br&&s.br.v&&s.br.v[0],sum=c.reduce((q,x)=>q+x[1],0),den=vv||sum;return{t:s.t,p:RP.order.slice(0,2).map(n=>{const x=c.find(y=>y[0]===n);return den>0&&x?100*x[1]/den:null})}}).filter(r=>r.p.some(v=>v!=null));
+  RP.paths=RP.paths||Object.fromEntries(Object.keys(MAP_PATHS).map(k=>[k,new Path2D(MAP_PATHS[k])]));
+}
+async function rpLoad(src){
+  if(RP.loading)return false;RP.loading=true;rpSet('Carregando os dados da apuração…');
+  try{
+    const [a,b]=await Promise.all([fetch(RP_BASE+src+'/snapshots.ndjson',{cache:'no-store'}),fetch(RP_BASE+src+'/meta.json',{cache:'no-store'})]);
+    if(!a.ok||!b.ok)throw new Error('HTTP '+a.status+'/'+b.status);
+    const txt=await a.text();RP.meta=await b.json();
+    RP.snaps=txt.split('\n').filter(Boolean).map(l=>{try{return JSON.parse(l)}catch(e){return null}}).filter(s=>s&&s.br&&s.t).sort((x,y)=>x.t-y.t);
+    RP.src=src;
+    if(RP.snaps.length<2){rpSet('Ainda não há dados suficientes desta apuração ('+RP.snaps.length+' registro). Tente de novo depois que a apuração começar.');return false}
+    rpPrep();rpSet(RP.snaps.length+' registros de '+rpClock(RP.snaps[0].t)+' a '+rpClock(RP.snaps[RP.snaps.length-1].t)+' (Brasília).');return true;
+  }catch(e){RP.snaps=[];rpSet('Não foi possível carregar os dados agora ('+e.message+').');return false}
+  finally{RP.loading=false}
+}
+const RP_PHOTOS='https://raw.githubusercontent.com/Josperdias/brasil-decide/eleicao-fotos/';
+function rpPhotoLoad(){RP.photos=RP.photos||{};const ids=[];(RP.order||[]).forEach(n=>{const r=RP.meta&&RP.meta.pres&&RP.meta.pres[n];if(r&&r.sq&&RP.photos[r.sq]===undefined)ids.push(r.sq)});
+  return Promise.all(ids.map(sq=>new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';const t=setTimeout(()=>{RP.photos[sq]=false;res(false)},8000);im.onload=()=>{clearTimeout(t);RP.photos[sq]=im;res(true)};im.onerror=()=>{clearTimeout(t);RP.photos[sq]=false;res(false)};im.src=RP_PHOTOS+sq+'.jpg'})))}
+async function rpEnsure(){const src=$('rpSrc').value;if(!(RP.src===src&&RP.snaps.length>1)&&!await rpLoad(src))return false;await rpPhotoLoad();return true}
+function rpClock(t,sec){return new Date(t*1000).toLocaleString('pt-BR',{timeZone:'America/Sao_Paulo',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',second:sec?'2-digit':undefined})}
+function rpState(p){
+  const S=RP.snaps,n=S.length,t0=S[0].t,t1=S[n-1].t,T=t0+p*(t1-t0);let i=0;
+  while(i<n-1&&S[i+1].t<=T)i++;
+  const a=S[i],b=S[Math.min(i+1,n-1)],f=b.t>a.t?Math.min(1,Math.max(0,(T-a.t)/(b.t-a.t))):0;
+  return{T,a,b,f,t0,t1};
+}
+function rpFit(ctx,text,maxW,size,weight){let s=size;do{ctx.font=weight+' '+s+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';if(ctx.measureText(text).width<=maxW||s<=14)break;s-=2}while(true);return s}
+function rpTxt(ctx,text,x,y,size,color,weight,align,maxW){ctx.fillStyle=color;ctx.textAlign=align||'left';ctx.textBaseline='alphabetic';if(maxW)rpFit(ctx,text,maxW,size,weight||'800');else ctx.font=(weight||'800')+' '+size+'px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';ctx.fillText(text,x,y)}
+function rpRound(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.arcTo(x+w,y,x+w,y+h,r);ctx.arcTo(x+w,y+h,x,y+h,r);ctx.arcTo(x,y+h,x,y,r);ctx.arcTo(x,y,x+w,y,r);ctx.closePath()}
+const RP_LBL={"AC":[58,225,115,63],"AL":[583,233,48,26],"AP":[338,57,76,86],"AM":[140,141,272,187],"BA":[500,293,143,156],"CE":[541,165,66,79],"DF":[409,330,15,9],"ES":[519,392,34,56],"GO":[382,333,114,113],"MA":[449,171,108,144],"MT":[282,281,178,170],"MS":[304,409,113,114],"MG":[446,376,174,142],"PA":[335,139,201,193],"PB":[582,193,62,35],"PR":[354,477,102,71],"PE":[561,212,102,35],"PI":[481,189,87,127],"RJ":[486,433,61,43],"RN":[581,174,57,33],"RS":[318,579,124,120],"RO":[166,251,109,90],"RR":[190,52,93,104],"SC":[358,529,86,59],"SP":[396,442,140,93],"SE":[573,247,29,32],"TO":[402,227,77,128]};
+const RPF='system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif';
+const rpPct=(x,d)=>x.toLocaleString('pt-BR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const rpIni=n=>{const w=String(n||'').trim().split(/\s+/).filter(Boolean);return w.length?(w[0][0]+(w.length>1?w[w.length-1][0]:'')).toUpperCase():'?'};
+function rpRGB(c){RP._rgb=RP._rgb||{};if(RP._rgb[c])return RP._rgb[c];const t=document.createElement('canvas').getContext('2d');t.fillStyle='#000';t.fillStyle=c;const v=t.fillStyle;let r=0,g=0,b=0;if(v[0]==='#'){r=parseInt(v.slice(1,3),16);g=parseInt(v.slice(3,5),16);b=parseInt(v.slice(5,7),16)}else{const m=v.match(/[\d.]+/g)||[0,0,0];r=+m[0];g=+m[1];b=+m[2]}return RP._rgb[c]=[r,g,b]}
+const rpA=(c,a)=>{const q=rpRGB(c);return 'rgba('+q[0]+','+q[1]+','+q[2]+','+a+')'};
+function rpPanel(ctx,x,y,w,h,r,edge){
+  ctx.save();ctx.shadowColor='rgba(0,0,0,.45)';ctx.shadowBlur=24;ctx.shadowOffsetY=8;rpRound(ctx,x,y,w,h,r);
+  const g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,'rgba(255,255,255,.09)');g.addColorStop(1,'rgba(255,255,255,.03)');ctx.fillStyle=g;ctx.fill();ctx.restore();
+  rpRound(ctx,x,y,w,h,r);ctx.lineWidth=1.5;ctx.strokeStyle=edge||'rgba(255,255,255,.11)';ctx.stroke();
+}
+function rpPillW(ctx,text,size,dot){ctx.font='900 '+size+'px '+RPF;return ctx.measureText(text).width+size*1.3+(dot?size*1.1:0)}
+function rpPill(ctx,text,x,y,size,fg,bg,align,dot){
+  const pw=rpPillW(ctx,text,size,dot),ex=dot?size*1.1:0,ph=size*1.9,px=align==='right'?x-pw:align==='center'?x-pw/2:x;
+  rpRound(ctx,px,y-size*1.3,pw,ph,ph/2);ctx.fillStyle=bg;ctx.fill();
+  if(dot){ctx.beginPath();ctx.arc(px+size*.85,y-size*.35,size*.28,0,7);ctx.fillStyle=dot;ctx.fill()}
+  ctx.fillStyle=fg;ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillText(text,px+size*.65+ex,y);return pw;
+}
+function rpPortrait(ctx,cx,cy,r,cc,ph,name,glow){
+  ctx.save();ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.fillStyle='#0a1728';ctx.fill();
+  if(ph){ctx.clip();const iw=ph.naturalWidth||ph.width,ih=ph.naturalHeight||ph.height,sd=Math.min(iw,ih);ctx.drawImage(ph,(iw-sd)/2,Math.max(0,(ih-sd)*.1),sd,sd,cx-r,cy-r,r*2,r*2);
+    const vg=ctx.createLinearGradient(0,cy,0,cy+r);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.3)');ctx.fillStyle=vg;ctx.fillRect(cx-r,cy,r*2,r)}
+  else{ctx.fillStyle=cc;ctx.fill();const ag=ctx.createLinearGradient(cx-r,cy-r,cx+r,cy+r);ag.addColorStop(0,'rgba(255,255,255,.3)');ag.addColorStop(1,'rgba(0,0,0,.35)');ctx.fillStyle=ag;ctx.fill();rpTxt(ctx,rpIni(name),cx,cy+r*.3,r*.9,'#ffffff','900','center')}
+  ctx.restore();
+  ctx.save();ctx.beginPath();ctx.arc(cx,cy,r+r*.03,0,7);ctx.lineWidth=Math.max(4,r*.07);ctx.strokeStyle=cc;ctx.shadowColor=cc;ctx.shadowBlur=glow?r*.3:r*.12;ctx.stroke();ctx.restore();
+}
+/* duelo: os dois primeiros lado a lado, com foto grande e % gigante (k = escala; altura = 625*k) */
+function rpHero(ctx,x,y,w,k,C,leadN){
+  const h=640*k,r=150*k,pr=32*k+8;rpPanel(ctx,x,y,w,h,pr);
+  ctx.save();rpRound(ctx,x,y,w,h,pr);ctx.clip();
+  C.forEach((c,i)=>{const hx=x+i*w/2,cx=hx+w/4,cy=y+190*k;
+    let g=ctx.createLinearGradient(0,y,0,y+h);g.addColorStop(0,rpA(c.cc,.36));g.addColorStop(.7,rpA(c.cc,.08));g.addColorStop(1,rpA(c.cc,0));ctx.fillStyle=g;ctx.fillRect(hx,y,w/2,h);
+    g=ctx.createRadialGradient(cx,cy,r*.5,cx,cy,r*2.2);g.addColorStop(0,rpA(c.cc,.5));g.addColorStop(1,rpA(c.cc,0));ctx.fillStyle=g;ctx.fillRect(hx,y,w/2,h)});
+  ctx.restore();
+  ctx.fillStyle='rgba(255,255,255,.12)';ctx.fillRect(x+w/2-1,y+36*k,2,h-72*k);
+  C.forEach((c,i)=>{const cx=x+w/4+i*w/2,cy=y+190*k,lead=c.n===leadN&&C.length>1;
+    rpPortrait(ctx,cx,cy,r,c.cc,c.ph,c.nm,lead);
+    rpTxt(ctx,c.nm,cx,y+402*k,46*k,'#ffffff','900','center',w/2-34*k);
+    const sz=24*k,pw=rpPillW(ctx,c.sg||'—',sz),lw=lead?rpPillW(ctx,'À FRENTE',sz*.92):0,tot=pw+(lead?lw+10*k:0),px=cx-tot/2;
+    rpPill(ctx,c.sg||'—',px,y+454*k,sz,'#e9f3ff','rgba(255,255,255,.14)','left');
+    if(lead)rpPill(ctx,'À FRENTE',px+pw+10*k,y+454*k,sz*.92,'#04121f','#64f5cb','left');
+    ctx.save();if(lead){ctx.shadowColor=c.cc;ctx.shadowBlur=26*k}
+    rpTxt(ctx,rpPct(c.pct,2)+'%',cx,y+560*k,100*k,'#ffffff','900','center',w/2-44*k);ctx.restore();
+    rpTxt(ctx,fmtInt(Math.round(c.v))+' votos',cx,y+606*k,28*k,'#c6d5e5','700','center',w/2-30*k)});
+  ctx.beginPath();ctx.arc(x+w/2,y+190*k,30*k,0,7);ctx.fillStyle='#08162a';ctx.fill();ctx.lineWidth=2;ctx.strokeStyle='rgba(255,255,255,.3)';ctx.stroke();
+  rpTxt(ctx,'×',x+w/2,y+190*k+11*k,34*k,'#ffffff','900','center');
+  return h;
+}
+function rpTug(ctx,x,y,w,s,A,B,d,valid){
+  const sum=Math.max(1,A.v+B.v),fa=A.v/sum,jx=x+w*fa,bh=34*s;
+  rpTxt(ctx,'Diferença de '+fmtInt(Math.round(d))+' votos • '+rpPct(100*d/valid,2)+' p.p.',x+w/2,y+30*s,32*s,'#f4f9ff','800','center',w);
+  const ty=y+46*s;ctx.fillStyle='rgba(255,255,255,.08)';rpRound(ctx,x,ty,w,bh,bh/2);ctx.fill();
+  ctx.save();rpRound(ctx,x,ty,w,bh,bh/2);ctx.clip();ctx.shadowColor=A.cc;ctx.shadowBlur=18;ctx.fillStyle=A.cc;ctx.fillRect(x,ty,w*fa,bh);ctx.shadowColor=B.cc;ctx.fillStyle=B.cc;ctx.fillRect(jx,ty,w*(1-fa),bh);ctx.restore();
+  ctx.fillStyle='#ffffff';ctx.fillRect(jx-2*s,ty-6*s,4*s,bh+12*s);ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillRect(x+w/2-1,ty-3*s,2,bh+6*s);
+  return 46*s+bh+12*s;
+}
+function rpOthers(ctx,x,y,w,s,list){
+  const n=list.length;if(!n)return 0;const g=14*s,cw=(w-g*(n-1))/n,h=84*s;
+  list.forEach((c,i)=>{const cx=x+i*(cw+g);rpPanel(ctx,cx,y,cw,h,22*s);rpPortrait(ctx,cx+14*s+30*s,y+h/2,30*s,c.cc,c.ph,c.nm,false);
+    rpTxt(ctx,rpNice(c.nm).split(' ').slice(-1)[0],cx+14*s+60*s+14*s,y+h/2-4*s,26*s,'#f4f9ff','800',null,cw-(14+60+14+110)*s);
+    rpTxt(ctx,c.sg||'',cx+14*s+60*s+14*s,y+h/2+24*s,18*s,'#93a9c2','700',null,cw-(14+60+14+110)*s);
+    rpTxt(ctx,rpPct(c.pct,2)+'%',cx+cw-16*s,y+h/2+11*s,32*s,c.cc,'900','right')});
+  return h;
+}
+function rpProg(ctx,x,y,w,s,prog,bn){
+  rpTxt(ctx,'Seções apuradas',x,y+28*s,24*s,'#a9bdd4','800');
+  rpTxt(ctx,rpPct(prog,2)+'%',x+w,y+30*s,40*s,'#ffffff','900','right');
+  const by=y+46*s,bh=16*s;ctx.fillStyle='rgba(255,255,255,.09)';rpRound(ctx,x,by,w,bh,bh/2);ctx.fill();
+  const gg=ctx.createLinearGradient(x,0,x+w,0);gg.addColorStop(0,'#50d5ff');gg.addColorStop(1,'#64f5cb');ctx.save();ctx.shadowColor='#50d5ff';ctx.shadowBlur=14;ctx.fillStyle=gg;rpRound(ctx,x,by,Math.max(bh,w*Math.min(100,prog)/100),bh,bh/2);ctx.fill();ctx.restore();
+  if(bn!=null)rpTxt(ctx,'Brancos e nulos: '+rpPct(bn,1)+'%',x,by+bh+30*s,22*s,'#8ea5be','700');
+  return 46*s+bh+(bn!=null?40*s:12*s);
+}
+function rpChart(ctx,x,y,w,h,s,st,C){
+  if(!(RP.curve&&RP.curve.length>1)||h<90*s)return;
+  rpPanel(ctx,x,y,w,h,22*s);rpTxt(ctx,'Trajetória do % dos votos válidos',x+22*s,y+34*s,20*s,'#a9bdd4','800',null,w*.6);
+  const cv=RP.curve,t0=st.t0,t1=st.t1,px=x+24*s,pw2=w-24*s-78*s,py=y+52*s,ph=h-52*s-34*s;
+  let mn=100,mx=0;cv.forEach(r=>{for(let k=0;k<2;k++){const v=r.p[k];if(v==null)continue;mn=Math.min(mn,v);mx=Math.max(mx,v)}});
+  mn=Math.max(0,Math.floor(mn-2));mx=Math.min(100,Math.ceil(mx+2));if(mx-mn<6)mx=mn+6;
+  const X=t=>px+pw2*(t-t0)/Math.max(1,t1-t0),Y=v=>py+ph-ph*(v-mn)/(mx-mn);
+  ctx.lineWidth=1.5;ctx.strokeStyle='rgba(147,169,194,.22)';[mn,(mn+mx)/2,mx].forEach(v=>{ctx.beginPath();ctx.moveTo(px,Y(v));ctx.lineTo(px+pw2,Y(v));ctx.stroke();rpTxt(ctx,Math.round(v)+'%',x+w-16*s,Y(v)+6*s,17*s,'#93a9c2','700','right')});
+  const hh=q=>q.split(', ').pop();
+  rpTxt(ctx,hh(rpClock(t0)),px,py+ph+26*s,16*s,'#7f95b0','700');rpTxt(ctx,hh(rpClock(t1)),px+pw2,py+ph+26*s,16*s,'#7f95b0','700','right');
+  [0,1].forEach(k=>{const c=C[k];if(!c)return;const cc=c.cc,pts=[];for(const r of cv){if(r.t>st.T)break;const v=r.p[k];if(v!=null)pts.push([X(r.t),Y(v)])}
+    if(!pts.length)return;const lp=pts[pts.length-1];
+    ctx.save();ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.lineTo(lp[0],py+ph);ctx.lineTo(pts[0][0],py+ph);ctx.closePath();
+    const ar=ctx.createLinearGradient(0,py,0,py+ph);ar.addColorStop(0,cc);ar.addColorStop(1,'rgba(0,0,0,0)');ctx.globalAlpha=.2;ctx.fillStyle=ar;ctx.fill();ctx.restore();
+    ctx.save();ctx.beginPath();pts.forEach((q,i)=>i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]));ctx.lineJoin='round';ctx.lineCap='round';ctx.lineWidth=5*s;ctx.strokeStyle=cc;ctx.shadowColor=cc;ctx.shadowBlur=14;ctx.stroke();ctx.restore();
+    ctx.beginPath();ctx.arc(lp[0],lp[1],8*s,0,7);ctx.fillStyle='#ffffff';ctx.fill();ctx.beginPath();ctx.arc(lp[0],lp[1],5*s,0,7);ctx.fillStyle=cc;ctx.fill()});
+}
+/* mapa: líder em cada estado; devolve a contagem e a virada mais recente */
+function rpMap(ctx,box,st,a,sz,vertCount){
+  const vb=MAP_VB.split(' ').map(Number),sc=Math.min(box.w/vb[2],box.h/vb[3]),ox=box.x+(box.w-vb[2]*sc)/2,oy=box.y+(box.h-vb[3]*sc)/2,keys=Object.keys(RP.paths),cnt={};
+  const mcx=box.x+box.w/2,mcy=box.y+box.h/2,hr=ctx.createRadialGradient(mcx,mcy,0,mcx,mcy,Math.max(box.w,box.h)*.65);hr.addColorStop(0,'rgba(80,213,255,.16)');hr.addColorStop(1,'rgba(80,213,255,0)');ctx.fillStyle=hr;ctx.fillRect(box.x-80,box.y-80,box.w+160,box.h+160);
+  ctx.save();ctx.translate(ox,oy);ctx.scale(sc,sc);
+  ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=28;ctx.shadowOffsetY=10;
+  keys.forEach(uf=>{const x=a.uf&&a.uf[uf],c=(x&&x.c)||[],t1=c[0]?c[0][1]:0,t2=c[1]?c[1][1]:0,ld=t1>0?c[0][0]:null;
+    if(ld){cnt[ld]=(cnt[ld]||0)+1;const m=(t1-t2)/Math.max(1,t1+t2);ctx.globalAlpha=.7+.3*Math.min(1,m/.3);ctx.fillStyle=candColor(rpName(ld))}else{ctx.globalAlpha=1;ctx.fillStyle='#16304f'}
+    ctx.fill(RP.paths[uf])});
+  ctx.globalAlpha=1;ctx.shadowColor='rgba(0,0,0,0)';ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+  const mg=ctx.createLinearGradient(0,0,vb[2]*.35,vb[3]);mg.addColorStop(0,'rgba(255,255,255,.26)');mg.addColorStop(.55,'rgba(255,255,255,0)');mg.addColorStop(1,'rgba(0,0,20,.34)');ctx.fillStyle=mg;keys.forEach(uf=>ctx.fill(RP.paths[uf]));
+  ctx.lineJoin='round';ctx.lineWidth=2.6/sc;ctx.strokeStyle='rgba(4,12,26,.55)';keys.forEach(uf=>ctx.stroke(RP.paths[uf]));
+  ctx.lineWidth=1.1/sc;ctx.strokeStyle='rgba(235,245,255,.6)';keys.forEach(uf=>ctx.stroke(RP.paths[uf]));
+  ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=5;ctx.textAlign='center';ctx.textBaseline='middle';
+  keys.forEach(uf=>{const l=RP_LBL[uf];if(!l||l[2]<50||l[3]<40)return;const px=(l[2]>=100?sz:sz*.78);ctx.font='900 '+(px/sc)+'px '+RPF;ctx.fillStyle='rgba(255,255,255,.95)';ctx.fillText(uf,l[0],l[1])});
+  ctx.shadowColor='rgba(0,0,0,0)';ctx.shadowBlur=0;ctx.textBaseline='alphabetic';
+  const win=1.4/RP.dur*(st.t1-st.t0);let last=null;
+  RP.flips.forEach(x=>{const age=st.T-x.t;if(age>=0&&age<=win){const k=1-age/win;ctx.save();ctx.shadowColor=candColor(rpName(x.to));ctx.shadowBlur=34*k+6;ctx.lineWidth=(3+8*k)/sc;ctx.strokeStyle='rgba(255,255,255,'+(0.3+0.7*k).toFixed(2)+')';ctx.stroke(RP.paths[x.uf]);ctx.restore();last=x}else if(age>=0&&age<=win*2.2&&!last)last=x});
+  ctx.restore();
+  return{cnt,last:last&&st.T-last.t<=win*2.2?last:null};
+}
+function rpDraw(ctx,fmt,p){
+  const F=RP_FMT[fmt],W=F.dw,H=F.dh,st=rpState(p),a=st.a,b=st.b,f=st.f;
+  ctx.setTransform(F.cw/W,0,0,F.ch/H,0,0);
+  const vert=fmt==='v',sq=fmt==='q',s=vert?1:(sq?.8:.95),turn=a.turn||2,demo=RP.src==='demo';
+  // dados
+  const ca={},cb={};(a.br.c||[]).forEach(x=>ca[x[0]]=x[1]);(b.br.c||[]).forEach(x=>cb[x[0]]=x[1]);
+  const va=(a.br.v||[0,0,0]),vbb=(b.br.v||va),vv=[0,1,2].map(i=>rpLerp(va[i]||0,vbb[i]==null?va[i]||0:vbb[i],f));
+  const raw=RP.order.map(n=>({n,v:rpLerp(ca[n]||0,cb[n]==null?ca[n]||0:cb[n],f)}));
+  const valid=vv[0]||raw.reduce((q,x)=>q+x.v,0)||1;
+  const C=raw.map(x=>{const m=(RP.meta.pres||{})[x.n]||{},nm=rpNice(rpName(x.n));return{n:x.n,v:x.v,pct:100*x.v/valid,cc:candColor(rpName(x.n)),nm,sg:m.sg||'',ph:(RP.photos||{})[m.sq]}});
+  const leadN=C.length?C.reduce((m,x)=>x.v>m.v?x:m,C[0]).n:null,duel=C.slice(0,2),others=C.slice(2,5);
+  const prog=rpLerp(a.br.p||0,b.br.p==null?a.br.p||0:b.br.p,f),bn=(vv[0]+vv[1]+vv[2])>0?100*(vv[1]+vv[2])/(vv[0]+vv[1]+vv[2]):null;
+  // fundo: azul profundo com brilho nas cores dos dois candidatos
+  let g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#0d2542');g.addColorStop(.5,'#061327');g.addColorStop(1,'#030913');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+  [[0,0,duel[0]?duel[0].cc:'#50d5ff',.30],[1,0,duel[1]?duel[1].cc:'#64f5cb',.30],[.5,1,'#2f6bff',.16]].forEach(q=>{const r=Math.max(W,H)*.7,rg=ctx.createRadialGradient(W*q[0],H*q[1],0,W*q[0],H*q[1],r);rg.addColorStop(0,rpA(q[2],q[3]));rg.addColorStop(1,rpA(q[2],0));ctx.fillStyle=rg;ctx.fillRect(0,0,W,H)});
+  g=ctx.createLinearGradient(0,0,W,0);g.addColorStop(0,'#1fb86b');g.addColorStop(.5,'#ffd23f');g.addColorStop(1,'#2f6bff');ctx.fillStyle=g;ctx.fillRect(0,0,W,vert?10:8);
+  // cabeçalho
+  const hx=vert?50:(sq?36:50),bY=vert?92:(sq?58:68),bS=vert?27:(sq?20:24),tY=vert?178:(sq?122:136),tS=vert?80:(sq?54:68),sY=vert?236:(sq?160:136),sS=vert?32:(sq?23:32);
+  const bw=rpPill(ctx,'BRASIL DECIDE',hx,bY,bS,'#04121f','#64f5cb','left');
+  rpTxt(ctx,'ELEIÇÕES 2026',hx+bw+16,bY,bS,'#9db4cc','800');
+  rpTxt(ctx,'Apuração do '+turn+'º turno',hx,tY,tS,'#ffffff','900',null,vert||sq?W-hx*2:W-hx*2-520);
+  if(vert||sq)rpTxt(ctx,rpClock(st.T)+' • Brasília',hx,sY,sS,'#c6d5e5','700',null,vert?420:W-hx*2);
+  else rpTxt(ctx,rpClock(st.T)+' • Brasília',W-hx,sY,sS,'#c6d5e5','700','right');
+  const bgY=vert?sY:bY,bgS=vert?21:(sq?16:21);
+  if(demo)rpPill(ctx,'DEMONSTRAÇÃO • DADOS SIMULADOS',W-hx,bgY,bgS,'#ffc966','rgba(255,201,102,.16)','right');
+  else rpPill(ctx,'REPLAY DA APURAÇÃO',W-hx,bgY,bgS,'#ff9aa3','rgba(255,95,109,.16)','right','rgba(255,95,109,'+(0.55+0.45*Math.sin(p*260)).toFixed(2)+')');
+  const legend=(cx,cy,sz,i)=>{};
+  let mp=null;
+  const stat=(cx,cy,n,k,sz)=>{ // contagem de estados ao lado do mapa
+    const c=duel[n];if(!c)return;const v=k.cnt[c.n]||0;
+    rpPortrait(ctx,cx,cy-sz*.95,sz*.5,c.cc,c.ph,c.nm,false);
+    ctx.save();ctx.shadowColor=c.cc;ctx.shadowBlur=22;rpTxt(ctx,String(v),cx,cy+sz*.55,sz*1.5,c.cc,'900','center');ctx.restore();
+    rpTxt(ctx,v===1?'estado':'estados',cx,cy+sz*.95,sz*.5,'#f4f9ff','800','center');rpTxt(ctx,'à frente',cx,cy+sz*1.38,sz*.4,'#93a9c2','700','center')};
+  if(vert){
+    let y=268;y+=rpHero(ctx,50,y,W-100,.96,duel,leadN)+20;
+    if(duel.length>1)y+=rpTug(ctx,50,y,W-100,1,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+18;
+    if(others.length)y+=rpOthers(ctx,50,y,W-100,.9,others)+16;
+    const ph=Math.min(700,1672-y),mb={x:270,y:y+52,w:540,h:ph-84};
+    rpPanel(ctx,40,y,W-80,ph,28);rpTxt(ctx,'MAPA • QUEM LIDERA EM CADA ESTADO',66,y+38,20,'#9db4cc','800',null,W-140);
+    mp=rpMap(ctx,mb,st,a,26,true);
+    if(duel.length>1){stat(176,y+ph*.52,0,mp,86);stat(W-176,y+ph*.52,1,mp,86)}
+    if(mp.last){const nm=(UFS[mp.last.uf]||[mp.last.uf])[0];rpPill(ctx,'⚡ '+nm+' vira para '+rpNice(rpName(mp.last.to)).split(' ').slice(-1)[0],W/2,y+ph-22,26,'#1b1200','#ffc966','center')}
+    rpProg(ctx,50,1694,W-100,.95,prog,bn);
+  }else if(sq){
+    let y=186;y+=rpHero(ctx,36,y,W-72,.6,duel,leadN)+14;
+    if(duel.length>1)y+=rpTug(ctx,36,y,W-72,.7,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+10;
+    const my=y,mh=1012-my;rpPanel(ctx,24,my,500,mh,22);
+    mp=rpMap(ctx,{x:30,y:my+10,w:440,h:mh-60},st,a,20,false);
+    duel.forEach((c,i)=>{const k=mp.cnt[c.n]||0,fs=21,lx=44+i*236;ctx.beginPath();ctx.arc(lx+9,my+mh-26,9,0,7);ctx.fillStyle=c.cc;ctx.fill();rpTxt(ctx,k+(k===1?' estado':' estados')+' • '+c.nm.split(' ').slice(-1)[0],lx+26,my+mh-18,fs,'#f4f9ff','800',null,200)});
+    const cx=548,cw=W-36-cx;let yy=my;yy+=rpProg(ctx,cx,yy,cw,.8,prog,bn)+10;rpChart(ctx,cx,yy,cw,1012-yy,.8,st,duel);
+  }else{
+    let hx2=40;const ph=H-176-86;rpPanel(ctx,hx2,170,900,ph,28);rpTxt(ctx,'MAPA • QUEM LIDERA EM CADA ESTADO',66,208,20*s,'#9db4cc','800',null,860);
+    mp=rpMap(ctx,{x:196,y:226,w:588,h:ph-120},st,a,26*s,true);
+    if(duel.length>1){stat(118,170+ph*.5,0,mp,54);stat(862,170+ph*.5,1,mp,54)}
+    if(mp.last){const nm=(UFS[mp.last.uf]||[mp.last.uf])[0];rpPill(ctx,'⚡ '+nm+' vira para '+rpNice(rpName(mp.last.to)).split(' ').slice(-1)[0],490,170+ph-26,24,'#1b1200','#ffc966','center')}
+    const cx=964,cw=W-50-cx;let y=170;y+=rpHero(ctx,cx,y,cw,.74,duel,leadN)+16;
+    if(duel.length>1)y+=rpTug(ctx,cx,y,cw,.9,duel[0],duel[1],Math.abs(duel[0].v-duel[1].v),valid)+14;
+    if(others.length)y+=rpOthers(ctx,cx,y,cw,.78,others)+12;
+    y+=rpProg(ctx,cx,y,cw,.85,prog,bn)+12;rpChart(ctx,cx,y,cw,170+ph-y,.85,st,duel);
+  }
+  // rodapé + linha do tempo
+  rpTxt(ctx,'Fonte: TSE • coleta minuto a minuto • sem projeção',W/2,H-(vert?84:44),vert?26:20,'#8ea5be','700','center',W-120);
+  rpTxt(ctx,'josperdias.github.io/brasil-decide',W/2,H-(vert?46:18),vert?30:23,'#64f5cb','900','center');
+  ctx.fillStyle='rgba(255,255,255,.08)';ctx.fillRect(0,H-10,W,10);
+  g=ctx.createLinearGradient(0,0,W,0);g.addColorStop(0,'#1fb86b');g.addColorStop(.5,'#ffd23f');g.addColorStop(1,'#2f6bff');ctx.fillStyle=g;ctx.fillRect(0,H-10,Math.max(6,W*p),10);
+}
+function rpCanvas(){const cv=$('rpCanvas'),F=RP_FMT[RP.fmt];if(cv.width!==F.cw||cv.height!==F.ch){cv.width=F.cw;cv.height=F.ch}return cv}
+function rpFrame(p){const cv=rpCanvas();rpDraw(cv.getContext('2d'),RP.fmt,p)}
+function rpButtons(){const pl=$('rpPlay'),ex=$('rpExport');if(pl)pl.querySelector('b').textContent=RP.playing&&!RP.recording?'⏸ Parar':'▶ Assistir';if(ex)ex.disabled=RP.recording}
+function rpStop(){RP.playing=false;cancelAnimationFrame(RP.raf);rpButtons()}
+function rpLoop(ts){
+  if(!RP.playing)return;
+  const p=Math.min(1,(ts-RP.startAt)/(RP.dur*1000));rpFrame(p);
+  if(p>=1){
+    if(RP.recording){if(!RP.holdUntil)RP.holdUntil=ts+1200;if(ts>=RP.holdUntil){RP.holdUntil=0;RP.playing=false;rpButtons();try{RP.rec.stop()}catch(e){}return}}
+    else{RP.playing=false;rpButtons();return}
+  }
+  RP.raf=requestAnimationFrame(rpLoop);
+}
+async function rpPlay(){
+  if(RP.playing&&!RP.recording){rpStop();return}
+  if(RP.recording)return;
+  RP.dur=Number($('rpDur').value)||30;RP.fmt=$('rpFmt').value;
+  if(!(await rpEnsure()))return;
+  RP.playing=true;RP.startAt=performance.now();rpButtons();RP.raf=requestAnimationFrame(rpLoop);
+}
+async function rpExport(){
+  if(RP.recording)return;
+  if(!window.MediaRecorder||!HTMLCanvasElement.prototype.captureStream){rpSet('Este navegador não grava vídeo. Use o Chrome (Android ou computador) ou o Safari mais recente.');return}
+  RP.dur=Number($('rpDur').value)||30;RP.fmt=$('rpFmt').value;
+  if(!(await rpEnsure()))return;
+  rpStop();
+  const cv=rpCanvas();rpFrame(0);
+  const mimes=['video/mp4;codecs=avc1.42E01E','video/mp4;codecs=avc1','video/mp4','video/webm;codecs=vp9','video/webm;codecs=vp8','video/webm'],mt=mimes.find(m=>MediaRecorder.isTypeSupported(m))||'';
+  const chunks=[];let rec;
+  try{rec=new MediaRecorder(cv.captureStream(30),mt?{mimeType:mt,videoBitsPerSecond:5000000}:{videoBitsPerSecond:5000000})}catch(e){rpSet('Não foi possível iniciar a gravação ('+e.message+').');return}
+  rec.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  rec.onstop=()=>{
+    RP.recording=false;rpButtons();
+    const type=(rec.mimeType||mt||'video/webm').split(';')[0],blob=new Blob(chunks,{type}),ext=/mp4/.test(type)?'mp4':'webm';
+    if(RP.url)URL.revokeObjectURL(RP.url);RP.url=URL.createObjectURL(blob);
+    const name='brasil-decide-apuracao-'+(RP.snaps[0].turn||2)+'t.'+ext,out=$('rpOut');
+    out.innerHTML='<video controls playsinline style="max-width:100%;border-radius:12px;margin-top:10px" src="'+RP.url+'"></video><div class="action-grid" style="margin-top:8px"><a class="action-btn" href="'+RP.url+'" download="'+name+'"><b>⬇️ Baixar vídeo (.'+ext+')</b><span>'+(blob.size/1048576).toFixed(1).replace('.',',')+' MB</span></a><button id="rpShare" class="action-btn"><b>📤 Compartilhar</b><span>Enviar para status e conversas</span></button></div>'+(ext==='webm'?'<div class="news-disclaimer">Este navegador gerou .webm. Para WhatsApp/Instagram, prefira o Chrome atualizado (gera .mp4) ou o app Brasil Decide.</div>':'');
+    $('rpShare').onclick=async()=>{try{const file=new File([blob],name,{type});if(navigator.canShare&&navigator.canShare({files:[file]}))await navigator.share({files:[file],title:'Apuração — Brasil Decide'});else toast('Use o botão Baixar e envie o arquivo')}catch(e){}};
+    rpSet('Vídeo pronto ('+ext.toUpperCase()+'). Assista abaixo, baixe ou compartilhe.');
+  };
+  RP.rec=rec;RP.recording=true;RP.playing=true;RP.holdUntil=0;rpButtons();
+  rpSet('Gravando… mantenha esta aba aberta e na frente (≈ '+RP.dur+' s).');
+  rec.start(250);RP.startAt=performance.now();RP.raf=requestAnimationFrame(rpLoop);
+  clearTimeout(RP.safety);RP.safety=setTimeout(()=>{if(RP.recording){RP.playing=false;try{RP.rec.stop()}catch(e){}}},(RP.dur+5)*1000);
+}
+if($('rpPlay')){$('rpPlay').onclick=rpPlay;$('rpExport').onclick=rpExport;$('rpFmt').onchange=()=>{RP.fmt=$('rpFmt').value;if(RP.snaps.length>1)rpFrame(1)};$('rpSrc').onchange=()=>{RP.src='';RP.snaps=[]};rpCanvas()}
+/*RP_END*/
 if($('shareSite'))$('shareSite').onclick=async()=>{const url=location.href.split('#')[0],data={title:'Brasil Decide • Eleições 2026 — apuração ao vivo',text:'Acompanhe a apuração das eleições 2026 com dados oficiais do TSE:',url};try{if(navigator.share)await navigator.share(data);else{await navigator.clipboard.writeText(url);toast('Link copiado')}}catch(e){}};
 $('mapMode').onclick=e=>{const b=e.target.closest('.mode-btn');if(b)setMapMode(b.dataset.mode)};
 document.querySelectorAll('.turn-btn').forEach(b=>b.onclick=()=>setTurn(Number(b.dataset.turn)));
