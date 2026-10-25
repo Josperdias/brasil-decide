@@ -24,7 +24,7 @@ h1{font-size:clamp(1.9rem,7vw,3rem);line-height:1.04;margin:.35em 0 .3em;letter-
 .cta{display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 10px}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;min-height:54px;padding:0 24px;border-radius:16px;font-weight:950;font-size:1.02rem;text-decoration:none;border:1px solid var(--line);color:var(--text);background:#0c1e33;cursor:pointer}
 .btn.primary{background:linear-gradient(90deg,var(--cyan),var(--mint));color:#04111d;border:0;box-shadow:0 14px 34px rgba(80,213,255,.25)}
-.small{font-size:.76rem;color:var(--muted);line-height:1.5}
+.small{font-size:.76rem;color:var(--muted);line-height:1.5}code{font-size:.7rem;word-break:break-all;color:var(--soft)}
 .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:30px 0}
 .card{background:linear-gradient(155deg,rgba(14,31,52,.98),rgba(6,16,29,.98));border:1px solid var(--line);border-radius:20px;padding:16px}
 .card .ic{font-size:1.5rem}.card h3{margin:8px 0 4px;font-size:1rem}.card p{margin:0;color:var(--muted);font-size:.84rem;line-height:1.5}
@@ -46,11 +46,29 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
   <p class="lead">Dados oficiais do TSE em tempo real: <b>mapa por estado</b>, <b>resultado do DF</b> (Senado, Governo e Câmaras), <b>notícias</b>, <b>lives de TV</b> e <b>imagens prontas</b> para postar nos seus status.</p>
 
   <div class="cta">
-    <a class="btn primary" id="dl" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener">📲 Baixar o app (Android)</a>
+    <a class="btn primary" id="dl" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026.apk" rel="noopener" download>📲 Baixar o app (Android)</a>
     <a class="btn" href="../eleicoes/">🌐 Abrir o site no navegador</a>
     <button class="btn" id="share" type="button">📤 Compartilhar</button>
   </div>
-  <p class="small">Grátis • Android 8 ou mais novo • sem cadastro • atualiza sozinho (o app avisa quando há versão nova).</p>
+  <p class="small" id="ver">Versão atual: build 57 • 263 KB • Android 8 ou mais novo • grátis, sem cadastro • atualiza sozinho (o app avisa quando há versão nova).</p>
+  <p class="small" id="hash">SHA-256 do arquivo: <code>9c1851e4b1467ef98c38cdb2700a9d486afb56fcafcd9d86be5f6852c8df4921</code></p>
+
+  <h2>Não conseguiu baixar? Tente nesta ordem</h2>
+  <div class="cta">
+    <a class="btn" id="dl2" href="BrasilDecide.apk" download>⬇️ Link alternativo (cópia do build 57)</a>
+    <a class="btn" id="dl3" href="https://github.com/Josperdias/brasil-decide/releases/download/app-latest/CentralEleicoes2026-WebView.apk" rel="noopener" download>🪶 Versão Lite (WebView, 82 KB)</a>
+  </div>
+  <details open><summary>Passo a passo para quem não consegue baixar ou instalar</summary>
+    <ol class="steps" style="margin-top:10px">
+      <li><b>Abra esta página no Chrome</b> (ou no navegador do celular). Se você chegou por um link do WhatsApp, Instagram ou Facebook, toque nos três pontinhos ⋮ e escolha <b>Abrir no navegador</b>: os navegadores dentro desses aplicativos costumam bloquear o download.</li>
+      <li>Se o Chrome avisar “Este tipo de arquivo pode danificar seu dispositivo”, toque em <b>Manter</b> (ou <b>Baixar mesmo assim</b>). É um aviso padrão para qualquer arquivo .apk.</li>
+      <li>Ao abrir o arquivo, se o Android pedir, ative <b>Permitir desta fonte</b> para o Chrome (ou para o app Arquivos).</li>
+      <li>Se aparecer o Google Play Protect, toque em <b>Mais detalhes</b> e depois em <b>Instalar mesmo assim</b>.</li>
+      <li>Se aparecer <b>“App não instalado”</b> ou “conflito com um pacote existente”, você tem uma versão antiga: desinstale o app anterior (Configurações → Apps → Eleições 2026 / Brasil Decide → Desinstalar) e instale de novo.</li>
+      <li>Se o primeiro botão não baixar, use o <b>Link alternativo</b> acima (a cópia do build 57 servida por esta própria página). Em último caso, a <b>Versão Lite</b> funciona igual ao site e é bem menor.</li>
+      <li>Sem conseguir instalar de jeito nenhum? Use o <a href="../eleicoes/" style="color:var(--mint)">site</a> direto no navegador — é a mesma apuração. No Chrome, toque em ⋮ → <b>Adicionar à tela inicial</b> para ter um ícone.</li>
+    </ol>
+  </details>
 
   <div class="grid">
     <div class="card"><div class="ic">🗺️</div><h3>Mapa do Brasil ao vivo</h3><p>Cada estado na cor de quem lidera, com top 3, votos, apuração e diferença entre 1º e 2º.</p></div>
@@ -76,9 +94,23 @@ footer{margin-top:34px;padding-top:16px;border-top:1px solid var(--line)}
 </div>
 <script>
 document.getElementById('share').onclick=async()=>{
-  const data={title:'Eleições 2026 • app grátis',text:'Acompanhe a apuração das eleições 2026 em tempo real com dados oficiais do TSE. Baixe o app grátis:',url:location.href};
+  const data={title:'Brasil Decide • app grátis',text:'Acompanhe a apuração das eleições 2026 em tempo real com dados oficiais do TSE. Baixe o app grátis:',url:location.href};
   try{ if(navigator.share) await navigator.share(data); else { await navigator.clipboard.writeText(location.href); document.getElementById('share').textContent='✅ Link copiado'; } }catch(e){}
 };
+// mostra a versão publicada agora (release app-latest); se a consulta falhar, ficam os dados estáticos acima
+(async()=>{
+  try{
+    const r=await fetch('https://api.github.com/repos/Josperdias/brasil-decide/releases/tags/app-latest',{headers:{Accept:'application/vnd.github+json'}});
+    if(!r.ok) return;
+    const j=await r.json(), apk=(j.assets||[]).find(a=>a.name==='CentralEleicoes2026.apk');
+    if(!apk) return;
+    const vc=((j.body||'').match(/versionCode=(\d+)/)||[])[1];
+    const kb=Math.round(apk.size/1024), d=new Date(apk.updated_at||j.published_at);
+    document.getElementById('ver').textContent='Versão atual: build '+(vc||'?')+' • '+kb+' KB • publicada em '+d.toLocaleString('pt-BR')+' • Android 8 ou mais novo • grátis, sem cadastro • atualiza sozinho.';
+    if(apk.digest) document.getElementById('hash').innerHTML='SHA-256 do arquivo: <code>'+apk.digest.replace('sha256:','')+'</code>';
+    document.getElementById('dl').href=apk.browser_download_url;
+  }catch(e){}
+})();
 </script>
 </body>
 </html>
