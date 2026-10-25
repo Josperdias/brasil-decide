@@ -1,0 +1,1180 @@
+{
+ "fotos": {
+  "280002551544": {
+   "nm": "FLAVIO BOLSONARO",
+   "sg": "PL",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002542548": {
+   "nm": "LULA",
+   "sg": "PT",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002551547": {
+   "nm": "ESCRITOR AUGUSTO CURY",
+   "sg": "AVANTE",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002540694": {
+   "nm": "RENAN SANTOS",
+   "sg": "MISSÃO",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002551932": {
+   "nm": "RONALDO CAIADO",
+   "sg": "PSD",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002539826": {
+   "nm": "ZEMA",
+   "sg": "NOVO",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002538811": {
+   "nm": "SAMARA",
+   "sg": "UP",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002541457": {
+   "nm": "HERTZ DIAS",
+   "sg": "PSTU",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002552484": {
+   "nm": "CLARIANA BARAO",
+   "sg": "DC",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002551975": {
+   "nm": "EDMILSON COSTA",
+   "sg": "PCB",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002548139": {
+   "nm": "VETERINÁRIO WILSON GRASSI",
+   "sg": "DEMOCRATA",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "280002552487": {
+   "nm": "RUI COSTA PIMENTA",
+   "sg": "PCO",
+   "cargo": "pres",
+   "uf": "BR"
+  },
+  "10002544107": {
+   "nm": "MAILZA ASSIS",
+   "sg": "PP",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "10002532492": {
+   "nm": "ALAN RICK",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "10002544015": {
+   "nm": "TIÃO BOCALOM",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "10002550719": {
+   "nm": "THOR DANTAS",
+   "sg": "PSB",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "10002549500": {
+   "nm": "EUDO RAFFAEL",
+   "sg": "PCB",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "10002533539": {
+   "nm": "DR.LUISINHO",
+   "sg": "AGIR",
+   "cargo": "gov",
+   "uf": "AC"
+  },
+  "20002553350": {
+   "nm": "JHC",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "AL"
+  },
+  "20002553745": {
+   "nm": "RENAN FILHO",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "AL"
+  },
+  "20002539642": {
+   "nm": "LENILDA LUNA",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "AL"
+  },
+  "20002552502": {
+   "nm": "MÁRCIO JAMBO",
+   "sg": "DEMOCRATA",
+   "cargo": "gov",
+   "uf": "AL"
+  },
+  "30002530014": {
+   "nm": "DR. FURLAN",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "AP"
+  },
+  "30002536311": {
+   "nm": "CLÉCIO",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "AP"
+  },
+  "30002536313": {
+   "nm": "CARLOS CLEY",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "AP"
+  },
+  "30002552017": {
+   "nm": "DELEGADO MARCOS",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "AP"
+  },
+  "30002551388": {
+   "nm": "JAIRO PALHETA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "AP"
+  },
+  "40002532272": {
+   "nm": "OMAR AZIZ",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002541626": {
+   "nm": "PROFESSORA MARIA DO CARMO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002541741": {
+   "nm": "ROBERTO CIDADE",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002536086": {
+   "nm": "DAVID ALMEIDA",
+   "sg": "AVANTE",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002551740": {
+   "nm": "CABO DACIOLO",
+   "sg": "MOBILIZA",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002550776": {
+   "nm": "ISAEL MUNDURUKU",
+   "sg": "REDE",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "40002535267": {
+   "nm": "GILBERTO VASCONCELOS",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "AM"
+  },
+  "50002536314": {
+   "nm": "JERÔNIMO RODRIGUES",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "50002533190": {
+   "nm": "ACM NETO",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "50002532269": {
+   "nm": "RONALDO MANSUR",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "50002544692": {
+   "nm": "AROLDO FELIX",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "50002552489": {
+   "nm": "MARIA BONA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "50002535253": {
+   "nm": "ARIEL CAPISTRANO",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "BA"
+  },
+  "60002543969": {
+   "nm": "ELMANO DE FREITAS",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002531351": {
+   "nm": "CIRO GOMES",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002540417": {
+   "nm": "DELEGADO HUGGO",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002553922": {
+   "nm": "VERA LÚCIA",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002533729": {
+   "nm": "SERLEY LEAL",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002549967": {
+   "nm": "ZÉ BATISTA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002552498": {
+   "nm": "DANILO SOARES",
+   "sg": "DEMOCRATA",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "60002552320": {
+   "nm": "IERI BRAGA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "CE"
+  },
+  "70002553055": {
+   "nm": "CELINA LEÃO",
+   "sg": "PP",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002552496": {
+   "nm": "LEANDRO GRASS",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002552965": {
+   "nm": "PAULA BELMONTE",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002547775": {
+   "nm": "KIKO CAPUTO",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002551557": {
+   "nm": "CAPPELLI",
+   "sg": "PSB",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002537111": {
+   "nm": "PROFESSORA SAMARA MINEIRO",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002535930": {
+   "nm": "PROFESSOR ROBSON",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002551298": {
+   "nm": "ELISSON",
+   "sg": "AGIR",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002553982": {
+   "nm": "RICO PINHEIRO",
+   "sg": "PRTB",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "70002552341": {
+   "nm": "EXPEDITO MENDONÇA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "DF"
+  },
+  "80002552682": {
+   "nm": "LORENZO PAZOLINI",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "ES"
+  },
+  "80002552172": {
+   "nm": "RICARDO FERRAÇO",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "ES"
+  },
+  "80002551833": {
+   "nm": "HELDER SALOMÃO",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "ES"
+  },
+  "80002541012": {
+   "nm": "BRENO BARCELOS",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "ES"
+  },
+  "80002550832": {
+   "nm": "RAFAEL DEMUNER",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "ES"
+  },
+  "90002540993": {
+   "nm": "DANIEL VILELA",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "90002551791": {
+   "nm": "WILDER MORAIS",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "90002545476": {
+   "nm": "LUIS CESAR BUENO",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "90002543463": {
+   "nm": "MARCONI PERILLO",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "90002550707": {
+   "nm": "LUCIANA AMORIM",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "90002553733": {
+   "nm": "DANILO DA SILVA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "GO"
+  },
+  "100002545679": {
+   "nm": "EDUARDO BRAIDE",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002543869": {
+   "nm": "ORLEANS BRANDÃO",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002542556": {
+   "nm": "FELIPE CAMARÃO",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002551399": {
+   "nm": "ROBERTO ROCHA",
+   "sg": "PRTB",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002544076": {
+   "nm": "ANDRÉ LUIS",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002534190": {
+   "nm": "SAULO ARCANGELI",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002544073": {
+   "nm": "REGINALDO LIMA",
+   "sg": "PCB",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "100002552700": {
+   "nm": "DIMAS CASSIMIRO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "MA"
+  },
+  "110002551480": {
+   "nm": "OTAVIANO PIVETTA",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "110002551737": {
+   "nm": "WELLINGTON FAGUNDES",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "110002544985": {
+   "nm": "DOUTORA NATASHA",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "110002543953": {
+   "nm": "RAFAELL MILAS",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "110002554073": {
+   "nm": "SARGENTO LAUDICÉRIO",
+   "sg": "AGIR",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "110002553058": {
+   "nm": "MAURICIO COELHO",
+   "sg": "MOBILIZA",
+   "cargo": "gov",
+   "uf": "MT"
+  },
+  "120002536582": {
+   "nm": "EDUARDO RIEDEL",
+   "sg": "PP",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002539834": {
+   "nm": "FÁBIO TRAD",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002552191": {
+   "nm": "JOÃO HENRIQUE CATAN",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002552155": {
+   "nm": "DELCIDIO AMARAL",
+   "sg": "PRD",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002549681": {
+   "nm": "ECONOMISTA RENATO GOMES",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002532257": {
+   "nm": "LUCIEN REZENDE",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002552201": {
+   "nm": "DANIEL LEMES",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "120002550198": {
+   "nm": "JEFERSON BEZERRA",
+   "sg": "AGIR",
+   "cargo": "gov",
+   "uf": "MS"
+  },
+  "130002552296": {
+   "nm": "CLEITINHO AZEVEDO",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002550464": {
+   "nm": "PATRUS ANANIAS",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002550834": {
+   "nm": "FLÁVIO ROSCOE",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002541911": {
+   "nm": "MATEUS SIMÕES",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002539775": {
+   "nm": "ALEXANDRE KALIL",
+   "sg": "PDT",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002549557": {
+   "nm": "GABRIEL",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002544411": {
+   "nm": "BEN MENDES",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002547874": {
+   "nm": "INDIRA XAVIER",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002544122": {
+   "nm": "PROFESSOR TÚLIO LOPES",
+   "sg": "PCB",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002546802": {
+   "nm": "RAFAEL DUDA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "130002552308": {
+   "nm": "HENRIQUE ÁREAS",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "MG"
+  },
+  "140002549930": {
+   "nm": "DR. DANIEL",
+   "sg": "PODE",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "140002551598": {
+   "nm": "HANA GHASSAN",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "140002542386": {
+   "nm": "ARACELI",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "140002551943": {
+   "nm": "GAL LEITE",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "140002554108": {
+   "nm": "WELL MACEDO",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "140002554434": {
+   "nm": "RUTH REIS",
+   "sg": "DEMOCRATA",
+   "cargo": "gov",
+   "uf": "PA"
+  },
+  "150002551789": {
+   "nm": "LUCAS RIBEIRO",
+   "sg": "PP",
+   "cargo": "gov",
+   "uf": "PB"
+  },
+  "150002538692": {
+   "nm": "EFRAIM FILHO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "PB"
+  },
+  "150002544133": {
+   "nm": "CÍCERO LUCENA",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "PB"
+  },
+  "150002540204": {
+   "nm": "YURI EZEQUIEL",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "PB"
+  },
+  "150002552603": {
+   "nm": "CAMILO DUARTE",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "PB"
+  },
+  "160002540833": {
+   "nm": "SERGIO MORO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002549553": {
+   "nm": "SANDRO ALEX",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002547666": {
+   "nm": "REQUIÃO FILHO",
+   "sg": "PDT",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002551353": {
+   "nm": "LUIZ FRANÇA",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002550997": {
+   "nm": "TAYNÁ MIESSA",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002547594": {
+   "nm": "DOUTOR ALEXANDRE SALOMÃO",
+   "sg": "MOBILIZA",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002548010": {
+   "nm": "SAMUEL DE MATTOS",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "160002552560": {
+   "nm": "ADRIANO FUNILEIRO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "PR"
+  },
+  "170002537227": {
+   "nm": "RAQUEL LYRA",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002537230": {
+   "nm": "JOÃO CAMPOS",
+   "sg": "PSB",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002538097": {
+   "nm": "IVAN MORAES",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002540337": {
+   "nm": "RENAN",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002537320": {
+   "nm": "PROFESSORA CAMILA",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002536575": {
+   "nm": "GUILHERME FONSECA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "170002552776": {
+   "nm": "VICTOR ASSIS",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "PE"
+  },
+  "180002532987": {
+   "nm": "RAFAEL FONTELES",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002538530": {
+   "nm": "JOEL RODRIGUES",
+   "sg": "PP",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002549970": {
+   "nm": "PROFESSOR GISVALDO",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002544216": {
+   "nm": "DRA. LÚCIA SANTOS",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002549920": {
+   "nm": "ELIZEU AGUIAR",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002537422": {
+   "nm": "GERALDO CARVALHO",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002549995": {
+   "nm": "SANTIAGO BELIZÁRIO",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002553722": {
+   "nm": "LOURDES MELO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002548565": {
+   "nm": "PROFESSOR JURITY",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "180002548388": {
+   "nm": "RAVENNA DA INCLUSÃO",
+   "sg": "DEMOCRATA",
+   "cargo": "gov",
+   "uf": "PI"
+  },
+  "190002542887": {
+   "nm": "DOUGLAS RUAS",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002543380": {
+   "nm": "EDUARDO PAES",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002550196": {
+   "nm": "GAROTINHO",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002536162": {
+   "nm": "WILLIAM SIRI",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002544120": {
+   "nm": "CORONEL BUSNELLO",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002537524": {
+   "nm": "ANDRÉ MARINHO",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002547272": {
+   "nm": "JULIETE",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002540198": {
+   "nm": "CYRO GARCIA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "190002552513": {
+   "nm": "LUAN MONTEIRO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "RJ"
+  },
+  "200002535255": {
+   "nm": "ALLYSON",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002534001": {
+   "nm": "CADU DE LULA",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002534442": {
+   "nm": "ÁLVARO DIAS",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002547826": {
+   "nm": "ARINALDA DO MLB",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002542481": {
+   "nm": "DÁRIO BARBOSA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002554482": {
+   "nm": "GODEIRO LINHARESS",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002546756": {
+   "nm": "RODRIGO DE BOLSONARO",
+   "sg": "AGIR",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "200002553301": {
+   "nm": "HENRIQUE LYRA",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "RN"
+  },
+  "210002547857": {
+   "nm": "ZUCCO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002551508": {
+   "nm": "JULIANA BRIZOLA",
+   "sg": "PDT",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002542892": {
+   "nm": "GABRIEL SOUZA",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002535802": {
+   "nm": "MARCELO MARANATA",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002533355": {
+   "nm": "PRISCILA VOIGT",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002541367": {
+   "nm": "REJANE DE OLIVEIRA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "210002552592": {
+   "nm": "CESAR PONTES",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "RS"
+  },
+  "220002541939": {
+   "nm": "MARCOS ROGÉRIO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "220002536806": {
+   "nm": "ADAILTON FURIA",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "220002542916": {
+   "nm": "HILDON CHAVES",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "220002542185": {
+   "nm": "EXPEDITO NETTO",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "220002551251": {
+   "nm": "PEDRO ABIB",
+   "sg": "MDB",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "220002550927": {
+   "nm": "SAMUEL COSTA",
+   "sg": "PSB",
+   "cargo": "gov",
+   "uf": "RO"
+  },
+  "230002549223": {
+   "nm": "ARTHUR HENRIQUE",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "RR"
+  },
+  "230002551571": {
+   "nm": "SOLDADO SAMPAIO",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "RR"
+  },
+  "230002552060": {
+   "nm": "ROSI AIRES",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "RR"
+  },
+  "230002549294": {
+   "nm": "FARAH MESQUITA",
+   "sg": "SOLIDARIEDADE",
+   "cargo": "gov",
+   "uf": "RR"
+  },
+  "230002553857": {
+   "nm": "CLÉBIO GENUÍNO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "RR"
+  },
+  "240002537073": {
+   "nm": "JORGINHO MELLO",
+   "sg": "PL",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002548628": {
+   "nm": "GELSON MERÍSIO",
+   "sg": "PSB",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002551001": {
+   "nm": "JOÃO RODRIGUES",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002544118": {
+   "nm": "MARCELO BRIGADEIRO",
+   "sg": "MISSÃO",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002550544": {
+   "nm": "LAÍS CHAUD",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002552157": {
+   "nm": "RALF ZIMMER",
+   "sg": "PRD",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002541913": {
+   "nm": "PROFESSOR MARCUS SODRÉ",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "240002553718": {
+   "nm": "BRUNO PEDREIRO DO PCO",
+   "sg": "PCO",
+   "cargo": "gov",
+   "uf": "SC"
+  },
+  "250002541303": {
+   "nm": "TARCÍSIO",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "SP"
+  },
+  "250002549705": {
+   "nm": "FERNANDO HADDAD",
+   "sg": "PT",
+   "cargo": "gov",
+   "uf": "SP"
+  },
+  "250002544912": {
+   "nm": "VIVIAN MENDES",
+   "sg": "UP",
+   "cargo": "gov",
+   "uf": "SP"
+  },
+  "250002536915": {
+   "nm": "VERA LÚCIA",
+   "sg": "PSTU",
+   "cargo": "gov",
+   "uf": "SP"
+  },
+  "250002550913": {
+   "nm": "CARLOS MACHADO",
+   "sg": "PCB",
+   "cargo": "gov",
+   "uf": "SP"
+  },
+  "260002542491": {
+   "nm": "FÁBIO",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "SE"
+  },
+  "260002532010": {
+   "nm": "VALMIR DE FRANCISQUINHO",
+   "sg": "REPUBLICANOS",
+   "cargo": "gov",
+   "uf": "SE"
+  },
+  "260002547415": {
+   "nm": "DR. HELTON",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "SE"
+  },
+  "260002550683": {
+   "nm": "TATY  CRISTINA DE JESUS",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "SE"
+  },
+  "270002544599": {
+   "nm": "PROFESSORA DORINHA",
+   "sg": "UNIÃO",
+   "cargo": "gov",
+   "uf": "TO"
+  },
+  "270002544544": {
+   "nm": "VICENTINHO JÚNIOR",
+   "sg": "PSDB",
+   "cargo": "gov",
+   "uf": "TO"
+  },
+  "270002544494": {
+   "nm": "LAUREZ MOREIRA",
+   "sg": "PSD",
+   "cargo": "gov",
+   "uf": "TO"
+  },
+  "270002548412": {
+   "nm": "ATAIDES DE OLIVEIRA",
+   "sg": "NOVO",
+   "cargo": "gov",
+   "uf": "TO"
+  },
+  "270002539187": {
+   "nm": "PROF WITER NAVES",
+   "sg": "PSOL",
+   "cargo": "gov",
+   "uf": "TO"
+  },
+  "270002550458": {
+   "nm": "DU PEREIRA",
+   "sg": "DC",
+   "cargo": "gov",
+   "uf": "TO"
+  }
+ }
+}
