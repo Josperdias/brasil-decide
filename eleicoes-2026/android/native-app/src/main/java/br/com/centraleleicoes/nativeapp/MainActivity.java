@@ -102,7 +102,7 @@ public class MainActivity extends Activity {
         String presSig = "";
     }
 
-    static final class Event { String icon, title, detail; long at; }
+    static final class Event { String icon, title, detail; long at; boolean lot; int turn; }
 
     private final Snap[] snaps = {new Snap(), new Snap()};
     private final Map<String, Long> absentAt = new HashMap<>();
@@ -372,6 +372,8 @@ public class MainActivity extends Activity {
             if (tv) { page.setPadding(0, 0, 0, 0); nav.setVisibility(View.GONE); renderTv(); return; }
             nav.setVisibility(View.VISIBLE);
             renderHeader();
+            if (!tab.equals("brasil") && !(tab.equals("mapa") && mapaSub.equals("ufs"))) renderLiveStrip();
+            if (tab.equals("mapa") && mapaSub.equals("mapa")) renderLots(4);
             if (updateAvailable) content.addView(updateBanner());
             if (tab.equals("brasil") || (tab.equals("mapa") && !mapaSub.equals("mundo") && !mapaSub.equals("replay"))) content.addView(roundStrip());
             if (tab.equals("brasil") || (tab.equals("mapa") && mapaSub.equals("ufs"))) renderHero();
@@ -495,6 +497,79 @@ public class MainActivity extends Activity {
         seg.addView(turnBtn(1), Ui.lp(0, Ui.dp(34), 1f));
         seg.addView(turnBtn(2), Ui.lp(0, Ui.dp(34), 1f));
         content.addView(seg, Ui.margins(Ui.lp(-1, -2), 0, 0, 0, 12));
+    }
+
+    /** Faixa fixa no topo de todas as abas: % apurado no Brasil e a porcentagem dos dois primeiros (presidente). */
+    private void renderLiveStrip() {
+        Model.Result r = snap().pres;
+        if (r == null) return;
+        LinearLayout card = Ui.card(this);
+        card.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), Ui.dp(10));
+        card.setOnClickListener(v -> { tab = "brasil"; animateNext = true; render(); scroll.scrollTo(0, 0); });
+        LinearLayout top = Ui.row(this);
+        top.setBaselineAligned(false);
+        LinearLayout l = Ui.col(this);
+        l.addView(Ui.label(this, "Brasil • apuração " + turn + "º turno"));
+        l.addView(Ui.text(this, n(r.sections) + "/" + n(r.sectionsTotal) + " seções", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        top.addView(l, Ui.lp(0, -2, 1f));
+        top.addView(Ui.big(this, pc(r.progress), 28));
+        card.addView(top);
+        card.addView(new GradientBar(this, 6).value(r.progress));
+        if (r.cands.size() >= 2 && candidateVotes(r) > 0) {
+            LinearLayout row = Ui.row(this);
+            for (int i = 0; i < 2; i++) {
+                Model.Cand c = r.cands.get(i);
+                String nm = shortNm(c.nome);
+                View dot = new View(this);
+                dot.setBackground(Ui.fill(Model.color(c.nome), 99, 0));
+                TextView t = Ui.text(this, nm + "  " + pc(c.pct), 14, Ui.TEXT, true);
+                t.setSingleLine();
+                t.setEllipsize(TextUtils.TruncateAt.END);
+                LinearLayout cell = Ui.row(this);
+                cell.setGravity(i == 0 ? Gravity.START : Gravity.END);
+                cell.addView(dot, Ui.margins(Ui.lp(Ui.dp(9), Ui.dp(9)), 0, 0, 7, 0));
+                cell.addView(t);
+                row.addView(cell, Ui.lp(0, -2, 1f));
+            }
+            card.addView(row, Ui.margins(Ui.lp(-1, -2), 0, 4, 0, 0));
+            Model.Cand c0 = r.cands.get(0), c1 = r.cands.get(1);
+            String info = shortNm(c0.nome) + " lidera por " + n(Math.abs(c0.votos - c1.votos)) + " votos (" + String.format(BR, "%.2f", Math.abs(c0.pct - c1.pct)) + " p.p.)";
+            long lc = snap().lastChange;
+            if (lc > 0) {
+                info += " • dado das " + hhmm(lc);
+                long mins = (System.currentTimeMillis() - lc) / 60000;
+                if (mins >= 5) info += " • sem novidade há " + mins + " min";
+            }
+            TextView it = Ui.text(this, info, 10, Ui.MUTED, false);
+            it.setGravity(Gravity.CENTER_HORIZONTAL);
+            card.addView(it, Ui.margins(Ui.lp(-1, -2), 0, 5, 0, 0));
+        }
+        View early = earlyNote(r);
+        if (early != null) card.addView(early, Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 0));
+        content.addView(card);
+    }
+
+    /** Lotes recém-apurados (por estado), do mais novo ao mais antigo; atualiza a cada consulta com novidade. */
+    private void renderLots(int max) {
+        LinearLayout card = Ui.card(this);
+        card.setPadding(Ui.dp(14), Ui.dp(10), Ui.dp(14), Ui.dp(8));
+        card.addView(Ui.label(this, "⚡ Lotes que acabaram de sair"));
+        int shown = 0;
+        for (Event e : events) {
+            if (!e.lot || e.turn != turn) continue;
+            LinearLayout row = Ui.row(this);
+            row.setPadding(0, Ui.dp(6), 0, Ui.dp(4));
+            TextView tm = Ui.text(this, hhmmss(e.at), 10, Ui.MUTED, true);
+            row.addView(tm, Ui.margins(Ui.lp(Ui.dp(48), -2), 0, 2, 8, 0));
+            LinearLayout tx = Ui.col(this);
+            tx.addView(Ui.text(this, e.title, 12, Ui.TEXT, true));
+            tx.addView(Ui.text(this, e.detail, 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
+            row.addView(tx, Ui.lp(0, -2, 1f));
+            card.addView(row);
+            if (++shown >= max) break;
+        }
+        if (shown == 0) card.addView(Ui.text(this, "Aguardando o próximo lote de seções do TSE…", 12, Ui.MUTED, false), Ui.margins(Ui.lp(-1, -2), 0, 6, 0, 4));
+        content.addView(card);
     }
 
     private TextView turnBtn(int t) {
@@ -756,14 +831,28 @@ public class MainActivity extends Activity {
         return e;
     }
 
+    /** Aviso de leitura no começo da apuração: os primeiros votos vêm de poucas seções e regiões (não é projeção). */
+    private View earlyNote(Model.Result r) {
+        if (r == null || r.sections <= 0 || r.progress >= 30) return null;
+        TextView t = Ui.text(this, "ℹ️ Começo da apuração: poucos votos de algumas regiões; o placar muda bastante até chegar a maior parte das seções.", 10, Ui.AMBER, false);
+        t.setGravity(Gravity.CENTER_HORIZONTAL);
+        return t;
+    }
+
     private void renderBrasil() {
+        View early = earlyNote(snap().pres);
+        if (early != null) {
+            LinearLayout box = Ui.card(this);
+            box.setPadding(Ui.dp(12), Ui.dp(9), Ui.dp(12), Ui.dp(9));
+            box.addView(early);
+            content.addView(box);
+        }
         content.addView(sectionHead("Presidente — Brasil", "Votos e situação publicados oficialmente pelo TSE."));
         Model.Result r = snap().pres;
         content.addView(scoreline(r));
-        content.addView(promoStatus());
-        content.addView(roundCard());
         content.addView(resultCard("Presidente da República", cargoSub("Brasil"), "🇧🇷", r, turn == 2 ? 2 : 3));
         if (r == null && waiting) content.addView(emptyCard("Aguardando o TSE", "O resultado presidencial do " + turn + "º turno ainda não foi publicado. Nova consulta automática em ~60 s."));
+        renderLots(6);
 
         // Pulso: gráfico do top 3
         content.addView(sectionHead("Pulso da apuração", "Percentual dos válidos a cada arquivo novo do TSE (histórico guardado neste aparelho, separado por turno)."));
@@ -839,6 +928,8 @@ public class MainActivity extends Activity {
             }
             content.addView(c);
         }
+        content.addView(promoStatus());
+        content.addView(roundCard());
     }
 
     private View updateBanner() {
@@ -848,7 +939,7 @@ public class MainActivity extends Activity {
         c.addView(Ui.text(this, "🔔", 20, Ui.TEXT, false), Ui.margins(Ui.lp(-2, -2), 0, 0, 12, 0));
         LinearLayout t = Ui.col(this);
         t.addView(Ui.text(this, updating ? "Baixando a atualização… " + updatePct + "%" : "Nova versão disponível (build " + remoteVersion + ")", 14, Ui.TEXT, true));
-        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar na tela do Android." : "Toque para atualizar aqui mesmo — sem abrir o navegador.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
+        t.addView(Ui.text(this, updating ? "Quando terminar, toque em Instalar. Se o Play Protect bloquear: Mais detalhes → Instalar mesmo assim." : "Toque para atualizar aqui mesmo. Se o Android avisar de app nocivo: Mais detalhes → Instalar mesmo assim.", 10, Ui.SOFT, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 0));
         if (updating) t.addView(new GradientBar(this, 6).colors(Ui.AMBER, Ui.MINT).value(updatePct), Ui.margins(Ui.lp(-1, Ui.dp(6)), 0, 8, 0, 0));
         c.addView(t, Ui.lp(0, -2, 1f));
         if (!updating) c.addView(Ui.text(this, "Atualizar ›", 13, Ui.AMBER, true));
@@ -1755,8 +1846,8 @@ public class MainActivity extends Activity {
     private View roundCard() {
         loadRoundGov();
         LinearLayout c = Ui.card(this);
-        c.addView(Ui.text(this, "Quem disputa o 2º turno", 15, Ui.TEXT, true));
-        c.addView(Ui.text(this, "Domingo, 25/10/2026 • dados oficiais do 1º turno (TSE)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
+        c.addView(Ui.text(this, turn == 2 ? "Referência: como foi o 1º turno" : "Quem disputa o 2º turno", 15, Ui.TEXT, true));
+        c.addView(Ui.text(this, turn == 2 ? "Resultado do 1º turno (TSE) — não é a apuração de hoje" : "Domingo, 25/10/2026 • dados oficiais do 1º turno (TSE)", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 3, 0, 10));
         // presidente
         Model.Result p1 = snaps[0].pres;
         List<Model.Cand> pair = new ArrayList<>();
@@ -2601,7 +2692,38 @@ public class MainActivity extends Activity {
         Event e = new Event();
         e.icon = icon; e.title = title; e.detail = detail; e.at = System.currentTimeMillis();
         events.add(0, e);
-        while (events.size() > 50) events.remove(events.size() - 1);
+        while (events.size() > 150) events.remove(events.size() - 1);
+    }
+
+    private static String shortNm(String nome) {
+        String[] w = nome.trim().split("\\s+");
+        String x = w[w.length - 1];
+        return x.isEmpty() ? nome : x.substring(0, 1).toUpperCase(Locale.ROOT) + x.substring(1).toLowerCase(Locale.ROOT);
+    }
+
+    /** Lote novo de seções de um estado: quantas seções entraram e quantos votos cada um dos dois primeiros recebeu. */
+    private void addLots(int t, String cargo, Map<String, Model.Result> neu, Map<String, Model.Result> old) {
+        List<Event> novos = new ArrayList<>();
+        for (Map.Entry<String, Model.Result> e : neu.entrySet()) {
+            Model.Result o = old.get(e.getKey()), nw = e.getValue();
+            if (o == null || nw == null || nw.sections <= o.sections) continue;
+            StringBuilder d = new StringBuilder();
+            for (int i = 0; i < Math.min(2, nw.cands.size()); i++) {
+                Model.Cand c = nw.cands.get(i);
+                long prev = 0;
+                for (Model.Cand oc : o.cands) if (oc.nome.equals(c.nome)) prev = oc.votos;
+                if (d.length() > 0) d.append(" • ");
+                d.append(shortNm(c.nome)).append(" +").append(n(Math.max(0, c.votos - prev)));
+            }
+            d.append(" • apuração ").append(pc(nw.progress));
+            Event ev = new Event();
+            ev.icon = "📦"; ev.lot = true; ev.turn = t; ev.at = System.currentTimeMillis();
+            ev.title = ufName(e.getKey()) + " • " + cargo + " • +" + n(nw.sections - o.sections) + " seções";
+            ev.detail = d.toString();
+            novos.add(ev);
+        }
+        for (Event ev : novos) events.add(0, ev);
+        while (events.size() > 150) events.remove(events.size() - 1);
     }
 
     private void commit(int t, Model.Result pres, Map<String, Model.Result> s, Map<String, Model.Result> g, Map<String, Model.Result> d,
@@ -2653,6 +2775,8 @@ public class MainActivity extends Activity {
             if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
                 addEvent("🗺️", ufName(e.getKey()) + " mudou de líder", e.getValue().lead().nome + " passou à frente • Presidente • " + t + "º turno");
         }
+        addLots(t, "Presidente", s, oldStates);
+        addLots(t, "Governador", g, oldGov);
         for (Map.Entry<String, Model.Result> e : g.entrySet()) {
             Model.Result o = oldGov.get(e.getKey());
             if (o != null && o.lead() != null && e.getValue().lead() != null && !o.lead().nome.equals(e.getValue().lead().nome))
