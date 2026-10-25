@@ -1,6 +1,6 @@
 name: Brasil Decide — Arquivo da apuração
 
-# Congela a apuração coletada (branch "eleicao-data", pasta 2026/<dir>) numa release própria, que nenhuma atualização do app,
+# Congela e organiza a apuração coletada (branch "eleicao-data", pasta 2026/<dir>) numa release própria, que nenhuma atualização do app,
 # do site ou da branch de dados sobrescreve: a release "apuracao-2t-2026" é um arquivo separado do "app-latest".
 # Regra de segurança: nunca troca o arquivo por outro com MENOS snapshots (proteção contra perda de dados).
 on:
@@ -36,6 +36,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
     steps:
+      - uses: actions/checkout@v4
       - name: Definir o que arquivar
         id: def
         shell: bash
@@ -77,7 +78,9 @@ jobs:
           )
           read N FIRST LAST <<< "$INFO"
           echo "snapshots=$N primeiro=$FIRST ultimo=$LAST"
-          mkdir out
+          mkdir -p out
+          # tabelas CSV organizadas (série do Brasil, por UF, governadores, resultado final) + LEIA-ME
+          python3 eleicoes-2026/collector/export_series.py --src "$SRC" --out out
           gzip -9 -c "$SRC/snapshots.ndjson" > out/snapshots.ndjson.gz
           [ -s "$SRC/zz.ndjson" ] && gzip -9 -c "$SRC/zz.ndjson" > out/zz.ndjson.gz || true
           for f in meta.json index.json latest.json; do [ -f "$SRC/$f" ] && cp "$SRC/$f" out/ || true; done
