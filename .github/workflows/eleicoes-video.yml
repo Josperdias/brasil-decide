@@ -1,0 +1,81 @@
+name: Brasil Decide — Vídeo da apuração (MP4)
+
+# Gera o vídeo (MP4 H.264, 1080p) da apuração a partir dos dados já coletados e publica na release "apuracao-video"
+# (apuracao-2t-vertical.mp4, -quadrado.mp4, -horizontal.mp4). Só LÊ a branch de dados; o app e o site apontam para esses links.
+on:
+  workflow_dispatch:
+    inputs:
+      seconds:
+        description: 'Duração do vídeo (segundos)'
+        default: '45'
+      src:
+        description: 't2 (2º turno, dados reais) ou demo (simulado)'
+        default: 't2'
+  schedule:
+    - cron: '25 23 * * *'
+    - cron: '25 1,3,5,12 * * *'
+  push:
+    paths:
+      - 'eleicoes-2026/tools/render_video.js'
+      - '.github/workflows/eleicoes-video.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: video-apuracao
+  cancel-in-progress: false
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Ler os dados coletados e as fotos (somente leitura)
+        run: |
+          REPO_URL="https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
+          git clone -q --depth 1 --branch eleicao-data "$REPO_URL" data
+          git clone -q --depth 1 --branch eleicao-fotos "$REPO_URL" fotos || mkdir fotos
+          ls data/2026 | head
+      - name: Instalar o Chromium sem tela
+        working-directory: eleicoes-2026/tools
+        run: |
+          npm init -y > /dev/null
+          npm i --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Escolher dados e duração
+        id: cfg
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "src=demo" >> "$GITHUB_OUTPUT"; echo "seconds=8" >> "$GITHUB_OUTPUT"; echo "prefix=demonstracao" >> "$GITHUB_OUTPUT"
+          else
+            SRC="${{ github.event.inputs.src }}"; SRC="${SRC:-t2}"
+            echo "src=$SRC" >> "$GITHUB_OUTPUT"
+            echo "seconds=${{ github.event.inputs.seconds || '45' }}" >> "$GITHUB_OUTPUT"
+            if [ "$SRC" = "demo" ]; then echo "prefix=demonstracao" >> "$GITHUB_OUTPUT"; else echo "prefix=apuracao-2t" >> "$GITHUB_OUTPUT"; fi
+          fi
+      - name: Renderizar os vídeos
+        id: render
+        working-directory: eleicoes-2026/tools
+        run: |
+          set +e
+          node render_video.js --site ../../docs/eleicoes/index.html --data "../../data/2026/${{ steps.cfg.outputs.src }}" --fotos ../../fotos \
+            --out ../../video --fmt v,q,h --seconds "${{ steps.cfg.outputs.seconds }}" --fps 30 --src "${{ steps.cfg.outputs.src }}" --prefix "${{ steps.cfg.outputs.prefix }}"
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          if [ "$code" = "2" ]; then echo "Ainda não há dados suficientes; nada a publicar."; exit 0; fi
+          exit $code
+      - name: Publicar na release apuracao-video
+        if: steps.render.outputs.code == '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la video
+          NOTA="Vídeos MP4 (1080p) da apuração, gerados automaticamente a partir dos dados coletados do TSE (minuto a minuto). Atualizado em $(date -u '+%d/%m/%Y %H:%M') UTC. Fonte: TSE e Brasil Decide; sem projeção."
+          gh release view apuracao-video > /dev/null 2>&1 || gh release create apuracao-video --title "Vídeo da apuração (MP4)" --notes "$NOTA"
+          gh release upload apuracao-video video/*.mp4 --clobber
+          gh release edit apuracao-video --notes "$NOTA"

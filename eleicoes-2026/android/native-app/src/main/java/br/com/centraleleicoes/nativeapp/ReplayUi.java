@@ -1,6 +1,8 @@
 package br.com.centraleleicoes.nativeapp;
 
 import android.content.Context;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Handler;
 import android.view.Gravity;
 import android.view.View;
@@ -96,6 +98,38 @@ final class ReplayUi {
     }
 
     // ------------------------------------------------------------------ montagem
+    private static final String VIDEO_BASE = "https://github.com/Josperdias/brasil-decide/releases/download/apuracao-video/";
+
+    private void openLink(Context cx, String url) {
+        try {
+            Intent i = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            cx.startActivity(i);
+        } catch (Throwable ignored) { }
+    }
+
+    /** Vídeo MP4 (1080p) da apuração, gerado no servidor a partir dos dados coletados: baixar e postar. */
+    private View videoCard(Context cx) {
+        LinearLayout c = Ui.card(cx);
+        c.addView(Ui.text(cx, "🎬 Vídeo pronto para baixar (MP4)", 15, Ui.TEXT, true));
+        c.addView(Ui.text(cx, "A apuração em time-lapse, em alta qualidade (1080p): o país mudando de cor, fotos, votos e porcentagem avançando. Gerado automaticamente com os dados coletados e atualizado várias vezes na noite — se o arquivo ainda não existir, o primeiro vídeo ainda está sendo gerado.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 4, 0, 10));
+        LinearLayout row = Ui.row(cx);
+        String[][] b = {{"Vertical", "Stories/Reels", "apuracao-2t-vertical.mp4"}, {"Quadrado", "Feed", "apuracao-2t-quadrado.mp4"}, {"Horizontal", "TV/YouTube", "apuracao-2t-horizontal.mp4"}};
+        for (int i = 0; i < b.length; i++) {
+            final String file = b[i][2];
+            LinearLayout k = Ui.col(cx);
+            k.setGravity(Gravity.CENTER);
+            k.setPadding(Ui.dp(6), Ui.dp(10), Ui.dp(6), Ui.dp(10));
+            k.setBackground(i == 0 ? Ui.accent(13) : Ui.fill(0xFF0E2138, 13, Ui.LINE));
+            k.addView(Ui.text(cx, "⬇ " + b[i][0], 13, i == 0 ? Ui.INK : Ui.TEXT, true));
+            k.addView(Ui.text(cx, b[i][1], 10, i == 0 ? Ui.INK : Ui.MUTED, false));
+            k.setOnClickListener(v -> openLink(cx, VIDEO_BASE + file));
+            row.addView(k, Ui.margins(Ui.lp(0, -2, 1f), i == 0 ? 0 : 4, 0, i == b.length - 1 ? 0 : 4, 0));
+        }
+        c.addView(row);
+        return c;
+    }
+
     View build() {
         Context cx = host.ctx();
         LinearLayout root = Ui.col(cx);
@@ -105,6 +139,7 @@ final class ReplayUi {
         head.addView(Ui.text(cx, "▶ Replay da apuração", 18, Ui.TEXT, true));
         head.addView(Ui.text(cx, "Registros do coletor, minuto a minuto. Só reproduz dados oficiais; sem previsão.", 11, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 2, 0, 0));
         root.addView(head);
+        root.addView(videoCard(cx));
         if (series == null || series.snaps.isEmpty()) {
             LinearLayout e = Ui.card(cx);
             e.addView(Ui.text(cx, loading ? "Carregando os registros da apuração…" : "Ainda não há registros", 15, Ui.TEXT, true));
