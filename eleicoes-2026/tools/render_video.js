@@ -7,7 +7,7 @@ const fs = require('fs'), path = require('path'), { spawn } = require('child_pro
 const { chromium } = require('playwright');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d; };
-const GOV = arg('gov', ''), SITE = arg('site'), DATA = arg('data'), FOTOS = arg('fotos', ''), OUT = arg('out', 'out');
+const MUNDO = process.argv.includes('--mundo'), GOV = arg('gov', ''), SITE = arg('site'), DATA = arg('data'), FOTOS = arg('fotos', ''), OUT = arg('out', 'out');
 const FMTS = arg('fmt', 'v,q,h').split(','), SEC = +arg('seconds', 45), FPS = +arg('fps', 30), SRC = arg('src', 't2'), PREFIX = arg('prefix', 'apuracao-2t');
 const NAMES = { v: 'vertical', q: 'quadrado', h: 'horizontal' }, HOLD = 2.5;
 
@@ -19,6 +19,26 @@ function lerSnaps() {
 
 (async () => {
   const snaps = lerSnaps();
+  let world = null, mundoSnaps = null;
+  if (MUNDO) {
+    const W = JSON.parse(fs.readFileSync(path.join(__dirname, 'world.json'), 'utf8'));
+    const names = (JSON.parse(fs.readFileSync(path.join(DATA, 'meta.json'), 'utf8')).zz_names) || {};
+    const norm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+    const rows = fs.readFileSync(path.join(DATA, 'zz.ndjson'), 'utf8').split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch (e) { return null; } }).filter(r => r && r.loc).sort((a, b) => a.t - b.t);
+    mundoSnaps = rows.map(r => {
+      const tot = {}, cty = {}; let sec = 0, secT = 0, val = 0, bl = 0, nu = 0;
+      for (const [cd, x] of Object.entries(r.loc)) {
+        const iso = W.loc[norm(names[cd])]; sec += (x.s || [0, 0])[0]; secT += (x.s || [0, 0])[1];
+        val += (x.v || [0])[0] || 0; bl += (x.v || [0, 0])[1] || 0; nu += (x.v || [0, 0, 0])[2] || 0;
+        for (const [n, v] of (x.c || [])) { tot[n] = (tot[n] || 0) + v; if (iso) { cty[iso] = cty[iso] || {}; cty[iso][n] = (cty[iso][n] || 0) + v; } }
+      }
+      const arr = o => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, 4);
+      const uf = {}; for (const [iso, o] of Object.entries(cty)) uf[iso] = { c: arr(o) };
+      return { t: r.t, turn: r.turn || 2, br: { p: secT ? 100 * sec / secT : 0, s: [sec, secT], v: [val, bl, nu], c: arr(tot) }, uf, zz: null };
+    });
+    world = { paths: Object.fromEntries(Object.entries(W.countries).filter(([, c]) => c.p).map(([k, c]) => [k, c.p])), names: Object.fromEntries(Object.entries(W.countries).map(([k, c]) => [k, c.n])) };
+    if (mundoSnaps.length < 2) { console.log('dados insuficientes do exterior: ' + mundoSnaps.length + ' registro(s)'); process.exit(2); }
+  }
   if (GOV) { const n = snaps.filter(q => q.gv && q.gv[GOV]).length; if (n < 2) { console.log('dados insuficientes para ' + GOV + ': ' + n + ' registro(s)'); process.exit(2); } }
   if (snaps.length < 2) { console.log('dados insuficientes: ' + snaps.length + ' registro(s)'); process.exit(2); }
   const meta = JSON.parse(fs.readFileSync(path.join(DATA, 'meta.json'), 'utf8'));
@@ -31,7 +51,7 @@ function lerSnaps() {
   console.log(snaps.length + ' registros, ' + Object.keys(fotos).length + ' fotos');
   let html = fs.readFileSync(SITE, 'utf8');
   const hook = `/*RP_END*/window.__rp={
-    init:function(snaps,meta,fotos,fmt,dur,src,gov){RP.gov=gov||null;RP.raw=null;RP.snaps=snaps;RP.meta=meta;RP.src=src;rpPrep();RP.dur=dur;RP.fmt=fmt;
+    init:function(snaps,meta,fotos,fmt,dur,src,gov,world){RP.gov=gov||null;RP.raw=null;RP.world=!!world;if(world){RP.worldPaths=Object.fromEntries(Object.entries(world.paths).map(([k,v])=>[k,new Path2D(v)]));RP.worldNames=world.names}RP.snaps=snaps;RP.meta=meta;RP.src=src;rpPrep();RP.dur=dur;RP.fmt=fmt;
       const F=RP_FMT[fmt];F.cw=F.dw;F.ch=F.dh;RP.photos={};
       return Promise.all(Object.keys(fotos).map(k=>new Promise(res=>{const i=new Image();i.onload=()=>{RP.photos[k]=i;res()};i.onerror=()=>{RP.photos[k]=false;res()};i.src=fotos[k]})))},
     frame:function(p){rpFrame(p);return rpCanvas().toDataURL('image/jpeg',0.93).split(',')[1]}};`;
@@ -47,7 +67,7 @@ function lerSnaps() {
     page.on('pageerror', e => console.log('erro na página:', e.message));
     await page.goto('file://' + path.resolve(tmp));
     await page.waitForFunction(() => window.__rp, null, { timeout: 30000 });
-    await page.evaluate(([s, m, f, fm, d, src, g]) => window.__rp.init(s, m, f, fm, d, src, g), [snaps, meta, fotos, fmt, SEC, SRC, GOV]);
+    await page.evaluate(([s, m, f, fm, d, src, g, w]) => window.__rp.init(s, m, f, fm, d, src, g, w), [MUNDO ? mundoSnaps : snaps, meta, fotos, fmt, SEC, SRC, GOV, world]);
     const out = path.join(OUT, PREFIX + '-' + NAMES[fmt] + '.mp4');
     const ff = spawn('ffmpeg', ['-y', '-loglevel', 'error', '-f', 'image2pipe', '-framerate', String(FPS), '-vcodec', 'mjpeg', '-i', '-',
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart', out], { stdio: ['pipe', 'inherit', 'inherit'] });
