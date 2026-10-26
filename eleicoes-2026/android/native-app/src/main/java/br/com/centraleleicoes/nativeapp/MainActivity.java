@@ -1062,6 +1062,11 @@ public class MainActivity extends Activity {
             for (final String guf : new String[]{"AC", "AM", "DF", "ES", "RN", "TO"})
                 gv.addView(optChip("⬇ " + guf, false, v -> openUrl(VIDEO_BASE + "governador-" + guf + "-vertical.mp4")));
             c.addView(gv);
+            c.addView(Ui.text(this, "VOTO NO EXTERIOR (MAPA-MÚNDI)", 10, Ui.MUTED, true), Ui.margins(Ui.lp(-2, -2), 0, 14, 0, 6));
+            LinearLayout mr = Ui.row(this);
+            mr.addView(actionBtn("🌍 ⬇ Vertical", "Stories e Reels", v -> openUrl(VIDEO_BASE + "mundo-vertical.mp4")), Ui.margins(Ui.lp(0, -2, 1f), 0, 0, 4, 0));
+            mr.addView(actionBtn("🌍 ⬇ Horizontal", "TV e YouTube", v -> openUrl(VIDEO_BASE + "mundo-horizontal.mp4")), Ui.margins(Ui.lp(0, -2, 1f), 4, 0, 0, 0));
+            c.addView(mr);
             c.addView(Ui.text(this, "Senadores e deputados foram decididos no 1º turno e não têm replay minuto a minuto, por isso não há vídeo da apuração deles.", 10, Ui.MUTED, false), Ui.margins(Ui.lp(-2, -2), 0, 8, 0, 0));
         } else {
             c.addView(Ui.text(this, "O vídeo existe só para o 2º turno: a apuração foi gravada minuto a minuto a partir de 25/10/2026. Para o 1º turno, use a imagem.", 11, Ui.MUTED, false));

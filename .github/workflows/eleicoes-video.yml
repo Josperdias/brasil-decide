@@ -116,6 +116,9 @@ jobs:
             node render_video.js --site ../../docs/eleicoes/index.html --data ../../data/2026/t2 --fotos ../../fotos \
               --out ../../video-gov --fmt v,q --seconds "$SEC" --fps 24 --src t2 --gov "$UF" --prefix "governador-$UF" || echo "sem vídeo para $UF"
           done
+          # voto no exterior (mapa-múndi, país a país)
+          node render_video.js --site ../../docs/eleicoes/index.html --data ../../data/2026/t2 --fotos ../../fotos \
+            --out ../../video-gov --fmt v,h --seconds "$SEC" --fps 24 --src t2 --mundo --prefix mundo || echo "sem vídeo do exterior"
           ls -la ../../video-gov || true
       - name: Publicar na release apuracao-video
         env:
